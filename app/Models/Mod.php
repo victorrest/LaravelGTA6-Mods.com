@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
 
 class Mod extends Model
 {
@@ -107,7 +108,7 @@ class Mod extends Model
     protected function heroImageUrl(): Attribute
     {
         return Attribute::get(function (): string {
-            if ($this->hero_image_path && str_starts_with($this->hero_image_path, ['http://', 'https://'])) {
+            if ($this->hero_image_path && Str::startsWith($this->hero_image_path, ['http://', 'https://'])) {
                 return $this->hero_image_path;
             }
 
