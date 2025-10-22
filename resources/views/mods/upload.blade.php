@@ -326,6 +326,7 @@
                         method: 'POST',
                         headers: {
                             'X-CSRF-TOKEN': csrfToken,
+                            'X-Requested-With': 'XMLHttpRequest',
                             'Accept': 'application/json',
                         },
                         credentials: 'same-origin',
