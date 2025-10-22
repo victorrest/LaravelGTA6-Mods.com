@@ -38,15 +38,75 @@ class ChunkedUploadController extends Controller
 
         $disk = Storage::disk('local');
         $basePath = self::BASE_DIRECTORY . '/' . $uploadToken;
-        $chunksPath = $basePath . '/chunks';
+        $metaPath = $basePath . '/meta.json';
 
-        $disk->makeDirectory($chunksPath);
+        $disk->makeDirectory($basePath);
 
-        $absoluteChunksPath = $disk->path($chunksPath);
-        File::ensureDirectoryExists($absoluteChunksPath);
+        $absoluteBasePath = $disk->path($basePath);
+        File::ensureDirectoryExists($absoluteBasePath);
 
-        $chunkName = str_pad((string) $chunkIndex, 6, '0', STR_PAD_LEFT) . '.part';
-        $disk->putFileAs($chunksPath, $chunk, $chunkName);
+        $meta = null;
+        if ($disk->exists($metaPath)) {
+            $decoded = json_decode($disk->get($metaPath), true);
+            if (is_array($decoded)) {
+                $meta = $decoded;
+            }
+        }
+
+        if (! $meta) {
+            $meta = [
+                'user_id' => Auth::id(),
+                'original_name' => $data['original_name'],
+                'mime_type' => $data['mime_type'],
+                'final_name' => $this->generateFinalFilename($data['original_name']),
+                'size_bytes' => 0,
+                'upload_category' => $data['upload_category'],
+                'total_chunks' => $totalChunks,
+                'next_index' => 0,
+                'started_at' => now()->timestamp,
+            ];
+        }
+
+        if (($meta['total_chunks'] ?? $totalChunks) !== $totalChunks) {
+            abort(409, 'Chunk count mismatch.');
+        }
+
+        $expectedIndex = (int) ($meta['next_index'] ?? 0);
+
+        if ($chunkIndex !== $expectedIndex) {
+            abort(409, 'Unexpected chunk index.');
+        }
+
+        $finalName = $meta['final_name'];
+        $finalPath = $basePath . '/' . $finalName;
+        $absoluteFinalPath = $disk->path($finalPath);
+
+        File::ensureDirectoryExists(dirname($absoluteFinalPath));
+
+        $destination = fopen($absoluteFinalPath, $chunkIndex === 0 ? 'wb' : 'ab');
+        if ($destination === false) {
+            abort(500, 'Unable to open destination file for writing.');
+        }
+
+        $chunkStream = fopen($chunk->getRealPath(), 'rb');
+        if ($chunkStream === false) {
+            fclose($destination);
+            abort(500, 'Unable to open chunk for reading.');
+        }
+
+        $chunkSize = $chunk->getSize();
+        if ($chunkSize === null) {
+            $chunkSize = @filesize($chunk->getRealPath()) ?: 0;
+        }
+
+        stream_copy_to_stream($chunkStream, $destination);
+        fclose($chunkStream);
+        fclose($destination);
+
+        $meta['next_index'] = $chunkIndex + 1;
+        $meta['size_bytes'] = (int) ($meta['size_bytes'] ?? 0) + (int) $chunkSize;
+
+        $disk->put($metaPath, json_encode($meta));
 
         if ($chunkIndex + 1 < $totalChunks) {
             return response()->json([
@@ -56,58 +116,13 @@ class ChunkedUploadController extends Controller
             ]);
         }
 
-        $disk->makeDirectory($basePath);
+        $sizeBytes = @filesize($absoluteFinalPath) ?: 0;
 
-        $absoluteBasePath = $disk->path($basePath);
-        File::ensureDirectoryExists($absoluteBasePath);
+        $meta['size_bytes'] = $sizeBytes;
+        $meta['completed_at'] = now()->timestamp;
+        unset($meta['next_index']);
 
-        $finalName = $this->generateFinalFilename($data['original_name']);
-        $finalPath = $basePath . '/' . $finalName;
-        $absoluteFinalPath = $disk->path($finalPath);
-
-        File::ensureDirectoryExists(dirname($absoluteFinalPath));
-
-        $outputStream = fopen($absoluteFinalPath, 'ab');
-        if ($outputStream === false) {
-            abort(500, 'Unable to open destination file for writing.');
-        }
-
-        for ($index = 0; $index < $totalChunks; $index++) {
-            $partPath = $disk->path($chunksPath . '/' . str_pad((string) $index, 6, '0', STR_PAD_LEFT) . '.part');
-            if (! file_exists($partPath)) {
-                fclose($outputStream);
-                $disk->delete($finalPath);
-                abort(500, 'Missing chunk during assembly.');
-            }
-
-            $chunkStream = fopen($partPath, 'rb');
-            if ($chunkStream === false) {
-                fclose($outputStream);
-                $disk->delete($finalPath);
-                abort(500, 'Unable to open chunk for reading.');
-            }
-
-            stream_copy_to_stream($chunkStream, $outputStream);
-            fclose($chunkStream);
-            unlink($partPath);
-        }
-
-        fclose($outputStream);
-        $disk->deleteDirectory($chunksPath);
-
-        $sizeBytes = filesize($absoluteFinalPath);
-
-        $meta = [
-            'user_id' => Auth::id(),
-            'original_name' => $data['original_name'],
-            'mime_type' => $data['mime_type'],
-            'final_name' => $finalName,
-            'size_bytes' => $sizeBytes,
-            'upload_category' => $data['upload_category'],
-            'completed_at' => now()->timestamp,
-        ];
-
-        $disk->put($basePath . '/meta.json', json_encode($meta));
+        $disk->put($metaPath, json_encode($meta));
 
         $this->cleanExpiredDirectories();
 
@@ -146,11 +161,17 @@ class ChunkedUploadController extends Controller
 
             $meta = json_decode($disk->get($metaPath), true);
 
-            if (! $meta || empty($meta['completed_at'])) {
+            if (! $meta) {
                 continue;
             }
 
-            if (now()->subHours(12)->timestamp > (int) $meta['completed_at']) {
+            $referenceTimestamp = $meta['completed_at'] ?? $meta['started_at'] ?? null;
+
+            if (! $referenceTimestamp) {
+                continue;
+            }
+
+            if (now()->subHours(12)->timestamp > (int) $referenceTimestamp) {
                 $disk->deleteDirectory($directory);
             }
         }
