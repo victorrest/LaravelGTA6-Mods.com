@@ -6,6 +6,7 @@ use App\Models\ModCategory;
 use App\Models\ModComment;
 use App\Models\ModGalleryImage;
 use App\Models\User;
+use App\Support\EditorJsRenderer;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -151,5 +152,10 @@ class Mod extends Model
     protected function categoryNames(): Attribute
     {
         return Attribute::get(fn (): string => $this->categories->pluck('name')->join(', '));
+    }
+
+    public function getDescriptionHtmlAttribute(): string
+    {
+        return EditorJsRenderer::renderHtml($this->attributes['description'] ?? '');
     }
 }

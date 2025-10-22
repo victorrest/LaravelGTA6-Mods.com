@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Models\ModCategory;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
@@ -24,6 +25,12 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         View::share('siteBrand', Config::get('gta6.brand'));
+
+        if (!Schema::hasTable('mod_categories')) {
+            View::share('siteNavigation', Config::get('gta6.navigation'));
+
+            return;
+        }
 
         $navigation = Cache::remember('navigation:categories', now()->addMinutes(30), function () {
             return ModCategory::query()

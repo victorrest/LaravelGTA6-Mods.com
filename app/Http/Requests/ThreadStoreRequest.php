@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Rules\EditorJsContent;
 use Illuminate\Foundation\Http\FormRequest;
 
 class ThreadStoreRequest extends FormRequest
@@ -24,7 +25,7 @@ class ThreadStoreRequest extends FormRequest
         return [
             'title' => ['required', 'string', 'max:140'],
             'flair' => ['nullable', 'string', 'max:30'],
-            'body' => ['required', 'string', 'min:20'],
+            'body' => ['required', 'string', new EditorJsContent(20)],
         ];
     }
 }
