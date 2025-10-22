@@ -29,10 +29,6 @@ class TemporaryUploadService
             throw new RuntimeException('You are not allowed to use this upload.');
         }
 
-        if (empty($meta['completed_at'])) {
-            throw new RuntimeException('Upload has not finished processing yet.');
-        }
-
         $localFilePath = $this->buildPath($token, $meta['final_name'] ?? null);
 
         if (! $this->localDisk->exists($localFilePath)) {
