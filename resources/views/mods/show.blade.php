@@ -110,14 +110,14 @@
 
                 <div class="card overflow-hidden">
                     <div class="flex border-b border-gray-200 bg-gray-50">
-                        @foreach ($tabUrls as $tabKey => $tabUrl)
+                        @foreach ($tabUrls as $tabKey => $url)
                             @php
                                 $isActive = $activeTab === $tabKey;
                                 $activeClass = 'text-pink-600 border-pink-500 bg-white';
                                 $inactiveClass = 'text-gray-600 border-transparent hover:text-pink-600';
                             @endphp
                             <a
-                                href="{{ $tabUrl }}"
+                                href="{{ $url }}"
                                 data-tab-target="tab-{{ $tabKey }}"
                                 data-tab-active-class="{{ $activeClass }}"
                                 data-tab-inactive-class="{{ $inactiveClass }}"
