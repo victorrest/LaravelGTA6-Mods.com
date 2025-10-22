@@ -6,6 +6,7 @@ use App\Models\ModCategory;
 use App\Models\ModComment;
 use App\Models\ModGalleryImage;
 use App\Models\User;
+use App\Support\EditorJs;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -31,6 +32,10 @@ class Mod extends Model
     ];
 
     use HasFactory;
+
+    protected $appends = [
+        'description_html',
+    ];
 
     protected $fillable = [
         'user_id',
@@ -151,5 +156,15 @@ class Mod extends Model
     protected function categoryNames(): Attribute
     {
         return Attribute::get(fn (): string => $this->categories->pluck('name')->join(', '));
+    }
+
+    protected function descriptionHtml(): Attribute
+    {
+        return Attribute::get(fn (): string => EditorJs::render($this->attributes['description'] ?? ''));
+    }
+
+    protected function descriptionRaw(): Attribute
+    {
+        return Attribute::get(fn (): string => $this->attributes['description'] ?? '');
     }
 }

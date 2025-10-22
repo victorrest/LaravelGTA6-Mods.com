@@ -53,7 +53,14 @@
                     </div>
                     <div>
                         <label class="form-label" for="description">Description</label>
-                        <textarea id="description" name="description" rows="9" class="form-textarea" required>{{ old('description', $mod->description) }}</textarea>
+                        <x-editorjs
+                            name="description"
+                            id="description"
+                            :value="old('description', $mod->description_raw)"
+                            :plain-text="\App\Support\EditorJs::toPlainText(old('description', $mod->description_raw))"
+                            placeholder="Describe features, installation steps and credits"
+                            required
+                        />
                     </div>
                 </div>
 

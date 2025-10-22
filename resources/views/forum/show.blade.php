@@ -14,8 +14,8 @@
                 <span class="flex items-center"><i class="fa-solid fa-clock mr-2"></i>Created {{ $thread->created_at->format('M d, Y H:i') }}</span>
                 <span class="flex items-center"><i class="fa-solid fa-comments mr-2"></i>{{ $thread->replies_count }} replies</span>
             </div>
-            <div class="prose max-w-none text-gray-700">
-                {!! nl2br(e($thread->body)) !!}
+            <div class="editorjs-content">
+                {!! $thread->body_html !!}
             </div>
         </header>
 
@@ -28,7 +28,9 @@
                             <p class="font-semibold text-gray-900">{{ $post->author->name }}</p>
                             <span class="text-xs text-gray-500">{{ $post->created_at->diffForHumans() }}</span>
                         </div>
-                        <p class="text-sm text-gray-700 mt-2">{{ $post->body }}</p>
+                        <div class="text-sm text-gray-700 mt-2 editorjs-content">
+                            {!! $post->body_html !!}
+                        </div>
                     </div>
                 @empty
                     <p class="text-sm text-gray-500">There are no replies yet.</p>

@@ -63,7 +63,14 @@
 
                         <div>
                             <label class="form-label" for="description">Description</label>
-                            <textarea id="description" name="description" rows="9" class="form-textarea" placeholder="Describe features, installation steps and credits" required>{{ old('description') }}</textarea>
+                            <x-editorjs
+                                name="description"
+                                id="description"
+                                :value="old('description')"
+                                :plain-text="\App\Support\EditorJs::toPlainText(old('description'))"
+                                placeholder="Describe features, installation steps and credits"
+                                required
+                            />
                         </div>
 
                         <div class="flex items-center justify-end gap-3">
@@ -647,10 +654,18 @@
 
             categoriesSelect.addEventListener('change', updateCategories);
 
-            descriptionInput.addEventListener('input', () => {
-                const text = descriptionInput.value.trim();
-                reviewDescription.textContent = text ? text : '—';
-            });
+            const updateDescriptionPreview = (text) => {
+                const content = text?.trim();
+                reviewDescription.textContent = content ? content : '—';
+            };
+
+            if (descriptionInput) {
+                updateDescriptionPreview(descriptionInput.dataset.initialPlain || '');
+
+                descriptionInput.addEventListener('editorjs:change', (event) => {
+                    updateDescriptionPreview(event.detail?.plainText || '');
+                });
+            }
 
             nextButtons.forEach((button) => {
                 button.addEventListener('click', () => {
@@ -684,10 +699,6 @@
 
             if (versionInput.value.trim()) {
                 versionInput.dispatchEvent(new Event('input'));
-            }
-
-            if (descriptionInput.value.trim()) {
-                reviewDescription.textContent = descriptionInput.value.trim();
             }
 
             if (downloadInput.value.trim()) {

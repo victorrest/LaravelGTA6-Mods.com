@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests;
 
+use App\Support\EditorJs;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Str;
 
 class ModStoreRequest extends FormRequest
 {
@@ -27,7 +29,7 @@ class ModStoreRequest extends FormRequest
             'category_ids' => ['required', 'array', 'min:1'],
             'category_ids.*' => ['integer', 'exists:mod_categories,id'],
             'download_url' => ['nullable', 'url', 'required_without_all:mod_file,mod_file_token'],
-            'description' => ['required', 'string', 'min:20'],
+            'description' => ['required', 'json'],
             'hero_image' => ['nullable', 'image', 'max:4096'],
             'hero_image_token' => ['nullable', 'uuid'],
             'gallery_images' => ['nullable', 'array', 'max:12'],
@@ -50,6 +52,22 @@ class ModStoreRequest extends FormRequest
     public function withValidator($validator): void
     {
         $validator->after(function ($validator) {
+            $description = $this->input('description');
+
+            if ($description) {
+                $decoded = EditorJs::decode($description);
+
+                if (! isset($decoded['blocks']) || empty($decoded['blocks'])) {
+                    $validator->errors()->add('description', 'Please add some content to the description.');
+                } else {
+                    $plain = EditorJs::toPlainText($description);
+
+                    if (Str::of($plain)->length() < 20) {
+                        $validator->errors()->add('description', 'Description must be at least 20 characters of meaningful text.');
+                    }
+                }
+            }
+
             $tokenCount = count($this->input('gallery_image_tokens', []));
             $fileCount = count($this->file('gallery_images', []));
 

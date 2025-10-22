@@ -59,7 +59,9 @@
                             </button>
                         </form>
                     </div>
-                    <div class="rounded-xl bg-gray-50 border border-gray-100 p-4 text-sm text-gray-700 leading-relaxed">{!! nl2br(e($post->body)) !!}</div>
+                    <div class="rounded-xl bg-gray-50 border border-gray-100 p-4 text-sm text-gray-700 leading-relaxed editorjs-content">
+                        {!! $post->body_html !!}
+                    </div>
                 </article>
             @empty
                 <p class="p-6 text-sm text-gray-500">Nincsenek hozzászólások.</p>
