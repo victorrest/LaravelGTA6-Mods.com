@@ -52,11 +52,16 @@ class ChunkedUploadController extends Controller
             ]);
         }
 
+        $disk->makeDirectory($basePath);
+
         $finalName = $this->generateFinalFilename($data['original_name']);
         $finalPath = $basePath . '/' . $finalName;
         $absoluteFinalPath = storage_path('app/' . $finalPath);
 
         $outputStream = fopen($absoluteFinalPath, 'ab');
+        if ($outputStream === false) {
+            abort(500, 'Unable to open destination file for writing.');
+        }
 
         for ($index = 0; $index < $totalChunks; $index++) {
             $partPath = storage_path('app/' . $chunksPath . '/' . str_pad((string) $index, 6, '0', STR_PAD_LEFT) . '.part');
@@ -67,6 +72,12 @@ class ChunkedUploadController extends Controller
             }
 
             $chunkStream = fopen($partPath, 'rb');
+            if ($chunkStream === false) {
+                fclose($outputStream);
+                $disk->delete($finalPath);
+                abort(500, 'Unable to open chunk for reading.');
+            }
+
             stream_copy_to_stream($chunkStream, $outputStream);
             fclose($chunkStream);
             unlink($partPath);
