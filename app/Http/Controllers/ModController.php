@@ -95,6 +95,27 @@ class ModController extends Controller
         $allowedTabs = ['description', 'comments', 'changelog'];
         $activeTab = in_array($requestedTab, $allowedTabs, true) ? $requestedTab : 'description';
 
+        $tabNavigation = [
+            [
+                'key' => 'description',
+                'label' => 'Leírás',
+                'url' => route('mods.show', ['mod' => $mod]),
+                'is_active' => $activeTab === 'description',
+            ],
+            [
+                'key' => 'comments',
+                'label' => 'Kommentek (' . $mod->comments_count . ')',
+                'url' => route('mods.show', ['mod' => $mod, 'tab' => 'comments']),
+                'is_active' => $activeTab === 'comments',
+            ],
+            [
+                'key' => 'changelog',
+                'label' => 'Changelog',
+                'url' => route('mods.show', ['mod' => $mod, 'tab' => 'changelog']),
+                'is_active' => $activeTab === 'changelog',
+            ],
+        ];
+
         return view('mods.show', [
             'mod' => $mod,
             'comments' => $comments,
@@ -110,6 +131,7 @@ class ModController extends Controller
             'metaDetails' => $metaDetails,
             'galleryImages' => $galleryImages,
             'activeTab' => $activeTab,
+            'tabNavigation' => $tabNavigation,
         ]);
     }
 
