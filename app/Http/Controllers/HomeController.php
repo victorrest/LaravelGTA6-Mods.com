@@ -50,6 +50,50 @@ class HomeController extends Controller
             ];
         });
 
+        $featuredModsPayload = $homeData['featuredMods']->map(function (Mod $mod) {
+            return [
+                'title' => $mod->title,
+                'author' => $mod->author?->name,
+                'link' => route('mods.show', $mod),
+                'image' => $mod->hero_image_url,
+            ];
+        })->values()->all();
+
+        $popularModsPayload = $homeData['popularMods']->map(function (Mod $mod) {
+            return [
+                'title' => $mod->title,
+                'author' => $mod->author?->name,
+                'link' => route('mods.show', $mod),
+                'image' => $mod->hero_image_url,
+                'rating' => $mod->rating ? number_format((float) $mod->rating, 1) : null,
+                'likes' => $mod->likes,
+                'downloads' => $mod->downloads,
+            ];
+        })->values()->all();
+
+        $latestModsPayload = $homeData['latestMods']->map(function (Mod $mod) {
+            return [
+                'title' => $mod->title,
+                'author' => $mod->author?->name,
+                'link' => route('mods.show', $mod),
+                'image' => $mod->hero_image_url,
+                'rating' => $mod->rating ? number_format((float) $mod->rating, 1) : null,
+                'likes' => $mod->likes,
+                'downloads' => $mod->downloads,
+            ];
+        })->values()->all();
+
+        $latestNewsPayload = $homeData['latestNews']->map(function (NewsArticle $article) {
+            return [
+                'title' => $article->title,
+                'link' => route('news.show', $article),
+                'image' => null,
+                'category' => 'News',
+                'date' => optional($article->published_at)->format('M d, Y'),
+                'summary' => $article->excerpt,
+            ];
+        })->values()->all();
+
         return view('home', [
             'featuredMods' => $homeData['featuredMods'],
             'popularMods' => $homeData['popularMods'],
@@ -57,6 +101,12 @@ class HomeController extends Controller
             'latestNews' => $homeData['latestNews'],
             'topThreads' => $homeData['topThreads'],
             'isHome' => true,
+            'homeFeedPayload' => [
+                'featuredMods' => $featuredModsPayload,
+                'popularMods' => $popularModsPayload,
+                'latestMods' => $latestModsPayload,
+                'latestNews' => $latestNewsPayload,
+            ],
         ]);
     }
 }
