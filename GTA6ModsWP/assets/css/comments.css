@@ -1,0 +1,463 @@
+/* GTA6 Mods custom comment styles */
+#gta6-comments {
+    font-family: 'Inter', sans-serif;
+}
+
+#gta6-comments .card {
+    background-color: #ffffff;
+    border-radius: 0.75rem;
+    border: 1px solid #e5e7eb78;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 1%), 0 2px 4px -2px rgb(0 0 0 / 4%);
+}
+
+#gta6-comments .btn-download {
+    background-color: #ec4899;
+    color: #ffffff;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 14px 0 rgba(236, 72, 153, 0.3);
+}
+
+#gta6-comments .btn-download:hover {
+    background-color: #db2777;
+}
+
+#gta6-comments .action-btn {
+    border: 1px solid #e5e7eb;
+    color: #4b5563;
+}
+
+#gta6-comments .action-btn:hover {
+    background-color: #f3f4f6;
+    border-color: #d1d5db;
+}
+
+#gta6-comments .accent-pink {
+    color: #ec4899;
+}
+
+#gta6-comments .border-pink {
+    border-color: #ec4899;
+}
+
+#gta6-comments .hover-bg-pink-light:hover {
+    background-color: #fdf2f8;
+}
+
+#gta6-comments .comment-wrapper.is-collapsed .comment-body,
+#gta6-comments .comment-wrapper.is-collapsed .comment-replies,
+#gta6-comments .comment-wrapper.is-collapsed .comment-attachments {
+    display: none;
+}
+
+#gta6-comments .comment-wrapper.is-collapsed .collapsed-text {
+    display: inline;
+}
+
+#gta6-comments .comment-wrapper.is-collapsed .clickable-area .avatar {
+    display: none;
+}
+
+#gta6-comments .clickable-area .collapsed-icon {
+    display: none;
+}
+
+#gta6-comments .comment-wrapper.is-collapsed .clickable-area .collapsed-icon {
+    display: flex;
+}
+
+#gta6-comments .comment-wrapper.is-collapsed .comment-main-content {
+    display: flex;
+    align-items: center;
+}
+
+#gta6-comments .comment-wrapper--pinned > .comment-instance > .comment-main-content > .comment-body {
+    background-color: #fffbeb;
+    border-radius: 0.75rem;
+    padding: 0.75rem;
+    margin-top: 0.75rem;
+}
+
+#gta6-comments .comment-wrapper--pinned > .comment-instance > .clickable-area > .comment-thread-line {
+    background-color: #db2777;
+}
+
+#gta6-comments .comment-wrapper--pinned > .comment-instance > .clickable-area:hover > .comment-thread-line {
+    background-color: #be185d;
+}
+
+#gta6-comments .comment-wrapper--pinned .comment-replies .comment-thread-line {
+    background-color: #e5e7eb;
+}
+
+#gta6-comments .comment-wrapper--pinned .comment-replies .comment-thread-line:hover {
+    background-color: #ec4899;
+}
+
+#gta6-comments .comment-wrapper--pinned > .comment-instance > .comment-main-content > .comment-body .comment-content {
+    margin-top: 0.25rem;
+}
+
+#gta6-comments .comment-wrapper--pinned > .comment-instance > .comment-main-content > .comment-body .comment-pinned-badge + .comment-content {
+    margin-top: 0.5rem;
+}
+
+#gta6-comments .comment-retracted-text {
+    color: #6b7280;
+    font-style: italic;
+}
+
+#gta6-comments .comment-wrapper--highlight > .comment-instance {
+    border-radius: 0.375rem;
+    animation: commentHighlightInstance 5s ease-out forwards;
+}
+
+@keyframes commentHighlightInstance {
+    0% {
+        background-color: rgb(240 249 255);
+    }
+    40% {
+        background-color: rgb(202 234 255 / 52%);
+    }
+    100% {
+        background-color: transparent;
+    }
+}
+
+#gta6-comments .comment-box-textarea {
+    transition: all 0.2s ease-in-out;
+    outline: none !important;
+    min-height: 44px;
+}
+
+#gta6-comments .comment-box-textarea[data-editor-mode="plain"] {
+    white-space: pre-wrap;
+}
+
+#gta6-comments .comment-box-textarea:focus {
+    box-shadow: none !important;
+}
+
+#gta6-comments .comment-box-textarea.is-empty::before {
+    content: attr(data-placeholder);
+    color: #9ca3af;
+    pointer-events: none;
+    display: block;
+}
+
+#gta6-comments .comment-rich-editor {
+    display: flex;
+    flex-direction: column;
+    background-color: #f9fafb;
+}
+
+#gta6-comments .comment-editor-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid #e5e7eb;
+    background-color: inherit;
+}
+
+#gta6-comments .comment-editor-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.375rem;
+    color: #4b5563;
+    transition: color 0.2s ease, background-color 0.2s ease;
+}
+
+#gta6-comments .comment-editor-button:hover,
+#gta6-comments .comment-editor-button:focus {
+    background-color: rgba(236, 72, 153, 0.1);
+    color: #be185d;
+    outline: none;
+}
+
+#gta6-comments .comment-editor-button i {
+    pointer-events: none;
+}
+
+.dark-mode #gta6-comments .comment-rich-editor {
+    background-color: #1f2937;
+}
+
+.dark-mode #gta6-comments .comment-editor-toolbar {
+    border-color: #374151;
+}
+
+.dark-mode #gta6-comments .comment-editor-button {
+    color: #d1d5db;
+}
+
+.dark-mode #gta6-comments .comment-editor-button:hover,
+.dark-mode #gta6-comments .comment-editor-button:focus {
+    background-color: rgba(236, 72, 153, 0.2);
+    color: #f472b6;
+}
+
+#gta6-comments .mention-tag {
+    background-color: #eff6ff;
+    color: #3b82f6;
+    border-radius: 0.25rem;
+    padding: 0.125rem 0.25rem;
+    font-weight: 500;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+#gta6-comments .comment-content a {
+    color: #3b82f6;
+}
+
+#gta6-comments .comment-content a:hover {
+    color: #2563eb;
+}
+
+#gta6-comments .comment-menu {
+    min-width: 10rem;
+}
+
+#gta6-comments #giphy-results {
+    scrollbar-width: thin;
+    scrollbar-color: #ec4899 #f3f4f6;
+}
+
+#gta6-comments .comment-like-btn[aria-pressed="true"] {
+    color: #ec4899;
+    font-weight: 600;
+}
+
+#gta6-comments .comment-media img {
+    border-radius: 0.5rem;
+}
+
+.comment-attachment-image {
+    max-height: 150px;
+    width: auto;
+    border-radius: 0.5rem;
+    cursor: zoom-in;
+    transition: opacity 0.2s ease-in-out;
+}
+
+.comment-attachment-image:hover {
+    opacity: 0.85;
+}
+
+#gta6-comments .comment-box-container.has-preview .comment-actions-bar {
+    display: flex !important;
+}
+
+#gta6-comments .comment-box-container .image-preview-container img,
+#gta6-comments .comment-box-container .gif-preview-container img {
+    max-height: 6rem;
+}
+
+#gta6-comments .comment-box-container .remove-image-btn,
+#gta6-comments .comment-box-container .remove-gif-btn {
+    line-height: 1;
+}
+
+#gta6-comments .comment-form-hidden-fields {
+    display: none;
+}
+
+#gta6-mention-suggestions {
+    max-height: 16rem;
+    overflow-y: auto;
+}
+
+/* === NEW, FINAL STYLES FOR THREADING === */
+#gta6-comments .comment-wrapper {
+    position: relative;
+    /* Create space on the left for the thread line/avatar column */
+    padding-left: 40px; /* 40px avatar + 12px gap */
+}
+
+/* Position the entire left column absolutely */
+#gta6-comments .comment-instance > .flex-shrink-0 {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 40px; /* Avatar width */
+    height: 100%;
+}
+
+#gta6-comments .clickable-area {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+}
+
+#gta6-comments .clickable-area:focus-visible {
+    outline: 2px solid rgba(236, 72, 153, 0.6);
+    outline-offset: 2px;
+    border-radius: 9999px;
+}
+
+/* The line element, inside the now-stretched clickable area */
+#gta6-comments .comment-thread-line {
+    display: block;
+    position: absolute;
+    top: 40px; /* Start below avatar */
+    bottom: 0;
+    left: 20px; /* Center of the 40px column */
+    transform: translateX(-50%);
+    width: 2px;
+    background-color: #e5e7eb;
+    transition: background-color 0.2s ease-in-out;
+    z-index: 1;
+}
+
+#gta6-comments .clickable-area:hover .comment-thread-line {
+    background-color: #ec4899;
+}
+
+/* The avatar and collapsed icon need to be on top of the line */
+#gta6-comments .clickable-area .avatar,
+#gta6-comments .clickable-area .collapsed-icon {
+    position: relative;
+    z-index: 2;
+}
+
+/* --- Collapsed State Adjustments --- */
+#gta6-comments .comment-wrapper.is-collapsed {
+    padding-left: 0; /* Remove padding when collapsed */
+}
+
+#gta6-comments .comment-wrapper.is-collapsed > .comment-instance > .flex-shrink-0 {
+    position: static; /* Revert positioning to flow normally */
+    width: auto;
+    height: auto;
+}
+
+#gta6-comments .comment-wrapper.is-collapsed .comment-thread-line {
+    display: none;
+}
+
+/* === RESPONSIVE COMMENT DEPTH & CONTROLS (ÚJ SZABÁLYOK) === */
+
+/* --- Általános szabályok (minden képernyőméretre) --- */
+
+/* A "Cancel" gomb elrejtése depth-3 mélységtől */
+#gta6-comments .depth-3 .cancel-reply-btn,
+#gta6-comments .depth-4 .cancel-reply-btn,
+#gta6-comments .depth-5 .cancel-reply-btn,
+#gta6-comments .depth-6 .cancel-reply-btn,
+#gta6-comments .depth-7 .cancel-reply-btn,
+#gta6-comments .depth-8 .cancel-reply-btn,
+#gta6-comments .depth-9 .cancel-reply-btn,
+#gta6-comments .depth-10 .cancel-reply-btn {
+    display: none;
+}
+
+/* --- Alapértelmezett (mobil) nézet (< 640px) --- */
+/* Behúzás és profilkép elrejtése depth-3 szinttől */
+#gta6-comments .depth-3,
+#gta6-comments .depth-4,
+#gta6-comments .depth-5,
+#gta6-comments .depth-6,
+#gta6-comments .depth-7,
+#gta6-comments .depth-8,
+#gta6-comments .depth-9,
+#gta6-comments .depth-10 {
+    padding-left: 0 !important;
+}
+
+#gta6-comments .depth-3 > .comment-instance > .flex-shrink-0,
+#gta6-comments .depth-4 > .comment-instance > .flex-shrink-0,
+#gta6-comments .depth-5 > .comment-instance > .flex-shrink-0,
+#gta6-comments .depth-6 > .comment-instance > .flex-shrink-0,
+#gta6-comments .depth-7 > .comment-instance > .flex-shrink-0,
+#gta6-comments .depth-8 > .comment-instance > .flex-shrink-0,
+#gta6-comments .depth-9 > .comment-instance > .flex-shrink-0,
+#gta6-comments .depth-10 > .comment-instance > .flex-shrink-0 {
+    display: none;
+}
+
+
+/* --- Tablet nézet (sm: 640px+) --- */
+@media (min-width: 640px) {
+    /* Visszaállítjuk a depth-3 behúzását, ami az eredeti limit volt tableten */
+    #gta6-comments .depth-3 {
+        padding-left: 40px !important;
+    }
+
+    #gta6-comments .depth-3 > .comment-instance > .flex-shrink-0 {
+        display: flex;
+    }
+    
+    /* Majd depth-4-től újra megszüntetjük a behúzást ezen a méreten */
+    #gta6-comments .depth-4,
+    #gta6-comments .depth-5,
+    #gta6-comments .depth-6,
+    #gta6-comments .depth-7,
+    #gta6-comments .depth-8,
+    #gta6-comments .depth-9,
+    #gta6-comments .depth-10 {
+        padding-left: 0 !important;
+    }
+
+    #gta6-comments .depth-4 > .comment-instance > .flex-shrink-0,
+    #gta6-comments .depth-5 > .comment-instance > .flex-shrink-0,
+    #gta6-comments .depth-6 > .comment-instance > .flex-shrink-0,
+    #gta6-comments .depth-7 > .comment-instance > .flex-shrink-0,
+    #gta6-comments .depth-8 > .comment-instance > .flex-shrink-0,
+    #gta6-comments .depth-9 > .comment-instance > .flex-shrink-0,
+    #gta6-comments .depth-10 > .comment-instance > .flex-shrink-0 {
+        display: none;
+    }
+}
+
+/* --- Asztali nézet (md: 768px+) --- */
+@media (min-width: 768px) {
+    /* Visszaállítjuk a behúzást és a profilképet depth-6-ig */
+    #gta6-comments .depth-4,
+    #gta6-comments .depth-5,
+    #gta6-comments .depth-6 {
+        padding-left: 40px !important;
+    }
+
+    #gta6-comments .depth-4 > .comment-instance > .flex-shrink-0,
+    #gta6-comments .depth-5 > .comment-instance > .flex-shrink-0,
+    #gta6-comments .depth-6 > .comment-instance > .flex-shrink-0 {
+        display: flex;
+    }
+
+    /* Majd depth-7-től szüntetjük meg a behúzást */
+    #gta6-comments .depth-7,
+    #gta6-comments .depth-8,
+    #gta6-comments .depth-9,
+    #gta6-comments .depth-10 {
+        padding-left: 0 !important;
+    }
+    
+    #gta6-comments .depth-7 > .comment-instance > .flex-shrink-0,
+    #gta6-comments .depth-8 > .comment-instance > .flex-shrink-0,
+    #gta6-comments .depth-9 > .comment-instance > .flex-shrink-0,
+    #gta6-comments .depth-10 > .comment-instance > .flex-shrink-0 {
+        display: none;
+    }
+}
+
+/* Custom styles for author links */
+#gta6-comments .comment-author-link,
+#gta6-comments .comment-author-link:hover {
+    color: inherit; /* Inherit color from parent <p> tag */
+    text-decoration: none; /* Remove underline */
+}
+
+@keyframes pulse {
+    50% {
+        opacity: .5;
+    }
+}
+
+.animate-pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+

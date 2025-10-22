@@ -1,0 +1,37 @@
+User-agent: *
+Allow: /
+
+# Allow WordPress content
+Disallow: /wp-admin/
+Disallow: /wp-includes/
+Disallow: /wp-content/plugins/
+Disallow: /wp-content/themes/
+Allow: /wp-content/uploads/
+
+# Allow high-value pages
+Allow: /category/
+Allow: /tag/
+Allow: /search/
+
+# Block low-quality content
+Disallow: /search/*?*         # Search with parameters
+Disallow: /search/a$           # 1-character searches
+Disallow: /search/aa$          # 2-character searches
+
+# Block deep pagination (page 5+)
+Disallow: /*/page/[5-9]
+Disallow: /*/page/[0-9][0-9]
+
+# Crawl delays for aggressive bots
+User-agent: GPTBot
+Crawl-delay: 10
+
+User-agent: CCBot
+Crawl-delay: 10
+
+User-agent: anthropic-ai
+Crawl-delay: 10
+
+# Sitemaps
+Sitemap: https://gta6-mods.com/sitemap.xml
+Sitemap: https://gta6-mods.com/sitemap-images.xml
