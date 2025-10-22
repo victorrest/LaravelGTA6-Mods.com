@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\TemporaryUploadMissingException;
 use App\Http\Requests\ModStoreRequest;
 use App\Http\Requests\ModUpdateRequest;
 use App\Models\Mod;
@@ -145,7 +146,13 @@ class ModManagementController extends Controller
     private function storeHeroImage(ModStoreRequest|ModUpdateRequest $request): ?string
     {
         if ($token = $request->input('hero_image_token')) {
-            return $this->temporaryUploadService->moveToPublic($token, 'mods/hero-images')['path'] ?? null;
+            try {
+                return $this->temporaryUploadService->moveToPublic($token, 'mods/hero-images')['path'] ?? null;
+            } catch (TemporaryUploadMissingException) {
+                throw ValidationException::withMessages([
+                    'hero_image' => 'Your hero image upload has expired. Please upload it again.',
+                ]);
+            }
         }
 
         if (! $request->hasFile('hero_image')) {
@@ -158,7 +165,13 @@ class ModManagementController extends Controller
     private function storeModFile(ModStoreRequest|ModUpdateRequest $request): ?array
     {
         if ($token = $request->input('mod_file_token')) {
-            return $this->temporaryUploadService->moveToPublic($token, 'mods/files');
+            try {
+                return $this->temporaryUploadService->moveToPublic($token, 'mods/files');
+            } catch (TemporaryUploadMissingException) {
+                throw ValidationException::withMessages([
+                    'mod_file' => 'Your mod file upload has expired. Please upload the file again.',
+                ]);
+            }
         }
 
         if (! $request->hasFile('mod_file')) {
@@ -184,7 +197,14 @@ class ModManagementController extends Controller
             ->values();
 
         foreach ($galleryTokens as $token) {
-            $upload = $this->temporaryUploadService->moveToPublic($token, 'mods/gallery');
+            try {
+                $upload = $this->temporaryUploadService->moveToPublic($token, 'mods/gallery');
+            } catch (TemporaryUploadMissingException) {
+                throw ValidationException::withMessages([
+                    'gallery_images' => 'One or more gallery image uploads have expired. Please upload them again.',
+                ]);
+            }
+
             $mod->galleryImages()->create([
                 'path' => $upload['path'],
                 'position' => ++$position,
