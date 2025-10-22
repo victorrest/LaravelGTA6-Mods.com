@@ -116,7 +116,13 @@ return [
                     1 => 'center',
                 ],
             ],
-            'youtube' => [
+            'code' => [
+                'code' => [
+                    'type' => 'string',
+                    'allowedTags' => '*',
+                ],
+            ],
+            'embed' => [
                 'service' => 'string',
                 'source' => 'string',
                 'embed' => 'string',
@@ -124,14 +130,7 @@ return [
                 'height' => 'integer',
                 'caption' => [
                     'type' => 'string',
-                    'required' => false,
-                    'allowedTags' => 'i,b,a[href],code[class],mark[class]',
-                ],
-            ],
-            'code' => [
-                'code' => [
-                    'type' => 'string',
-                    'allowedTags' => '*',
+                    'allowedTags' => 'i,b,a[href]',
                 ],
             ],
             'delimiter' => [],

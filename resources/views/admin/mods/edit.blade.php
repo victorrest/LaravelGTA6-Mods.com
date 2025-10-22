@@ -58,17 +58,17 @@
                 <textarea id="excerpt" name="excerpt" rows="3" class="form-textarea">{{ old('excerpt', $mod->excerpt) }}</textarea>
                 <p class="form-help">Rövid leírás a listanézetekhez, maximum 255 karakter.</p>
             </div>
-            <div>
-                <label class="form-label" for="admin-mod-description-editor">Leírás</label>
-                <x-editor-js
-                    name="description"
-                    :value="$mod->description"
-                    input-id="description"
-                    holder-id="admin-mod-description-editor"
-                    placeholder="Írd le részletesen a mod funkcióit, telepítését és krediteket"
-                    class="mt-2"
-                />
-            </div>
+        <div>
+            <label class="form-label" for="description">Leírás</label>
+            <x-editorjs
+                name="description"
+                id="description"
+                :value="old('description', $mod->description_raw)"
+                :plain-text="\App\Support\EditorJs::toPlainText(old('description', $mod->description_raw))"
+                placeholder="Fogalmazd meg a mod részletes leírását"
+                required
+            />
+        </div>
             <div class="grid gap-4 md:grid-cols-2">
                 <div>
                     <label class="form-label" for="category_ids">Kategóriák</label>

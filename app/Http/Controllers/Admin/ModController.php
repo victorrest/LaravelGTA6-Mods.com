@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Mod;
 use App\Models\ModCategory;
+use App\Support\EditorJs;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class ModController extends Controller
@@ -53,7 +55,7 @@ class ModController extends Controller
             'title' => ['required', 'string', 'max:150'],
             'slug' => ['required', 'string', 'max:160', Rule::unique('mods', 'slug')->ignore($mod->id)],
             'excerpt' => ['nullable', 'string', 'max:255'],
-            'description' => ['required', 'string'],
+            'description' => ['required', 'json'],
             'download_url' => ['required', 'url'],
             'version' => ['required', 'string', 'max:50'],
             'file_size' => ['nullable', 'numeric', 'min:0'],
@@ -64,10 +66,17 @@ class ModController extends Controller
             'hero_image' => ['nullable', 'image', 'max:4096'],
         ]);
 
+        $descriptionPlain = EditorJs::toPlainText($validated['description']);
+        $excerpt = $validated['excerpt'] ?? null;
+
+        if (! $excerpt) {
+            $excerpt = Str::limit($descriptionPlain, 200);
+        }
+
         $mod->fill([
             'title' => $validated['title'],
             'slug' => $validated['slug'],
-            'excerpt' => $validated['excerpt'] ?? null,
+            'excerpt' => $excerpt,
             'description' => $validated['description'],
             'download_url' => $validated['download_url'],
             'version' => $validated['version'],

@@ -62,13 +62,14 @@
                         </div>
 
                         <div>
-                            <label class="form-label" for="mod-description-editor">Description</label>
-                            <x-editor-js
+                            <label class="form-label" for="description">Description</label>
+                            <x-editorjs
                                 name="description"
-                                input-id="description"
-                                holder-id="mod-description-editor"
+                                id="description"
+                                :value="old('description')"
+                                :plain-text="\App\Support\EditorJs::toPlainText(old('description'))"
                                 placeholder="Describe features, installation steps and credits"
-                                class="mt-2"
+                                required
                             />
                         </div>
 
@@ -277,7 +278,7 @@
 
             const titleInput = document.getElementById('title');
             const versionInput = document.getElementById('version');
-            const descriptionEditorWrapper = document.querySelector('[data-editorjs][data-holder="mod-description-editor"]');
+            const descriptionInput = document.getElementById('description');
             const downloadInput = document.getElementById('download_url');
             const categoriesSelect = document.getElementById('category_ids');
             const fileSizeInput = document.getElementById('file_size');
@@ -653,18 +654,16 @@
 
             categoriesSelect.addEventListener('change', updateCategories);
 
-            const updateDescriptionPreview = (plainText = '') => {
-                const text = (typeof plainText === 'string' ? plainText : '').trim();
-                reviewDescription.textContent = text || '—';
+            const updateDescriptionPreview = (text) => {
+                const content = text?.trim();
+                reviewDescription.textContent = content ? content : '—';
             };
 
-            if (descriptionEditorWrapper) {
-                descriptionEditorWrapper.addEventListener('editorjs:ready', (event) => {
-                    updateDescriptionPreview(event.detail?.plainText ?? '');
-                });
+            if (descriptionInput) {
+                updateDescriptionPreview(descriptionInput.dataset.initialPlain || '');
 
-                descriptionEditorWrapper.addEventListener('editorjs:change', (event) => {
-                    updateDescriptionPreview(event.detail?.plainText ?? '');
+                descriptionInput.addEventListener('editorjs:change', (event) => {
+                    updateDescriptionPreview(event.detail?.plainText || '');
                 });
             }
 
@@ -701,7 +700,6 @@
             if (versionInput.value.trim()) {
                 versionInput.dispatchEvent(new Event('input'));
             }
-
 
             if (downloadInput.value.trim()) {
                 downloadInput.dispatchEvent(new Event('input'));

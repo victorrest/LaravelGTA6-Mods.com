@@ -52,14 +52,14 @@
                         </div>
                     </div>
                     <div>
-                        <label class="form-label" for="mod-description-editor">Description</label>
-                        <x-editor-js
+                        <label class="form-label" for="description">Description</label>
+                        <x-editorjs
                             name="description"
-                            :value="$mod->description"
-                            input-id="description"
-                            holder-id="mod-description-editor"
+                            id="description"
+                            :value="old('description', $mod->description_raw)"
+                            :plain-text="\App\Support\EditorJs::toPlainText(old('description', $mod->description_raw))"
                             placeholder="Describe features, installation steps and credits"
-                            class="mt-2"
+                            required
                         />
                     </div>
                 </div>

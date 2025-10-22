@@ -28,14 +28,14 @@
             <textarea id="excerpt" name="excerpt" rows="3" class="form-textarea" required>{{ old('excerpt', $article->excerpt) }}</textarea>
         </div>
         <div>
-            <label class="form-label" for="body-editor">Tartalom</label>
-            <x-editor-js
+            <label class="form-label" for="body">Tartalom</label>
+            <x-editorjs
                 name="body"
-                :value="$article->body"
-                input-id="body"
-                holder-id="body-editor"
-                placeholder="Írd meg a hír tartalmát…"
-                class="mt-2"
+                id="body"
+                :value="old('body', $article->body_raw)"
+                :plain-text="\App\Support\EditorJs::toPlainText(old('body', $article->body_raw))"
+                placeholder="Írd meg a hír teljes tartalmát"
+                required
             />
         </div>
         <div>

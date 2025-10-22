@@ -24,13 +24,14 @@
                 </select>
             </div>
             <div>
-                <label class="form-label" for="thread-body-editor">Body</label>
-                <x-editor-js
+                <label class="form-label" for="body">Body</label>
+                <x-editorjs
                     name="body"
-                    input-id="body"
-                    holder-id="thread-body-editor"
-                    placeholder="Share your discovery, question or release notes"
-                    class="mt-2"
+                    id="body"
+                    :value="old('body')"
+                    :plain-text="\App\Support\EditorJs::toPlainText(old('body'))"
+                    placeholder="Share every detail, add bullet lists, embeds or code snippets"
+                    required
                 />
             </div>
             <div class="flex items-center justify-end gap-3">

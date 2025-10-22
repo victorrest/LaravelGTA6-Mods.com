@@ -7,7 +7,7 @@ use App\Http\Requests\ModUpdateRequest;
 use App\Models\Mod;
 use App\Models\ModCategory;
 use App\Services\TemporaryUploadService;
-use App\Support\EditorJsRenderer;
+use App\Support\EditorJs;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -59,13 +59,13 @@ class ModManagementController extends Controller
 
             $heroImagePath = $this->storeHeroImage($request, $filesForRollback);
 
-            $plainTextDescription = EditorJsRenderer::toPlainText($data['description']);
+            $plainDescription = EditorJs::toPlainText($data['description']);
 
             $mod = Mod::create([
                 'user_id' => Auth::id(),
                 'title' => $data['title'],
                 'slug' => $this->generateUniqueSlug($data['title']),
-                'excerpt' => Str::limit($plainTextDescription, 200),
+                'excerpt' => Str::limit($plainDescription, 200),
                 'description' => $data['description'],
                 'version' => $data['version'],
                 'download_url' => $downloadUrl,
@@ -120,11 +120,11 @@ class ModManagementController extends Controller
         try {
             $modFile = $this->storeModFile($request, $filesForRollback);
 
-            $plainTextDescription = EditorJsRenderer::toPlainText($data['description']);
+            $plainDescription = EditorJs::toPlainText($data['description']);
 
             $mod->fill([
                 'title' => $data['title'],
-                'excerpt' => Str::limit($plainTextDescription, 200),
+                'excerpt' => Str::limit($plainDescription, 200),
                 'description' => $data['description'],
                 'version' => $data['version'],
                 'download_url' => $data['download_url'] ?? $mod->download_url,

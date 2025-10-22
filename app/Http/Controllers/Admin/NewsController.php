@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\NewsArticle;
-use App\Rules\EditorJsContent;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -33,7 +32,7 @@ class NewsController extends Controller
             'title' => ['required', 'string', 'max:180'],
             'slug' => ['nullable', 'string', 'max:180', 'alpha_dash', 'unique:news_articles,slug'],
             'excerpt' => ['required', 'string', 'max:280'],
-            'body' => ['required', 'string', new EditorJsContent(20)],
+            'body' => ['required', 'json'],
             'published_at' => ['nullable', 'date'],
         ]);
 
@@ -67,7 +66,7 @@ class NewsController extends Controller
             'title' => ['required', 'string', 'max:180'],
             'slug' => ['required', 'string', 'max:180', 'alpha_dash', Rule::unique('news_articles', 'slug')->ignore($news->id)],
             'excerpt' => ['required', 'string', 'max:280'],
-            'body' => ['required', 'string', new EditorJsContent(20)],
+            'body' => ['required', 'json'],
             'published_at' => ['nullable', 'date'],
         ]);
 

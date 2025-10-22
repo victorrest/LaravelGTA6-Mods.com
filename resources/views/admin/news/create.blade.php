@@ -22,8 +22,15 @@
             <textarea id="excerpt" name="excerpt" rows="3" class="form-textarea" required>{{ old('excerpt') }}</textarea>
         </div>
         <div>
-            <label class="form-label" for="body-editor">Tartalom</label>
-            <x-editor-js name="body" input-id="body" holder-id="body-editor" placeholder="Írd meg a hír tartalmát…" class="mt-2" />
+            <label class="form-label" for="body">Tartalom</label>
+            <x-editorjs
+                name="body"
+                id="body"
+                :value="old('body')"
+                :plain-text="\App\Support\EditorJs::toPlainText(old('body'))"
+                placeholder="Írd meg a hír teljes tartalmát"
+                required
+            />
         </div>
         <div>
             <label class="form-label" for="published_at">Publikálás ideje</label>

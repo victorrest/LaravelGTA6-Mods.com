@@ -1,186 +1,209 @@
 import EditorJS from '@editorjs/editorjs';
-import CodeTool from '@editorjs/code';
-import Delimiter from '@editorjs/delimiter';
-import Embed from '@editorjs/embed';
 import Header from '@editorjs/header';
 import List from '@editorjs/list';
 import Quote from '@editorjs/quote';
+import Delimiter from '@editorjs/delimiter';
 import Table from '@editorjs/table';
-
-const editors = [];
-
-const sanitizeInitialData = (value) => {
-    if (typeof value !== 'string' || value.trim() === '') {
-        return undefined;
-    }
-
-    try {
-        const parsed = JSON.parse(value);
-        return parsed && typeof parsed === 'object' ? parsed : undefined;
-    } catch (error) {
-        console.warn('Invalid Editor.js JSON detected, falling back to empty content.', error);
-
-        return undefined;
-    }
-};
+import Code from '@editorjs/code';
+import Embed from '@editorjs/embed';
+import Paragraph from '@editorjs/paragraph';
 
 const extractPlainText = (data) => {
-    if (!data || typeof data !== 'object' || !Array.isArray(data.blocks)) {
+    if (!data || !Array.isArray(data.blocks)) {
         return '';
     }
 
-    const segments = [];
+    const lines = [];
 
-    for (const block of data.blocks) {
+    data.blocks.forEach((block) => {
         if (!block || typeof block !== 'object') {
-            continue;
+            return;
         }
 
-        const type = block.type;
-        const payload = block.data ?? {};
+        const { type, data: blockData } = block;
 
         switch (type) {
             case 'paragraph':
             case 'header':
             case 'quote':
-                if (typeof payload.text === 'string') {
-                    segments.push(payload.text);
-                }
-                break;
             case 'code':
-                if (typeof payload.code === 'string') {
-                    segments.push(payload.code);
+                if (blockData?.text || blockData?.code) {
+                    lines.push((blockData.text || blockData.code || '').replace(/<[^>]+>/g, ''));
                 }
                 break;
             case 'list':
-                if (Array.isArray(payload.items)) {
-                    segments.push(...payload.items.map((item) => (typeof item === 'string' ? item : '')));
+                if (Array.isArray(blockData?.items)) {
+                    blockData.items.forEach((item) => {
+                        lines.push(`• ${String(item).replace(/<[^>]+>/g, '')}`);
+                    });
                 }
                 break;
             case 'table':
-                if (Array.isArray(payload.content)) {
-                    for (const row of payload.content) {
+                if (Array.isArray(blockData?.content)) {
+                    blockData.content.forEach((row) => {
                         if (Array.isArray(row)) {
-                            segments.push(...row.map((cell) => (typeof cell === 'string' ? cell : '')));
+                            lines.push(row.map((cell) => String(cell).replace(/<[^>]+>/g, '')).join(' | '));
                         }
-                    }
+                    });
+                }
+                break;
+            case 'embed':
+                if (blockData?.service) {
+                    lines.push(`${blockData.service} embed`);
                 }
                 break;
             default:
-                if (typeof payload.text === 'string') {
-                    segments.push(payload.text);
-                }
+                break;
         }
-    }
-
-    return segments
-        .map((segment) => segment.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim())
-        .filter(Boolean)
-        .join(' ');
-};
-
-const dispatchEvent = (element, name, detail) => {
-    element.dispatchEvent(
-        new CustomEvent(name, {
-            bubbles: true,
-            detail,
-        }),
-    );
-};
-
-const initEditor = (element) => {
-    const holderId = element.dataset.holder;
-    const inputSelector = element.dataset.input;
-    const placeholder = element.dataset.placeholder ?? '';
-    const minHeight = Number(element.dataset.minHeight ?? 300);
-    const input = inputSelector ? document.querySelector(inputSelector) : null;
-
-    if (!holderId || !input) {
-        return;
-    }
-
-    const initialData = sanitizeInitialData(input.value);
-
-    const editor = new EditorJS({
-        holder: holderId,
-        minHeight,
-        placeholder,
-        data: initialData,
-        tools: {
-            paragraph: {
-                inlineToolbar: true,
-            },
-            header: {
-                class: Header,
-                inlineToolbar: true,
-                config: {
-                    levels: [2, 3, 4],
-                    defaultLevel: 2,
-                },
-            },
-            list: {
-                class: List,
-                inlineToolbar: true,
-            },
-            quote: {
-                class: Quote,
-                inlineToolbar: true,
-            },
-            delimiter: Delimiter,
-            table: {
-                class: Table,
-                inlineToolbar: true,
-            },
-            youtube: {
-                class: Embed,
-                inlineToolbar: false,
-                config: {
-                    services: {
-                        youtube: true,
-                    },
-                },
-                toolbox: {
-                    title: 'YouTube',
-                },
-            },
-            code: CodeTool,
-        },
-        onReady: () => {
-            if (!initialData) {
-                dispatchEvent(element, 'editorjs:ready', { output: undefined, plainText: '' });
-
-                return;
-            }
-
-            const plainText = extractPlainText(initialData);
-            dispatchEvent(element, 'editorjs:ready', { output: initialData, plainText });
-        },
-        onChange: async () => {
-            try {
-                const output = await editor.save();
-                input.value = JSON.stringify(output);
-                const plainText = extractPlainText(output);
-                dispatchEvent(element, 'editorjs:change', { output, plainText });
-            } catch (error) {
-                console.error('Failed to save Editor.js content', error);
-            }
-        },
     });
 
-    editors.push(editor);
-    element.dataset.initialized = 'true';
+    return lines.join('\n').trim();
 };
 
-const bootEditors = () => {
-    document.querySelectorAll('[data-editorjs]').forEach((element) => {
-        if (element.dataset.initialized === 'true') {
+const toolConfig = {
+    paragraph: {
+        class: Paragraph,
+        inlineToolbar: ['bold', 'italic', 'link'],
+        config: {
+            placeholder: 'Start writing...'
+        }
+    },
+    header: {
+        class: Header,
+        inlineToolbar: ['link'],
+        config: {
+            levels: [2, 3, 4],
+            defaultLevel: 2,
+        }
+    },
+    list: {
+        class: List,
+        inlineToolbar: true,
+    },
+    quote: {
+        class: Quote,
+        inlineToolbar: true,
+        config: {
+            captionPlaceholder: 'Quote source',
+        }
+    },
+    delimiter: {
+        class: Delimiter,
+    },
+    table: {
+        class: Table,
+        inlineToolbar: true,
+    },
+    code: {
+        class: Code,
+    },
+    embed: {
+        class: Embed,
+        inlineToolbar: false,
+        config: {
+            services: {
+                youtube: true,
+            },
+        },
+    },
+};
+
+const initialiseEditors = () => {
+    const inputs = document.querySelectorAll('input[data-editorjs="true"]');
+
+    inputs.forEach((input) => {
+        const holderId = input.dataset.holder;
+        const holder = holderId ? document.getElementById(holderId) : null;
+
+        if (!holder) {
             return;
         }
 
-        initEditor(element);
+        let initialData = null;
+        const initialValue = input.value?.trim();
+
+        if (initialValue) {
+            try {
+                initialData = JSON.parse(initialValue);
+            } catch (error) {
+                initialData = null;
+            }
+        }
+
+        const editor = new EditorJS({
+            holder,
+            minHeight: 240,
+            data: initialData ?? undefined,
+            placeholder: input.dataset.placeholder || 'Write something awesome…',
+            tools: toolConfig,
+            inlineToolbar: true,
+            onChange: async () => {
+                try {
+                    const output = await editor.save();
+                    input.value = JSON.stringify(output);
+                    const detail = {
+                        input,
+                        data: output,
+                        plainText: extractPlainText(output),
+                    };
+                    input.dispatchEvent(new CustomEvent('editorjs:change', { detail }));
+                    const errorElement = document.querySelector(`[data-editorjs-error="${input.id}"]`);
+                    if (errorElement) {
+                        errorElement.textContent = '';
+                        errorElement.hidden = true;
+                    }
+                } catch (error) {
+                    console.error(error);
+                }
+            },
+            onReady: async () => {
+                if (!initialData) {
+                    try {
+                        const output = await editor.save();
+                        input.value = JSON.stringify(output);
+                    } catch (error) {
+                        // Ignore initial serialisation errors.
+                    }
+                }
+
+                const initialPlain = input.dataset.initialPlain;
+                const detail = {
+                    input,
+                    data: initialData,
+                    plainText: initialPlain || extractPlainText(initialData),
+                };
+                input.dispatchEvent(new CustomEvent('editorjs:ready', { detail }));
+            },
+        });
+
+        input.__editor = editor;
+
+        const form = input.closest('form');
+
+        if (form) {
+            form.addEventListener('submit', async (event) => {
+                if (!editor) {
+                    return;
+                }
+
+                try {
+                    const output = await editor.save();
+                    input.value = JSON.stringify(output);
+                } catch (error) {
+                    event.preventDefault();
+                    const errorElement = document.querySelector(`[data-editorjs-error="${input.id}"]`);
+                    if (errorElement) {
+                        errorElement.textContent = 'The editor content could not be saved. Please try again.';
+                        errorElement.hidden = false;
+                    }
+                }
+            });
+        }
     });
 };
 
-document.addEventListener('DOMContentLoaded', bootEditors);
-
-export { editors };
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initialiseEditors);
+} else {
+    initialiseEditors();
+}

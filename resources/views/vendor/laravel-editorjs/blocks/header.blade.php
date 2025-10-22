@@ -13,13 +13,4 @@
     };
 @endphp
 
-@php
-    $text = $data['text'] ?? '';
-@endphp
-
-@if ($text !== '')
-    <<?php echo $tag; ?> class="{{ $class }}">
-        {!! $text !!}
-    </<?php echo $tag; ?>>
-@endif
-
+<{{ $tag }} class="{{ $class }}">{{ $data['text'] ?? '' }}</{{ $tag }}>

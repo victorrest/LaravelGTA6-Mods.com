@@ -10,20 +10,122 @@
         'Segoe UI Symbol', 'Noto Color Emoji';
 }
 
-[data-editorjs] {
-    min-height: 280px;
+@layer components {
+    .editorjs-holder {
+        @apply min-h-[240px] rounded-2xl border border-gray-200 bg-white px-5 py-6 text-gray-800 shadow-sm transition;
+    }
+
+    .editorjs-error {
+        @apply text-xs font-medium text-rose-600;
+    }
+
+    .editorjs-holder .ce-block__content,
+    .editorjs-holder .ce-toolbar__content {
+        max-width: 100%;
+    }
+
+    .editorjs-holder .ce-toolbar__plus,
+    .editorjs-holder .ce-toolbar__settings-btn {
+        @apply text-gray-500 transition;
+    }
+
+    .editorjs-holder .ce-toolbar__plus:hover,
+    .editorjs-holder .ce-toolbar__settings-btn:hover {
+        @apply text-pink-600;
+    }
+
+    .editorjs-holder .ce-block__content h1,
+    .editorjs-holder .ce-block__content h2,
+    .editorjs-holder .ce-block__content h3,
+    .editorjs-holder .ce-block__content h4,
+    .editorjs-holder .ce-block__content h5,
+    .editorjs-holder .ce-block__content h6 {
+        @apply font-semibold text-gray-900;
+    }
+
+    .editorjs-holder .ce-block__content p,
+    .editorjs-holder .ce-block__content li {
+        @apply leading-relaxed text-gray-700;
+    }
+
+    .editorjs-holder .ce-block__content pre {
+        @apply rounded-xl bg-gray-900 px-4 py-3 text-sm text-gray-100;
+    }
+
+    .editorjs-holder .ce-block__content table {
+        @apply w-full border border-gray-200 text-sm;
+    }
+
+    .editorjs-holder .ce-block__content table th,
+    .editorjs-holder .ce-block__content table td {
+        @apply border border-gray-200 px-3 py-2 text-left;
+    }
+
+    .editorjs-holder .ce-block__content blockquote {
+        @apply border-l-4 border-pink-500 bg-pink-50/80 px-4 py-3 italic text-gray-700;
+    }
+
+    .editorjs-content {
+        @apply space-y-5 text-gray-800 leading-relaxed;
+    }
+
+    .editorjs-content h1,
+    .editorjs-content h2,
+    .editorjs-content h3,
+    .editorjs-content h4,
+    .editorjs-content h5,
+    .editorjs-content h6 {
+        @apply font-semibold text-gray-900;
+    }
+
+    .editorjs-content p,
+    .editorjs-content li {
+        @apply text-gray-700 leading-relaxed;
+    }
+
+    .editorjs-content pre {
+        @apply rounded-xl bg-gray-900 px-4 py-3 text-sm text-gray-100 overflow-x-auto;
+    }
+
+    .editorjs-content table {
+        @apply w-full border border-gray-200 text-sm;
+    }
+
+    .editorjs-content table th,
+    .editorjs-content table td {
+        @apply border border-gray-200 px-3 py-2 text-left;
+    }
+
+    .editorjs-content blockquote {
+        @apply border-l-4 border-pink-500 bg-pink-50/80 px-4 py-3 italic text-gray-700;
+    }
+
+    .editorjs-embed {
+        @apply space-y-2;
+    }
+
+    .editorjs-embed__frame {
+        position: relative;
+        padding-top: 56.25%;
+        border-radius: theme('borderRadius.2xl');
+        overflow: hidden;
+        box-shadow: theme('boxShadow.lg');
+    }
+
+    .editorjs-embed__frame iframe {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        border: 0;
+    }
+
+    .editorjs-embed__caption {
+        @apply text-sm text-gray-500;
+    }
 }
 
-[data-editorjs] .codex-editor {
-    min-height: inherit;
-    background-color: transparent;
-}
-
-[data-editorjs] .ce-block__content,
-[data-editorjs] .ce-toolbar__content {
-    max-width: 100%;
-}
-
-.editorjs-holder {
-    min-height: 280px;
+.editorjs-holder:focus-within {
+    border-color: theme('colors.pink.400');
+    box-shadow: 0 0 0 3px color-mix(in srgb, theme('colors.pink.400') 25%, transparent);
 }
