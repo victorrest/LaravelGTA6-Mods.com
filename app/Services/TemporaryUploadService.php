@@ -17,7 +17,7 @@ class TemporaryUploadService
         $this->localDisk = $localDisk ?: Storage::disk('local');
     }
 
-    public function resolve(string $token): PendingTemporaryUpload
+    public function moveToPublic(string $token, string $targetDirectory, ?string $expectedCategory = null): array
     {
         $meta = $this->readMeta($token);
 
@@ -29,37 +29,24 @@ class TemporaryUploadService
             throw new RuntimeException('You are not allowed to use this upload.');
         }
 
-        $finalName = $meta['final_name'] ?? null;
-
-        if (! $finalName) {
-            throw new RuntimeException('Temporary upload is incomplete.');
+        if ($expectedCategory !== null && ($meta['upload_category'] ?? null) !== $expectedCategory) {
+            throw new RuntimeException('Temporary upload type mismatch.');
         }
 
-        $localFilePath = $this->buildPath($token, $finalName);
+        $localFilePath = $this->buildPath($token, $meta['final_name'] ?? null);
 
         if (! $this->localDisk->exists($localFilePath)) {
             throw new RuntimeException('Temporary upload file is missing.');
         }
 
-        return new PendingTemporaryUpload($this, $token, $meta, $localFilePath);
-    }
-
-    public function moveToPublic(string $token, string $targetDirectory): array
-    {
-        return $this->resolve($token)->moveToPublic($targetDirectory);
-    }
-
-    public function persistResolvedUpload(PendingTemporaryUpload $upload, string $targetDirectory): array
-    {
-        $stream = $this->localDisk->readStream($upload->localPath());
+        $publicDisk = Storage::disk('public');
+        $stream = $this->localDisk->readStream($localFilePath);
 
         if (! $stream) {
             throw new RuntimeException('Unable to read uploaded file.');
         }
 
-        $publicDisk = Storage::disk('public');
-
-        $extension = pathinfo($upload->originalName() ?? '', PATHINFO_EXTENSION);
+        $extension = pathinfo($meta['original_name'] ?? '', PATHINFO_EXTENSION);
         $extension = $extension ? '.' . $extension : '';
         $finalFileName = Str::uuid() . $extension;
         $finalPath = trim($targetDirectory, '/') . '/' . $finalFileName;
@@ -71,14 +58,14 @@ class TemporaryUploadService
             throw new RuntimeException('Failed to persist uploaded file.');
         }
 
-        $this->localDisk->deleteDirectory($this->buildDirectory($upload->token()));
+        $this->localDisk->deleteDirectory($this->buildDirectory($token));
 
         return [
             'path' => $finalPath,
             'public_url' => $publicDisk->url($finalPath),
-            'size' => $upload->sizeMegabytes(),
-            'original_name' => $upload->originalName() ?? $finalFileName,
-            'mime_type' => $upload->mimeType(),
+            'size' => round(((int) ($meta['size_bytes'] ?? 0)) / 1048576, 2),
+            'original_name' => $meta['original_name'] ?? $finalFileName,
+            'mime_type' => $meta['mime_type'] ?? null,
         ];
     }
 

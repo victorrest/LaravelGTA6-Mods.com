@@ -50,7 +50,7 @@
                 </div>
                 <div>
                     <label class="form-label" for="file_size">Fájlméret (MB)</label>
-                    <input type="number" step="0.1" min="0" id="file_size" name="file_size" value="{{ old('file_size', $mod->file_size) }}" class="form-input">
+                    <input type="number" step="0.01" min="0" id="file_size" name="file_size" value="{{ old('file_size', $mod->file_size) }}" class="form-input">
                 </div>
             </div>
             <div>
