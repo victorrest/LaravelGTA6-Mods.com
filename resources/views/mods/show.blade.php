@@ -2,12 +2,8 @@
 
 @section('content')
     @php
-        $tabUrls = [
-            'description' => route('mods.show', $mod),
-            'comments' => route('mods.show', [$mod, 'tab' => 'comments']),
-            'changelog' => route('mods.show', [$mod, 'tab' => 'changelog']),
-        ];
         $ratingDisplay = $ratingValue ? number_format($ratingValue, 1) : '—';
+        $tabRoutes = $tabRoutes ?? [];
     @endphp
 
     <div class="space-y-6">
@@ -110,14 +106,14 @@
 
                 <div class="card overflow-hidden">
                     <div class="flex border-b border-gray-200 bg-gray-50">
-                        @foreach ($tabUrls as $tabKey => $url)
+                        @foreach ($tabRoutes as $tabKey => $tabRoute)
                             @php
                                 $isActive = $activeTab === $tabKey;
                                 $activeClass = 'text-pink-600 border-pink-500 bg-white';
                                 $inactiveClass = 'text-gray-600 border-transparent hover:text-pink-600';
                             @endphp
                             <a
-                                href="{{ $url }}"
+                                href="{{ is_string($tabRoute) && $tabRoute !== '' ? $tabRoute : '#' }}"
                                 data-tab-target="tab-{{ $tabKey }}"
                                 data-tab-active-class="{{ $activeClass }}"
                                 data-tab-inactive-class="{{ $inactiveClass }}"
