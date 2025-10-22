@@ -95,6 +95,14 @@ class ModController extends Controller
         $allowedTabs = ['description', 'comments', 'changelog'];
         $activeTab = in_array($requestedTab, $allowedTabs, true) ? $requestedTab : 'description';
 
+        $tabLinks = [
+            'description' => route('mods.show', ['mod' => $mod->slug]),
+            'comments' => route('mods.show', ['mod' => $mod->slug, 'tab' => 'comments']),
+            'changelog' => route('mods.show', ['mod' => $mod->slug, 'tab' => 'changelog']),
+        ];
+
+        $ratingDisplay = $ratingValue ? number_format($ratingValue, 1) : '—';
+
         return view('mods.show', [
             'mod' => $mod,
             'comments' => $comments,
@@ -107,9 +115,11 @@ class ModController extends Controller
             'ratingValue' => $ratingValue,
             'ratingFullStars' => $ratingFullStars,
             'ratingHasHalf' => $ratingHasHalf,
+            'ratingDisplay' => $ratingDisplay,
             'metaDetails' => $metaDetails,
             'galleryImages' => $galleryImages,
             'activeTab' => $activeTab,
+            'tabLinks' => $tabLinks,
         ]);
     }
 

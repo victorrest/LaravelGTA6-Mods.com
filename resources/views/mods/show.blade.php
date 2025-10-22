@@ -2,12 +2,12 @@
 
 @section('content')
     @php
-        $tabLinks = [
-            'description' => route('mods.show', ['mod' => $mod->slug]),
-            'comments' => route('mods.show', ['mod' => $mod->slug, 'tab' => 'comments']),
-            'changelog' => route('mods.show', ['mod' => $mod->slug, 'tab' => 'changelog']),
+        $normalizedTabLinks = [
+            'description' => $tabLinks['description'] ?? route('mods.show', ['mod' => $mod->slug]),
+            'comments' => $tabLinks['comments'] ?? route('mods.show', ['mod' => $mod->slug, 'tab' => 'comments']),
+            'changelog' => $tabLinks['changelog'] ?? route('mods.show', ['mod' => $mod->slug, 'tab' => 'changelog']),
         ];
-        $ratingDisplay = $ratingValue ? number_format($ratingValue, 1) : '—';
+        $ratingDisplay = $ratingDisplay ?? ($ratingValue ? number_format($ratingValue, 1) : '—');
     @endphp
 
     <div class="space-y-6">
@@ -110,7 +110,7 @@
 
                 <div class="card overflow-hidden">
                     <div class="flex border-b border-gray-200 bg-gray-50">
-                        @foreach ($tabLinks as $tabKey => $tabUrl)
+                        @foreach ($normalizedTabLinks as $tabKey => $tabUrl)
                             @php
                                 $isActive = $activeTab === $tabKey;
                                 $activeClass = 'text-pink-600 border-pink-500 bg-white';
