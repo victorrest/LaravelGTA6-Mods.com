@@ -2,11 +2,17 @@
 
 @section('content')
     @php
-        $tabUrls = [
-            'description' => route('mods.show', ['mod' => $mod->slug]),
-            'comments' => route('mods.show', ['mod' => $mod->slug, 'tab' => 'comments']),
-            'changelog' => route('mods.show', ['mod' => $mod->slug, 'tab' => 'changelog']),
-        ];
+        $tabLinks = collect(['description', 'comments', 'changelog'])->mapWithKeys(function ($tabKey) use ($mod) {
+            $baseParameters = ['mod' => $mod->slug];
+
+            if ($tabKey === 'description') {
+                return [$tabKey => route('mods.show', $baseParameters)];
+            }
+
+            return [
+                $tabKey => route('mods.show', array_merge($baseParameters, ['tab' => $tabKey])),
+            ];
+        });
         $ratingDisplay = $ratingValue ? number_format($ratingValue, 1) : '—';
     @endphp
 
@@ -110,7 +116,7 @@
 
                 <div class="card overflow-hidden">
                     <div class="flex border-b border-gray-200 bg-gray-50">
-                        @foreach ($tabUrls as $tabKey => $tabUrl)
+                        @foreach ($tabLinks as $tabKey => $tabUrl)
                             @php
                                 $isActive = $activeTab === $tabKey;
                                 $activeClass = 'text-pink-600 border-pink-500 bg-white';
