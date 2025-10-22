@@ -91,16 +91,6 @@ class ModController extends Controller
             ],
         ];
 
-        $requestedTab = request()->string('tab')->toString();
-        $allowedTabs = ['description', 'comments', 'changelogs'];
-        $activeTab = in_array($requestedTab, $allowedTabs, true) ? $requestedTab : 'description';
-
-        $tabUrls = [
-            'description' => route('mods.show', ['mod' => $mod]),
-            'comments' => route('mods.show', ['mod' => $mod, 'tab' => 'comments']),
-            'changelogs' => route('mods.show', ['mod' => $mod, 'tab' => 'changelogs']),
-        ];
-
         return view('mods.show', [
             'mod' => $mod,
             'comments' => $comments,
@@ -115,8 +105,6 @@ class ModController extends Controller
             'ratingHasHalf' => $ratingHasHalf,
             'metaDetails' => $metaDetails,
             'galleryImages' => $galleryImages,
-            'activeTab' => $activeTab,
-            'tabUrls' => $tabUrls,
         ]);
     }
 
