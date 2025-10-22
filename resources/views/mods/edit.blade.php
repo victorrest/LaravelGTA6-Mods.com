@@ -116,7 +116,7 @@
                     <div class="grid gap-6 lg:grid-cols-2">
                         <div>
                             <label class="form-label" for="file_size">File size (MB)</label>
-                            <input id="file_size" name="file_size" type="number" step="0.1" min="0" value="{{ old('file_size', $mod->file_size) }}" class="form-input" placeholder="850">
+                            <input id="file_size" name="file_size" type="number" step="0.01" min="0" value="{{ old('file_size', $mod->file_size) }}" class="form-input" placeholder="850">
                             <p class="form-help">We will auto-fill this when possible using your uploaded archive.</p>
                         </div>
                         <div>
