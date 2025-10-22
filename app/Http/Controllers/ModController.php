@@ -91,47 +91,9 @@ class ModController extends Controller
             ],
         ];
 
-        $tabDefinitions = [
-            'description' => [
-                'label' => 'Leírás',
-                'query' => [],
-                'aliases' => ['overview'],
-            ],
-            'comments' => [
-                'label' => 'Kommentek',
-                'query' => ['tab' => 'comments'],
-                'badge' => $mod->comments_count,
-            ],
-            'changelog' => [
-                'label' => 'Changelog',
-                'query' => ['tab' => 'changelog'],
-                'aliases' => ['changelogs'],
-            ],
-        ];
-
-        $tabs = collect($tabDefinitions)->map(function ($definition, $key) use ($mod) {
-            $routeParameters = array_merge(['mod' => $mod->slug], $definition['query']);
-
-            return [
-                'key' => $key,
-                'label' => $definition['label'],
-                'url' => route('mods.show', $routeParameters),
-                'badge' => $definition['badge'] ?? null,
-            ];
-        })->values();
-
-        $requestedTab = request()->string('tab')->lower()->toString();
-        $activeTab = 'description';
-
-        if ($requestedTab !== '') {
-            foreach ($tabDefinitions as $key => $definition) {
-                $aliases = $definition['aliases'] ?? [];
-                if ($requestedTab === $key || in_array($requestedTab, $aliases, true)) {
-                    $activeTab = $key;
-                    break;
-                }
-            }
-        }
+        $requestedTab = request()->string('tab')->toString();
+        $allowedTabs = ['description', 'comments', 'changelog'];
+        $activeTab = in_array($requestedTab, $allowedTabs, true) ? $requestedTab : 'description';
 
         return view('mods.show', [
             'mod' => $mod,
@@ -148,7 +110,6 @@ class ModController extends Controller
             'metaDetails' => $metaDetails,
             'galleryImages' => $galleryImages,
             'activeTab' => $activeTab,
-            'tabs' => $tabs,
         ]);
     }
 

@@ -2,40 +2,11 @@
 
 @section('content')
     @php
-        @extends('layouts.app', ['title' => $mod->title])
-
-@section('content')
-    @php
         $tabUrls = [
             'description' => route('mods.show', $mod),
             'comments' => route('mods.show', [$mod, 'tab' => 'comments']),
             'changelog' => route('mods.show', [$mod, 'tab' => 'changelog']),
         ];
-        $resolvedTabs = collect($tabs ?? [])
-            ->filter(fn ($tab) => !empty($tab['key'] ?? null) && !empty($tab['url'] ?? null));
-
-        if ($resolvedTabs->isEmpty()) {
-            $resolvedTabs = collect([
-                [
-                    'key' => 'description',
-                    'label' => 'Leírás',
-                    'url' => route('mods.show', ['mod' => $mod->slug]),
-                ],
-                [
-                    'key' => 'comments',
-                    'label' => 'Kommentek',
-                    'url' => route('mods.show', ['mod' => $mod->slug, 'tab' => 'comments']),
-                    'badge' => $mod->comments_count,
-                ],
-                [
-                    'key' => 'changelog',
-                    'label' => 'Changelog',
-                    'url' => route('mods.show', ['mod' => $mod->slug, 'tab' => 'changelog']),
-                ],
-            ]);
-        }
-
-        $tabItems = $resolvedTabs->values()->all();
         $ratingDisplay = $ratingValue ? number_format($ratingValue, 1) : '—';
     @endphp
 
@@ -139,17 +110,14 @@
 
                 <div class="card overflow-hidden">
                     <div class="flex border-b border-gray-200 bg-gray-50">
-                        @foreach ($tabItems as $tabItem)
+                        @foreach ($tabUrls as $tabKey => $url)
                             @php
-                                $tabKey = $tabItem['key'];
-                                $tabUrl = $tabItem['url'];
-                                $tabBadge = $tabItem['badge'] ?? null;
                                 $isActive = $activeTab === $tabKey;
                                 $activeClass = 'text-pink-600 border-pink-500 bg-white';
                                 $inactiveClass = 'text-gray-600 border-transparent hover:text-pink-600';
                             @endphp
                             <a
-                                href="{{ $tabUrl }}"
+                                href="{{ $url }}"
                                 data-tab-target="tab-{{ $tabKey }}"
                                 data-tab-active-class="{{ $activeClass }}"
                                 data-tab-inactive-class="{{ $inactiveClass }}"
@@ -159,13 +127,13 @@
                             >
                                 @switch($tabKey)
                                     @case('comments')
-                                        Kommentek ({{ number_format($tabBadge ?? $mod->comments_count) }})
+                                        Kommentek ({{ $mod->comments_count }})
                                         @break
                                     @case('changelog')
-                                        {{ $tabItem['label'] ?? 'Changelog' }}
+                                        Changelog
                                         @break
                                     @default
-                                        {{ $tabItem['label'] ?? 'Leírás' }}
+                                        Leírás
                                 @endswitch
                             </a>
                         @endforeach
