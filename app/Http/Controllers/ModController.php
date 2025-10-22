@@ -92,28 +92,13 @@ class ModController extends Controller
         ];
 
         $requestedTab = request()->string('tab')->toString();
-        $allowedTabs = ['description', 'comments', 'changelog'];
+        $allowedTabs = ['description', 'comments', 'changelogs'];
         $activeTab = in_array($requestedTab, $allowedTabs, true) ? $requestedTab : 'description';
 
-        $tabNavigation = [
-            [
-                'key' => 'description',
-                'label' => 'Leírás',
-                'url' => route('mods.show', ['mod' => $mod]),
-                'is_active' => $activeTab === 'description',
-            ],
-            [
-                'key' => 'comments',
-                'label' => 'Kommentek (' . $mod->comments_count . ')',
-                'url' => route('mods.show', ['mod' => $mod, 'tab' => 'comments']),
-                'is_active' => $activeTab === 'comments',
-            ],
-            [
-                'key' => 'changelog',
-                'label' => 'Changelog',
-                'url' => route('mods.show', ['mod' => $mod, 'tab' => 'changelog']),
-                'is_active' => $activeTab === 'changelog',
-            ],
+        $tabUrls = [
+            'description' => route('mods.show', ['mod' => $mod]),
+            'comments' => route('mods.show', ['mod' => $mod, 'tab' => 'comments']),
+            'changelogs' => route('mods.show', ['mod' => $mod, 'tab' => 'changelogs']),
         ];
 
         return view('mods.show', [
@@ -131,7 +116,7 @@ class ModController extends Controller
             'metaDetails' => $metaDetails,
             'galleryImages' => $galleryImages,
             'activeTab' => $activeTab,
-            'tabNavigation' => $tabNavigation,
+            'tabUrls' => $tabUrls,
         ]);
     }
 

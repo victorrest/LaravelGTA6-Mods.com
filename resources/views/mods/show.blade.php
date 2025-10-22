@@ -3,7 +3,21 @@
 @section('content')
     @php
         $ratingDisplay = $ratingValue ? number_format($ratingValue, 1) : '—';
-        $tabNavigation = $tabNavigation ?? [];
+        $tabUrls = is_array($tabUrls ?? null) ? $tabUrls : [];
+        $tabDefinitions = [
+            'description' => [
+                'label' => 'Leírás',
+                'target' => 'description',
+            ],
+            'comments' => [
+                'label' => 'Kommentek (' . number_format($mod->comments_count) . ')',
+                'target' => 'comments',
+            ],
+            'changelogs' => [
+                'label' => 'Changelog',
+                'target' => 'changelog',
+            ],
+        ];
     @endphp
 
     <div class="space-y-6">
@@ -106,23 +120,20 @@
 
                 <div class="card overflow-hidden">
                     <div class="flex border-b border-gray-200 bg-gray-50">
-                        @foreach ($tabNavigation as $tab)
+                        @foreach ($tabDefinitions as $tabKey => $tab)
                             @php
-                                $tabKey = (string) ($tab['key'] ?? '');
-                            @endphp
-                            @if ($tabKey === '')
-                                @continue
-                            @endif
-                            @php
-                                $isActive = (bool) ($tab['is_active'] ?? false);
+                                $targetKey = $tab['target'];
+                                $isActive = $activeTab === $tabKey;
                                 $activeClass = 'text-pink-600 border-pink-500 bg-white';
                                 $inactiveClass = 'text-gray-600 border-transparent hover:text-pink-600';
-                                $resolvedTabRoute = is_string($tab['url'] ?? null) && ($tab['url'] ?? '') !== '' ? $tab['url'] : '#';
-                                $tabLabel = trim($tab['label'] ?? '') ?: ucfirst(str_replace('_', ' ', $tabKey));
+                                $resolvedTabRoute = is_string($tabUrls[$tabKey] ?? null) && ($tabUrls[$tabKey] ?? '') !== ''
+                                    ? $tabUrls[$tabKey]
+                                    : '#';
+                                $tabLabel = $tab['label'];
                             @endphp
                             <a
                                 href="{{ $resolvedTabRoute }}"
-                                data-tab-target="tab-{{ $tabKey }}"
+                                data-tab-target="tab-{{ $targetKey }}"
                                 data-tab-active-class="{{ $activeClass }}"
                                 data-tab-inactive-class="{{ $inactiveClass }}"
                                 class="tab-trigger flex-1 sm:flex-none px-4 sm:px-6 py-3 text-sm font-semibold border-b-2 transition-colors {{ $isActive ? $activeClass : $inactiveClass }}"
@@ -179,7 +190,7 @@
                             @endauth
                         </div>
 
-                        <div id="tab-changelog" data-tab-section class="space-y-3 {{ $activeTab === 'changelog' ? '' : 'hidden' }}">
+                        <div id="tab-changelog" data-tab-section class="space-y-3 {{ $activeTab === 'changelogs' ? '' : 'hidden' }}">
                             <h3 class="font-bold text-lg text-gray-900">Verziótörténet (Changelog)</h3>
                             <p class="text-sm text-gray-500">A verziótörténet hamarosan elérhető lesz.</p>
                         </div>
