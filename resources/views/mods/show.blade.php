@@ -2,12 +2,8 @@
 
 @section('content')
     @php
-        $tabUrls = [
-            'description' => route('mods.show', $mod),
-            'comments' => route('mods.show', [$mod, 'tab' => 'comments']),
-            'changelog' => route('mods.show', [$mod, 'tab' => 'changelog']),
-        ];
         $ratingDisplay = $ratingValue ? number_format($ratingValue, 1) : '—';
+        $tabNavigation = $tabNavigation ?? [];
     @endphp
 
     <div class="space-y-6">
@@ -110,14 +106,20 @@
 
                 <div class="card overflow-hidden">
                     <div class="flex border-b border-gray-200 bg-gray-50">
-                        @foreach ($tabUrls as $tabKey => $url)
+                        @foreach ($tabNavigation as $tab)
                             @php
-                                $isActive = $activeTab === $tabKey;
+                                $tabKey = $tab['key'] ?? '';
+                            @endphp
+                            @continue($tabKey === '')
+                            @php
+                                $isActive = (bool) ($tab['is_active'] ?? false);
                                 $activeClass = 'text-pink-600 border-pink-500 bg-white';
                                 $inactiveClass = 'text-gray-600 border-transparent hover:text-pink-600';
+                                $resolvedTabRoute = is_string($tab['url'] ?? null) && ($tab['url'] ?? '') !== '' ? $tab['url'] : '#';
+                                $tabLabel = trim($tab['label'] ?? '') ?: ucfirst(str_replace('_', ' ', $tabKey));
                             @endphp
                             <a
-                                href="{{ $url }}"
+                                href="{{ $resolvedTabRoute }}"
                                 data-tab-target="tab-{{ $tabKey }}"
                                 data-tab-active-class="{{ $activeClass }}"
                                 data-tab-inactive-class="{{ $inactiveClass }}"
@@ -125,16 +127,7 @@
                                 aria-selected="{{ $isActive ? 'true' : 'false' }}"
                                 role="tab"
                             >
-                                @switch($tabKey)
-                                    @case('comments')
-                                        Kommentek ({{ $mod->comments_count }})
-                                        @break
-                                    @case('changelog')
-                                        Changelog
-                                        @break
-                                    @default
-                                        Leírás
-                                @endswitch
+                                {{ $tabLabel }}
                             </a>
                         @endforeach
                     </div>
