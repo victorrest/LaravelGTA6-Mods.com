@@ -1,0 +1,200 @@
+.gta6-admin-wrapper {
+    border: 1px solid #ccd0d4;
+    border-radius: 6px;
+    background: #fff;
+    overflow: hidden;
+    margin-top: 12px;
+}
+
+.gta6-tabs-nav {
+    display: flex;
+    border-bottom: 1px solid #ccd0d4;
+    background: #f6f7f7;
+    padding: 0 12px;
+}
+
+.gta6-tab-button {
+    padding: 10px 16px;
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    font-weight: 600;
+    color: #50575e;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: color 0.2s ease, border-color 0.2s ease;
+}
+
+.gta6-tab-button:hover {
+    color: #1d2327;
+}
+
+.gta6-tab-button.active {
+    color: #2271b1;
+    border-bottom-color: #2271b1;
+}
+
+.gta6-tab-panel {
+    display: none;
+    padding: 16px;
+}
+
+.gta6-tab-panel.active {
+    display: block;
+}
+
+.gta6-diff-table {
+    width: 100%;
+    border-collapse: collapse;
+    border: 1px solid #e0e0e0;
+}
+
+.gta6-diff-table th,
+.gta6-diff-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.gta6-diff-table th {
+    background-color: #f6f7f7;
+    font-weight: 600;
+    width: 150px;
+}
+
+.gta6-diff-changed {
+    background-color: #e9fbf0;
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-weight: 600;
+}
+
+/* Diff table styles for description */
+.gta6-admin-wrapper .diff {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    border: 1px solid #e0e0e0;
+}
+
+.gta6-admin-wrapper .diff th {
+    background-color: #f6f7f7;
+    padding: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    text-align: left;
+    width: auto;
+}
+
+.gta6-admin-wrapper .diff td {
+    padding: 10px 10px 10px 30px;
+    vertical-align: top;
+    font-family: inherit;
+    font-size: 14px;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    line-height: 1.2;
+}
+
+.gta6-admin-wrapper .diff-deletedline {
+    background-color: #ffe5e5;
+}
+
+.gta6-admin-wrapper .diff-addedline {
+    background-color: #d1fae5;
+}
+
+.gta6-admin-wrapper .diff-deletedline del {
+    background-color: #ffcccc;
+    text-decoration: none;
+}
+
+.gta6-admin-wrapper .diff-addedline ins {
+    background-color: #a7f3d0;
+    text-decoration: none;
+}
+
+.gta6-admin-wrapper .diff-context {
+    color: #6c7781;
+}
+
+.gta6-diff-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.gta6-diff-grid h5 {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 0 0 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #eee;
+}
+
+.gta6-content-preview {
+    border: 1px solid #e0e0e0;
+    padding: 16px;
+    border-radius: 6px;
+    background-color: #fdfdfd;
+}
+
+.gta6-screenshot-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.gta6-thumb {
+    border: 3px solid transparent;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.gta6-thumb--added {
+    border-color: #10b981;
+}
+
+.gta6-thumb--removed {
+    border-color: #ef4444;
+    opacity: 0.6;
+}
+
+.gta6-content-preview .prose ul,
+.gta6-content-preview .prose ol,
+.gta6-content-preview ul.wp-block-list,
+.gta6-content-preview ol.wp-block-list {
+    list-style-position: inside;
+    padding-left: 1.5em;
+    margin-top: 1em;
+    margin-bottom: 1em;
+}
+
+.gta6-content-preview .prose ul,
+.gta6-content-preview ul.wp-block-list {
+    list-style-type: disc;
+}
+
+.gta6-content-preview .prose ol,
+.gta6-content-preview ol.wp-block-list {
+    list-style-type: decimal;
+}
+
+.gta6-content-preview .prose li {
+    margin-bottom: 0.5em;
+}
+
+.gta6-version-change {
+    font-weight: 600;
+}
+.gta6-version-change .arrow {
+    color: #9ca3af;
+    margin: 0 0.5em;
+    position: unset;
+}
+.gta6-version-change .arrow:after {
+    display:none;
+}

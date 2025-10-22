@@ -1,0 +1,64 @@
+/*
+Theme Name: GTA6 Mods Vice City Edition
+Theme URI: https://gta6-mods.com
+Author: GTA6-Mods Team
+Author URI: https://gta6-mods.com
+Description: High-performance WordPress theme for GTA6 modding community with Vice City inspired styling.
+Version: 55.5.0
+Requires at least: 6.0
+Tested up to: 6.4
+Requires PHP: 7.4
+License: GNU General Public License v2 or later
+License URI: https://www.gnu.org/licenses/gpl-2.0.html
+Text Domain: gta6-mods
+*/
+
+/* Custom styles are enqueued from assets/css/theme.css */
+.form-label {
+    display: block;
+    font-weight: 600;
+    color: #111827;
+    margin-bottom: 0.5rem;
+}
+
+.form-input,
+.form-textarea,
+.form-multiselect {
+    width: 100%;
+    border-radius: 0.75rem;
+    border: 1px solid #d1d5db;
+    padding: 0.625rem 0.875rem;
+    font-size: 0.95rem;
+    color: #111827;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-input:focus,
+.form-textarea:focus,
+.form-multiselect:focus {
+    outline: none;
+    border-color: #ec4899;
+    box-shadow: 0 0 0 3px rgba(236, 72, 153, 0.2);
+}
+
+.form-textarea {
+    min-height: 160px;
+    resize: vertical;
+}
+
+.form-multiselect {
+    height: 10rem;
+}
+
+.form-help {
+    margin-top: 0.35rem;
+    font-size: 0.8rem;
+    color: #6b7280;
+}
+
+.card {
+    background-color: #ffffff;
+    border-radius: 1.25rem;
+    border: 1px solid rgba(17, 24, 39, 0.05);
+    box-shadow: 0 20px 45px -24px rgba(236, 72, 153, 0.55);
+}
