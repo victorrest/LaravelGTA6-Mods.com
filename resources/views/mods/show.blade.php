@@ -111,10 +111,9 @@
                                 $isActive = $activeTab === $tabKey;
                                 $activeClass = 'text-pink-600 border-pink-500 bg-white';
                                 $inactiveClass = 'text-gray-600 border-transparent hover:text-pink-600';
-                                $resolvedTabRoute = is_string($tabRoute) && $tabRoute !== '' ? $tabRoute : '#';
                             @endphp
                             <a
-                                href="{{ $resolvedTabRoute }}"
+                                href="{{ is_string($tabRoute) && $tabRoute !== '' ? $tabRoute : '#' }}"
                                 data-tab-target="tab-{{ $tabKey }}"
                                 data-tab-active-class="{{ $activeClass }}"
                                 data-tab-inactive-class="{{ $inactiveClass }}"
