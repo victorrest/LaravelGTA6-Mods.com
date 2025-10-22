@@ -62,8 +62,14 @@
                         </div>
 
                         <div>
-                            <label class="form-label" for="description">Description</label>
-                            <textarea id="description" name="description" rows="9" class="form-textarea" placeholder="Describe features, installation steps and credits" required>{{ old('description') }}</textarea>
+                            <label class="form-label" for="mod-description-editor">Description</label>
+                            <x-editor-js
+                                name="description"
+                                input-id="description"
+                                holder-id="mod-description-editor"
+                                placeholder="Describe features, installation steps and credits"
+                                class="mt-2"
+                            />
                         </div>
 
                         <div class="flex items-center justify-end gap-3">
@@ -271,7 +277,7 @@
 
             const titleInput = document.getElementById('title');
             const versionInput = document.getElementById('version');
-            const descriptionInput = document.getElementById('description');
+            const descriptionEditorWrapper = document.querySelector('[data-editorjs][data-holder="mod-description-editor"]');
             const downloadInput = document.getElementById('download_url');
             const categoriesSelect = document.getElementById('category_ids');
             const fileSizeInput = document.getElementById('file_size');
@@ -647,10 +653,20 @@
 
             categoriesSelect.addEventListener('change', updateCategories);
 
-            descriptionInput.addEventListener('input', () => {
-                const text = descriptionInput.value.trim();
-                reviewDescription.textContent = text ? text : '—';
-            });
+            const updateDescriptionPreview = (plainText = '') => {
+                const text = (typeof plainText === 'string' ? plainText : '').trim();
+                reviewDescription.textContent = text || '—';
+            };
+
+            if (descriptionEditorWrapper) {
+                descriptionEditorWrapper.addEventListener('editorjs:ready', (event) => {
+                    updateDescriptionPreview(event.detail?.plainText ?? '');
+                });
+
+                descriptionEditorWrapper.addEventListener('editorjs:change', (event) => {
+                    updateDescriptionPreview(event.detail?.plainText ?? '');
+                });
+            }
 
             nextButtons.forEach((button) => {
                 button.addEventListener('click', () => {
@@ -686,9 +702,6 @@
                 versionInput.dispatchEvent(new Event('input'));
             }
 
-            if (descriptionInput.value.trim()) {
-                reviewDescription.textContent = descriptionInput.value.trim();
-            }
 
             if (downloadInput.value.trim()) {
                 downloadInput.dispatchEvent(new Event('input'));

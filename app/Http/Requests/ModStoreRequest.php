@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Rules\EditorJsContent;
 use Illuminate\Foundation\Http\FormRequest;
 
 class ModStoreRequest extends FormRequest
@@ -27,7 +28,7 @@ class ModStoreRequest extends FormRequest
             'category_ids' => ['required', 'array', 'min:1'],
             'category_ids.*' => ['integer', 'exists:mod_categories,id'],
             'download_url' => ['nullable', 'url', 'required_without_all:mod_file,mod_file_token'],
-            'description' => ['required', 'string', 'min:20'],
+            'description' => ['required', 'string', new EditorJsContent(20)],
             'hero_image' => ['nullable', 'image', 'max:4096'],
             'hero_image_token' => ['nullable', 'uuid'],
             'gallery_images' => ['nullable', 'array', 'max:12'],

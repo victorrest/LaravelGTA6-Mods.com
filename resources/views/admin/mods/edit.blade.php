@@ -59,8 +59,15 @@
                 <p class="form-help">Rövid leírás a listanézetekhez, maximum 255 karakter.</p>
             </div>
             <div>
-                <label class="form-label" for="description">Leírás</label>
-                <textarea id="description" name="description" rows="10" class="form-textarea" required>{{ old('description', $mod->description) }}</textarea>
+                <label class="form-label" for="admin-mod-description-editor">Leírás</label>
+                <x-editor-js
+                    name="description"
+                    :value="$mod->description"
+                    input-id="description"
+                    holder-id="admin-mod-description-editor"
+                    placeholder="Írd le részletesen a mod funkcióit, telepítését és krediteket"
+                    class="mt-2"
+                />
             </div>
             <div class="grid gap-4 md:grid-cols-2">
                 <div>

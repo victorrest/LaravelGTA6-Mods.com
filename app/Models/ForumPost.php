@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\EditorJsRenderer;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -29,5 +30,10 @@ class ForumPost extends Model
     public function author(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function getBodyHtmlAttribute(): string
+    {
+        return EditorJsRenderer::renderHtml($this->attributes['body'] ?? '');
     }
 }

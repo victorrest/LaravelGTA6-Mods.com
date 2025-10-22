@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\EditorJsRenderer;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -31,5 +32,10 @@ class NewsArticle extends Model
     public function getRouteKeyName(): string
     {
         return 'slug';
+    }
+
+    public function getBodyHtmlAttribute(): string
+    {
+        return EditorJsRenderer::renderHtml($this->attributes['body'] ?? '');
     }
 }

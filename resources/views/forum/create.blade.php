@@ -24,8 +24,14 @@
                 </select>
             </div>
             <div>
-                <label class="form-label" for="body">Body</label>
-                <textarea id="body" name="body" rows="8" class="form-textarea" required>{{ old('body') }}</textarea>
+                <label class="form-label" for="thread-body-editor">Body</label>
+                <x-editor-js
+                    name="body"
+                    input-id="body"
+                    holder-id="thread-body-editor"
+                    placeholder="Share your discovery, question or release notes"
+                    class="mt-2"
+                />
             </div>
             <div class="flex items-center justify-end gap-3">
                 <a href="{{ route('forum.index') }}" class="inline-flex items-center px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</a>

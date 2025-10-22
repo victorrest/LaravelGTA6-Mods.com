@@ -123,7 +123,7 @@
                     <section id="mod-description" class="space-y-4">
                         <h2 class="text-xl font-semibold text-gray-900">Leírás</h2>
                         <div class="prose max-w-none text-gray-700">
-                            {!! nl2br(e($mod->description)) !!}
+                            {!! $mod->description_html !!}
                         </div>
                     </section>
 

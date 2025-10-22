@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\User;
+use App\Support\EditorJsRenderer;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 
@@ -20,12 +21,44 @@ class ModFactory extends Factory
     {
         $title = fake()->unique()->sentence(4);
 
+        $blocks = [
+            [
+                'type' => 'header',
+                'data' => [
+                    'text' => fake()->sentence(3),
+                    'level' => 2,
+                ],
+            ],
+            [
+                'type' => 'paragraph',
+                'data' => [
+                    'text' => fake()->paragraph(),
+                ],
+            ],
+            [
+                'type' => 'list',
+                'data' => [
+                    'style' => 'unordered',
+                    'items' => fake()->sentences(3),
+                ],
+            ],
+        ];
+
+        $description = [
+            'time' => now()->getTimestampMs(),
+            'blocks' => $blocks,
+            'version' => '2.30.7',
+        ];
+
+        $descriptionJson = json_encode($description);
+        $excerpt = Str::limit(EditorJsRenderer::toPlainText($descriptionJson, $description), 200);
+
         return [
             'user_id' => User::factory(),
             'title' => $title,
             'slug' => Str::slug($title) . '-' . fake()->unique()->numberBetween(100, 999),
-            'excerpt' => fake()->paragraph(),
-            'description' => fake()->paragraphs(4, true),
+            'excerpt' => $excerpt,
+            'description' => $descriptionJson,
             'version' => 'v' . fake()->randomFloat(1, 0.1, 2.5),
             'hero_image_path' => 'https://placehold.co/1280x720/ec4899/1f2937?text=GTA6+Mod',
             'download_url' => fake()->url(),

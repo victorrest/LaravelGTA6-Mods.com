@@ -52,8 +52,15 @@
                         </div>
                     </div>
                     <div>
-                        <label class="form-label" for="description">Description</label>
-                        <textarea id="description" name="description" rows="9" class="form-textarea" required>{{ old('description', $mod->description) }}</textarea>
+                        <label class="form-label" for="mod-description-editor">Description</label>
+                        <x-editor-js
+                            name="description"
+                            :value="$mod->description"
+                            input-id="description"
+                            holder-id="mod-description-editor"
+                            placeholder="Describe features, installation steps and credits"
+                            class="mt-2"
+                        />
                     </div>
                 </div>
 

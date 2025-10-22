@@ -9,3 +9,21 @@
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
 }
+
+[data-editorjs] {
+    min-height: 280px;
+}
+
+[data-editorjs] .codex-editor {
+    min-height: inherit;
+    background-color: transparent;
+}
+
+[data-editorjs] .ce-block__content,
+[data-editorjs] .ce-toolbar__content {
+    max-width: 100%;
+}
+
+.editorjs-holder {
+    min-height: 280px;
+}
