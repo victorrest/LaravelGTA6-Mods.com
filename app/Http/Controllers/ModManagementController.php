@@ -6,15 +6,19 @@ use App\Http\Requests\ModStoreRequest;
 use App\Http\Requests\ModUpdateRequest;
 use App\Models\Mod;
 use App\Models\ModCategory;
+use App\Services\TemporaryUploadService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use JsonException;
 use Illuminate\Validation\ValidationException;
 
 class ModManagementController extends Controller
 {
+    public function __construct(private TemporaryUploadService $temporaryUploadService)
+    {
+    }
+
     public function create()
     {
         return view('mods.upload', [
@@ -140,6 +144,10 @@ class ModManagementController extends Controller
 
     private function storeHeroImage(ModStoreRequest|ModUpdateRequest $request): ?string
     {
+        if ($token = $request->input('hero_image_token')) {
+            return $this->temporaryUploadService->moveToPublic($token, 'mods/hero-images')['path'] ?? null;
+        }
+
         if (! $request->hasFile('hero_image')) {
             return null;
         }
@@ -150,7 +158,7 @@ class ModManagementController extends Controller
     private function storeModFile(ModStoreRequest|ModUpdateRequest $request): ?array
     {
         if ($token = $request->input('mod_file_token')) {
-            return $this->consumeChunkedUpload($token, 'mod_file');
+            return $this->temporaryUploadService->moveToPublic($token, 'mods/files');
         }
 
         if (! $request->hasFile('mod_file')) {
@@ -167,76 +175,23 @@ class ModManagementController extends Controller
         ];
     }
 
-    private function consumeChunkedUpload(string $token, string $expectedType): array
-    {
-        $baseDirectory = "tmp/uploads/{$token}";
-        $disk = Storage::disk('local');
-
-        if (! $disk->exists($baseDirectory.'/meta.json')) {
-            throw ValidationException::withMessages([
-                'mod_file' => 'The provided upload token is invalid or has expired. Please re-upload the file.',
-            ]);
-        }
-
-        try {
-            $meta = json_decode($disk->get($baseDirectory.'/meta.json'), true, 512, JSON_THROW_ON_ERROR);
-        } catch (JsonException) {
-            throw ValidationException::withMessages([
-                'mod_file' => 'Uploaded file metadata is corrupted. Please retry the upload.',
-            ]);
-        }
-
-        if (($meta['upload_type'] ?? null) !== $expectedType) {
-            throw ValidationException::withMessages([
-                'mod_file' => 'The provided upload token does not match the expected file type.',
-            ]);
-        }
-
-        $source = $baseDirectory.'/'.($meta['stored_filename'] ?? 'file.bin');
-
-        if (! $disk->exists($source)) {
-            throw ValidationException::withMessages([
-                'mod_file' => 'Uploaded chunks could not be located. Please try again.',
-            ]);
-        }
-
-        $extension = $meta['extension'] ?? pathinfo($meta['original_name'] ?? '', PATHINFO_EXTENSION);
-        $finalName = Str::random(40).($extension ? '.'.$extension : '');
-        $finalPath = 'mods/files/'.$finalName;
-
-        $stream = $disk->readStream($source);
-        $stored = Storage::disk('public')->put($finalPath, $stream);
-
-        if (is_resource($stream)) {
-            fclose($stream);
-        }
-
-        if (! $stored) {
-            throw ValidationException::withMessages([
-                'mod_file' => 'We could not finalise the uploaded file. Please try again.',
-            ]);
-        }
-
-        $disk->deleteDirectory($baseDirectory);
-
-        $sizeBytes = $meta['size'] ?? Storage::disk('public')->size($finalPath);
-
-        return [
-            'path' => $finalPath,
-            'public_url' => Storage::disk('public')->url($finalPath),
-            'size' => round(($sizeBytes ?? 0) / 1048576, 2),
-        ];
-    }
-
     private function storeGalleryImages(ModStoreRequest|ModUpdateRequest $request, Mod $mod): void
     {
-        $galleryImages = $request->file('gallery_images', []);
+        $position = (int) $mod->galleryImages()->max('position');
 
-        if (! $galleryImages) {
-            return;
+        $galleryTokens = collect($request->input('gallery_image_tokens', []))
+            ->filter()
+            ->values();
+
+        foreach ($galleryTokens as $token) {
+            $upload = $this->temporaryUploadService->moveToPublic($token, 'mods/gallery');
+            $mod->galleryImages()->create([
+                'path' => $upload['path'],
+                'position' => ++$position,
+            ]);
         }
 
-        $position = (int) $mod->galleryImages()->max('position');
+        $galleryImages = $request->file('gallery_images', []);
 
         foreach ($galleryImages as $image) {
             $mod->galleryImages()->create([

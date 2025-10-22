@@ -17,7 +17,13 @@
                 @include('components.validation-errors')
                 @csrf
                 @method('PUT')
+                <input type="hidden" name="hero_image_token" id="hero_image_token" value="{{ old('hero_image_token') }}">
                 <input type="hidden" name="mod_file_token" id="mod_file_token" value="{{ old('mod_file_token') }}">
+                <div id="gallery-token-container">
+                    @foreach (old('gallery_image_tokens', []) as $token)
+                        <input type="hidden" name="gallery_image_tokens[]" value="{{ $token }}" data-token="{{ $token }}">
+                    @endforeach
+                </div>
 
                 <div class="card p-6 md:p-8 space-y-6">
                     <h2 class="text-lg font-semibold text-gray-900">General details</h2>
@@ -63,6 +69,7 @@
                                     <p class="text-sm font-semibold text-gray-700">Drop or click to upload</p>
                                     <p class="text-xs text-gray-500">Current image will remain unless you replace it.</p>
                                 </div>
+                                <p id="hero-upload-status" class="pointer-events-none mt-3 text-xs font-semibold text-pink-600"></p>
                             </div>
                         </div>
                         <div>
@@ -92,7 +99,7 @@
 
                     <div>
                         <label class="form-label">Upload new screenshots</label>
-                        <div id="gallery-dropzone" class="relative flex min-h-[220px] w-full cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-pink-300 bg-white text-center transition hover:border-pink-500 hover:bg-pink-50">
+                        <div id="gallery-dropzone" data-existing-count="{{ $mod->galleryImages->count() }}" class="relative flex min-h-[220px] w-full cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-pink-300 bg-white text-center transition hover:border-pink-500 hover:bg-pink-50">
                             <input id="gallery_images" name="gallery_images[]" type="file" accept="image/*" multiple class="absolute inset-0 h-full w-full cursor-pointer opacity-0">
                             <div class="space-y-2 px-6">
                                 <i class="fa-solid fa-images text-2xl text-pink-500"></i>
@@ -114,7 +121,7 @@
                         </div>
                         <div>
                             <label class="form-label" for="mod_file">Upload mod archive</label>
-                            <div id="mod-file-dropzone" class="relative flex h-48 cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-indigo-300 bg-indigo-50/60 text-center transition hover:border-indigo-400 hover:bg-indigo-100">
+                            <div class="relative flex h-48 cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-indigo-300 bg-indigo-50/60 text-center transition hover:border-indigo-400 hover:bg-indigo-100">
                                 <input id="mod_file" name="mod_file" type="file" class="absolute inset-0 h-full w-full cursor-pointer opacity-0">
                                 <div class="space-y-2 px-6">
                                     <i class="fa-solid fa-file-zipper text-2xl text-indigo-500"></i>
@@ -122,12 +129,6 @@
                                     <p class="text-xs text-gray-500">Max 200 MB. Existing archive remains unless replaced.</p>
                                     <p id="mod-file-label" class="text-xs text-indigo-500">{{ $mod->file_path ? basename($mod->file_path) : '' }}</p>
                                 </div>
-                            </div>
-                            <div id="mod-upload-progress" class="mt-3 hidden">
-                                <div class="h-2 rounded-full bg-indigo-100 overflow-hidden">
-                                    <div id="mod-upload-progress-bar" class="h-full w-0 bg-indigo-500 transition-all duration-300"></div>
-                                </div>
-                                <p id="mod-upload-progress-label" class="mt-2 text-xs font-semibold text-indigo-500"></p>
                             </div>
                             @if ($mod->file_path)
                                 <p class="mt-2 text-xs text-gray-500">Current archive: <span class="font-semibold">{{ \Illuminate\Support\Str::limit($mod->file_path, 48) }}</span></p>
@@ -193,12 +194,27 @@
 @push('scripts')
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('mod-update-form');
+            const chunkEndpoint = @json(route('mods.uploads.chunk'));
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
+            const chunkSize = 512 * 1024;
+            const MAX_GALLERY_ITEMS = 12;
+            const galleryDropzone = document.getElementById('gallery-dropzone');
+            const existingGalleryCount = Number(galleryDropzone.dataset.existingCount || 0);
+            const hasExistingHostedFile = @json((bool) $mod->file_path);
+
+            const heroTokenInput = document.getElementById('hero_image_token');
+            const heroStatusLabel = document.getElementById('hero-upload-status');
+            const modFileTokenInput = document.getElementById('mod_file_token');
+            const galleryTokenContainer = document.getElementById('gallery-token-container');
+
             const previewHero = document.getElementById('preview-hero');
             const previewTitle = document.getElementById('preview-title');
             const previewVersion = document.getElementById('preview-version');
             const previewCategories = document.getElementById('preview-categories');
             const previewDownload = document.getElementById('preview-download');
             const previewGallery = document.getElementById('preview-gallery');
+            const initialPreviewGalleryHtml = previewGallery.innerHTML;
 
             const titleInput = document.getElementById('title');
             const versionInput = document.getElementById('version');
@@ -207,195 +223,141 @@
             const modFileInput = document.getElementById('mod_file');
             const modFileLabel = document.getElementById('mod-file-label');
             const fileSizeInput = document.getElementById('file_size');
-            const modFileTokenInput = document.getElementById('mod_file_token');
-            const modUploadProgress = document.getElementById('mod-upload-progress');
-            const modUploadProgressBar = document.getElementById('mod-upload-progress-bar');
-            const modUploadProgressLabel = document.getElementById('mod-upload-progress-label');
-            const modFileDropzone = document.getElementById('mod-file-dropzone');
-            const chunkUploadEndpoint = @json(route('uploads.chunks'));
-            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-
+            const galleryInput = document.getElementById('gallery_images');
+            const galleryPreviewWrapper = document.getElementById('gallery-previews');
             const heroInput = document.getElementById('hero_image');
             const heroDropzone = document.getElementById('hero-dropzone');
 
-            const galleryInput = document.getElementById('gallery_images');
-            const galleryDropzone = document.getElementById('gallery-dropzone');
-            const galleryPreviewWrapper = document.getElementById('gallery-previews');
+            let galleryUploads = [];
+            const originalHostedState = hasExistingHostedFile;
+            let hasUploadedModFile = Boolean(modFileTokenInput.value) || hasExistingHostedFile;
+            let activeUploads = 0;
 
-            const defaultTitle = @json($mod->title);
-            const defaultVersion = @json($mod->version);
-            const defaultCategories = @json($mod->category_names);
-            const fallbackDownloadState = @json($mod->file_path ? 'Direct download enabled' : 'External link selected');
-
-            let galleryFiles = [];
-            let modUploadActive = false;
-            let hostedArchiveAvailable = @json((bool) $mod->file_path);
-            if (modFileTokenInput.value) {
-                hostedArchiveAvailable = true;
-            }
-
-            const updateHeroPreview = (file) => {
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    previewHero.style.backgroundImage = `url('${event.target.result}')`;
-                };
-                reader.readAsDataURL(file);
+            const beginUpload = () => {
+                activeUploads += 1;
             };
 
-            const setHeroFile = (file) => {
-                if (!file) {
-                    return;
-                }
-                if (typeof DataTransfer !== 'undefined') {
-                    const dt = new DataTransfer();
-                    dt.items.add(file);
-                    heroInput.files = dt.files;
-                }
-                updateHeroPreview(file);
+            const finishUpload = () => {
+                activeUploads = Math.max(0, activeUploads - 1);
             };
 
-            const renderGalleryPreviews = () => {
-                galleryPreviewWrapper.innerHTML = '';
-
-                if (!galleryFiles.length) {
-                    return;
+            form.addEventListener('submit', (event) => {
+                if (activeUploads > 0) {
+                    event.preventDefault();
+                    alert('Please wait for all uploads to finish before saving changes.');
                 }
+            });
 
-                const supportsDataTransfer = typeof DataTransfer !== 'undefined';
-                const dt = supportsDataTransfer ? new DataTransfer() : null;
-
-                galleryFiles.forEach((file, index) => {
-                    const reader = new FileReader();
-                    reader.onload = (event) => {
-                        const container = document.createElement('div');
-                        container.className = 'relative h-24 overflow-hidden rounded-xl shadow-sm group';
-                        container.innerHTML = `
-                            <img src="${event.target.result}" alt="Screenshot preview" class="h-full w-full object-cover" />
-                            <button type="button" class="absolute top-2 right-2 hidden rounded-full bg-black/70 p-1 text-white transition group-hover:flex" data-remove-index="${index}" aria-label="Remove screenshot">
-                                <i class="fa-solid fa-xmark"></i>
-                            </button>
-                        `;
-                        galleryPreviewWrapper.appendChild(container);
-                    };
-                    reader.readAsDataURL(file);
-
-                    if (dt) {
-                        dt.items.add(file);
-                    }
-                });
-
-                if (dt) {
-                    galleryInput.files = dt.files;
-                }
-
-                const thumbs = document.createDocumentFragment();
-                galleryFiles.slice(0, 3).forEach((file) => {
-                    const reader = new FileReader();
-                    reader.onload = (event) => {
-                        const thumb = document.createElement('div');
-                        thumb.className = 'h-16 rounded-lg bg-cover bg-center';
-                        thumb.style.backgroundImage = `url('${event.target.result}')`;
-                        thumbs.appendChild(thumb);
-                    };
-                    reader.readAsDataURL(file);
-                });
-
-                if (thumbs.childNodes.length) {
-                    previewGallery.innerHTML = '';
-                    previewGallery.appendChild(thumbs);
-                }
-            };
-
-            const hasUploadedArchive = () => hostedArchiveAvailable || !!modFileTokenInput.value;
-
-            const uploadFileInChunks = async (file) => {
-                const chunkSize = 5 * 1024 * 1024;
-                const totalChunks = Math.max(1, Math.ceil(file.size / chunkSize));
-                const identifier = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+            const uploadFileInChunks = async (file, category, onProgress = () => {}) => {
+                const totalChunks = Math.max(Math.ceil(file.size / chunkSize), 1);
+                const uploadToken = crypto.randomUUID();
+                let result = null;
 
                 for (let index = 0; index < totalChunks; index++) {
                     const start = index * chunkSize;
-                    const chunk = file.slice(start, Math.min(start + chunkSize, file.size));
-
+                    const end = Math.min(start + chunkSize, file.size);
+                    const chunk = file.slice(start, end);
                     const formData = new FormData();
-                    formData.append('identifier', identifier);
-                    formData.append('filename', file.name);
-                    formData.append('mime_type', file.type || 'application/octet-stream');
+                    formData.append('chunk', chunk, file.name);
+                    formData.append('upload_token', uploadToken);
                     formData.append('chunk_index', index);
                     formData.append('total_chunks', totalChunks);
-                    formData.append('upload_type', 'mod_file');
-                    formData.append('chunk', new File([chunk], file.name));
+                    formData.append('original_name', file.name);
+                    formData.append('mime_type', file.type || 'application/octet-stream');
+                    formData.append('upload_category', category);
 
-                    const response = await fetch(chunkUploadEndpoint, {
+                    const response = await fetch(chunkEndpoint, {
                         method: 'POST',
                         headers: {
                             'X-CSRF-TOKEN': csrfToken,
                             'Accept': 'application/json',
                         },
+                        credentials: 'same-origin',
                         body: formData,
                     });
 
                     if (!response.ok) {
-                        throw new Error('Upload failed. Please try again.');
+                        const error = await response.text();
+                        throw new Error(error || 'Upload failed.');
                     }
 
                     const payload = await response.json();
-                    const progress = Math.min(100, Math.round(((index + 1) / totalChunks) * 100));
-                    modUploadProgressBar.style.width = `${progress}%`;
-                    modUploadProgressLabel.textContent = `Uploading… ${progress}%`;
-                    modUploadProgressLabel.classList.remove('text-red-600');
-                    modUploadProgressLabel.classList.add('text-indigo-500');
+                    onProgress({ index: index + 1, total: totalChunks, payload });
 
                     if (payload.status === 'completed') {
-                        return payload;
+                        result = payload;
                     }
                 }
 
-                throw new Error('Upload did not complete.');
+                if (!result) {
+                    throw new Error('Upload did not complete.');
+                }
+
+                return result;
             };
 
-            const processModArchive = async (file) => {
-                if (!file || modUploadActive) {
+            const addGalleryToken = (token) => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'gallery_image_tokens[]';
+                input.value = token;
+                input.dataset.token = token;
+                galleryTokenContainer.appendChild(input);
+            };
+
+            const removeGalleryToken = (token) => {
+                const existing = galleryTokenContainer.querySelector(`[data-token="${token}"]`);
+                if (existing) {
+                    existing.remove();
+                }
+            };
+
+            const renderGalleryPreviews = () => {
+                galleryPreviewWrapper.innerHTML = '';
+
+                galleryUploads.forEach((item, index) => {
+                    const container = document.createElement('div');
+                    container.className = 'relative h-24 overflow-hidden rounded-xl shadow-sm group';
+
+                    if (item.preview) {
+                        container.innerHTML = `
+                            <img src="${item.preview}" alt="Screenshot preview" class="h-full w-full object-cover" />
+                            <button type="button" class="absolute top-2 right-2 hidden rounded-full bg-black/70 p-1 text-white transition group-hover:flex" data-remove-index="${index}" aria-label="Remove screenshot" ${item.uploading ? 'disabled' : ''}>
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                            ${item.uploading ? '<div class="absolute inset-0 flex items-center justify-center bg-black/40 text-xs font-semibold text-white">Uploading…</div>' : ''}
+                        `;
+                    } else {
+                        container.innerHTML = '<div class="flex h-full w-full items-center justify-center bg-gray-100 text-xs font-semibold text-gray-500">Preparing…</div>';
+                    }
+
+                    galleryPreviewWrapper.appendChild(container);
+                });
+
+                previewGallery.innerHTML = initialPreviewGalleryHtml;
+                galleryUploads
+                    .filter((item) => item.preview)
+                    .forEach((item) => {
+                        const thumb = document.createElement('div');
+                        thumb.className = 'h-16 rounded-lg bg-cover bg-center';
+                        thumb.style.backgroundImage = `url('${item.preview}')`;
+                        previewGallery.appendChild(thumb);
+                    });
+            };
+
+            galleryPreviewWrapper.addEventListener('click', (event) => {
+                const button = event.target.closest('button[data-remove-index]');
+                if (!button) {
                     return;
                 }
 
-                modUploadActive = true;
-                modUploadProgress.classList.remove('hidden');
-                modUploadProgressBar.style.width = '0%';
-                modUploadProgressLabel.textContent = 'Preparing upload…';
-                modUploadProgressLabel.classList.remove('text-red-600');
-                modUploadProgressLabel.classList.add('text-indigo-500');
-                modFileDropzone.classList.add('opacity-60', 'pointer-events-none');
-                modFileInput.value = '';
-
-                try {
-                    const result = await uploadFileInChunks(file);
-                    modFileTokenInput.value = result.token;
-                    modFileLabel.textContent = `${result.name} · ${result.size.toFixed(2)} MB`;
-
-                    if (!fileSizeInput.value) {
-                        fileSizeInput.value = result.size.toFixed(2);
-                    }
-
-                    hostedArchiveAvailable = true;
-                    previewDownload.textContent = 'Direct download enabled';
-                    modUploadProgressLabel.textContent = 'Upload complete. Ready to save.';
-                    modUploadProgressBar.style.width = '100%';
-                    updateDownloadSource();
-                } catch (error) {
-                    console.error(error);
-                    modFileTokenInput.value = '';
-                    modFileLabel.textContent = '';
-                    modUploadProgressLabel.textContent = error.message || 'Upload failed. Please try again.';
-                    modUploadProgressLabel.classList.remove('text-indigo-500');
-                    modUploadProgressLabel.classList.add('text-red-600');
-                    modUploadProgressBar.style.width = '0%';
-                    updateDownloadSource();
-                } finally {
-                    modUploadActive = false;
-                    modFileDropzone.classList.remove('opacity-60', 'pointer-events-none');
+                const index = Number(button.dataset.removeIndex);
+                const [removed] = galleryUploads.splice(index, 1);
+                if (removed?.token) {
+                    removeGalleryToken(removed.token);
                 }
-            };
+                renderGalleryPreviews();
+            });
 
             const handleDrop = (zone, callback) => {
                 zone.addEventListener('dragover', (event) => {
@@ -414,10 +376,90 @@
                 });
             };
 
+            const updateHeroPreview = (file) => {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    previewHero.style.backgroundImage = `url('${event.target.result}')`;
+                };
+                reader.readAsDataURL(file);
+            };
+
+            const setHeroFile = (file) => {
+                if (!file) {
+                    return;
+                }
+
+                updateHeroPreview(file);
+                heroStatusLabel.textContent = 'Uploading…';
+                beginUpload();
+
+                uploadFileInChunks(file, 'hero_image')
+                    .then((result) => {
+                        heroTokenInput.value = result.upload_token;
+                        heroStatusLabel.textContent = 'Uploaded successfully.';
+                    })
+                    .catch((error) => {
+                        heroTokenInput.value = '';
+                        heroStatusLabel.textContent = 'Upload failed. Please try again.';
+                        console.error(error);
+                        alert('Hero image upload failed. Please try again.');
+                    })
+                    .finally(() => {
+                        heroInput.value = '';
+                        finishUpload();
+                    });
+            };
+
+            const remainingGallerySlots = () => {
+                const removed = document.querySelectorAll('input[name="remove_gallery_image_ids[]"]:checked').length;
+                return MAX_GALLERY_ITEMS - (existingGalleryCount - removed) - galleryUploads.length;
+            };
+
+            const handleGalleryFile = (file) => {
+                if (!file) {
+                    return;
+                }
+
+                if (remainingGallerySlots() <= 0) {
+                    alert('You have reached the 12 screenshot limit. Deselect existing images to free up space.');
+                    return;
+                }
+
+                const item = { preview: null, token: null, uploading: true };
+                galleryUploads.push(item);
+                renderGalleryPreviews();
+                beginUpload();
+
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    item.preview = event.target.result;
+                    renderGalleryPreviews();
+                };
+                reader.readAsDataURL(file);
+
+                uploadFileInChunks(file, 'gallery_image')
+                    .then((result) => {
+                        item.token = result.upload_token;
+                        item.uploading = false;
+                        addGalleryToken(result.upload_token);
+                        renderGalleryPreviews();
+                    })
+                    .catch((error) => {
+                        galleryUploads = galleryUploads.filter((entry) => entry !== item);
+                        renderGalleryPreviews();
+                        console.error(error);
+                        alert('Screenshot upload failed. Please try again.');
+                    })
+                    .finally(() => {
+                        finishUpload();
+                    });
+            };
+
             handleDrop(heroDropzone, (files) => {
                 if (!files.length) {
                     return;
                 }
+
                 setHeroFile(files[0]);
             });
 
@@ -425,21 +467,13 @@
                 if (!files.length) {
                     return;
                 }
-                galleryFiles = galleryFiles.concat(Array.from(files));
-                renderGalleryPreviews();
-            });
 
-            handleDrop(modFileDropzone, (files) => {
-                if (!files.length) {
-                    return;
-                }
-
-                processModArchive(files[0]);
+                Array.from(files).forEach((file) => handleGalleryFile(file));
             });
 
             heroInput.addEventListener('change', (event) => {
                 if (event.target.files && event.target.files[0]) {
-                    updateHeroPreview(event.target.files[0]);
+                    setHeroFile(event.target.files[0]);
                 }
             });
 
@@ -447,59 +481,90 @@
                 if (!event.target.files.length) {
                     return;
                 }
-                galleryFiles = galleryFiles.concat(Array.from(event.target.files));
-                renderGalleryPreviews();
+
+                Array.from(event.target.files).forEach((file) => handleGalleryFile(file));
+                galleryInput.value = '';
             });
 
-            galleryPreviewWrapper.addEventListener('click', (event) => {
-                const button = event.target.closest('button[data-remove-index]');
-                if (!button) {
+            const updateDownloadState = () => {
+                const hasUrl = !!downloadInput.value.trim();
+
+                if (hasUploadedModFile) {
+                    previewDownload.textContent = 'Direct download enabled';
+                } else if (hasUrl) {
+                    previewDownload.textContent = 'External link selected';
+                } else {
+                    previewDownload.textContent = originalHostedState ? 'Direct download enabled' : 'External link selected';
+                }
+            };
+
+            downloadInput.addEventListener('input', () => {
+                updateDownloadState();
+            });
+
+            const handleModFileSelection = (file) => {
+                if (!file) {
                     return;
                 }
 
-                const index = Number(button.dataset.removeIndex);
-                galleryFiles.splice(index, 1);
-                renderGalleryPreviews();
+                hasUploadedModFile = false;
+                modFileLabel.textContent = 'Uploading…';
+                beginUpload();
+
+                uploadFileInChunks(file, 'mod_archive', ({ index, total }) => {
+                    const percent = Math.round((index / total) * 100);
+                    modFileLabel.textContent = `Uploading… ${percent}%`;
+                })
+                    .then((result) => {
+                        hasUploadedModFile = true;
+                        modFileTokenInput.value = result.upload_token;
+                        modFileLabel.textContent = `${file.name} · ${result.size_mb.toFixed(2)} MB`;
+                        if (fileSizeInput) {
+                            fileSizeInput.value = result.size_mb.toFixed(2);
+                        }
+                        updateDownloadState();
+                    })
+                    .catch((error) => {
+                        hasUploadedModFile = originalHostedState;
+                        modFileTokenInput.value = '';
+                        modFileLabel.textContent = 'Upload failed. Please try again.';
+                        console.error(error);
+                        alert('Mod archive upload failed. Please try again.');
+                        updateDownloadState();
+                    })
+                    .finally(() => {
+                        finishUpload();
+                        modFileInput.value = '';
+                    });
+            };
+
+            modFileInput.addEventListener('change', () => {
+                if (modFileInput.files && modFileInput.files[0]) {
+                    handleModFileSelection(modFileInput.files[0]);
+                }
             });
 
             titleInput.addEventListener('input', () => {
-                const title = titleInput.value.trim() || defaultTitle;
+                const title = titleInput.value.trim() || @json($mod->title);
                 previewTitle.textContent = title;
             });
 
             versionInput.addEventListener('input', () => {
-                const version = versionInput.value.trim() || defaultVersion;
+                const version = versionInput.value.trim() || @json($mod->version);
                 previewVersion.textContent = version.startsWith('v') ? version : `v${version}`;
             });
 
             const updateCategories = () => {
                 const selected = Array.from(categoriesSelect.selectedOptions).map((option) => option.textContent.trim());
-                previewCategories.textContent = selected.length ? selected.join(', ') : defaultCategories;
+                previewCategories.textContent = selected.length ? selected.join(', ') : @json($mod->category_names);
             };
 
             categoriesSelect.addEventListener('change', updateCategories);
 
-            const updateDownloadSource = () => {
-                const hasUrl = !!downloadInput.value.trim();
-                const hasArchive = hasUploadedArchive();
-                previewDownload.textContent = hasUrl ? 'External link selected' : (hasArchive ? 'Direct download enabled' : fallbackDownloadState);
-            };
-
-            downloadInput.addEventListener('input', updateDownloadSource);
-
-            modFileInput.addEventListener('change', (event) => {
-                if (!event.target.files.length) {
-                    modFileTokenInput.value = '';
-                    modFileLabel.textContent = '';
-                    updateDownloadSource();
-                    return;
-                }
-
-                processModArchive(event.target.files[0]);
-            });
-
+            renderGalleryPreviews();
             updateCategories();
-            updateDownloadSource();
+            updateDownloadState();
         });
     </script>
+
 @endpush
