@@ -91,10 +91,6 @@ class ModController extends Controller
             ],
         ];
 
-        $requestedTab = request()->string('tab')->toString();
-        $allowedTabs = ['description', 'comments', 'changelog'];
-        $activeTab = in_array($requestedTab, $allowedTabs, true) ? $requestedTab : 'description';
-
         return view('mods.show', [
             'mod' => $mod,
             'comments' => $comments,
@@ -109,7 +105,6 @@ class ModController extends Controller
             'ratingHasHalf' => $ratingHasHalf,
             'metaDetails' => $metaDetails,
             'galleryImages' => $galleryImages,
-            'activeTab' => $activeTab,
         ]);
     }
 
