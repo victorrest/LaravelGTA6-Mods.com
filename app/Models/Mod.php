@@ -15,6 +15,18 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Mod extends Model
 {
+    public const STATUS_DRAFT = 'draft';
+    public const STATUS_PENDING = 'pending';
+    public const STATUS_PUBLISHED = 'published';
+    public const STATUS_ARCHIVED = 'archived';
+
+    public const STATUS_LABELS = [
+        self::STATUS_DRAFT => 'Draft',
+        self::STATUS_PENDING => 'Pending review',
+        self::STATUS_PUBLISHED => 'Published',
+        self::STATUS_ARCHIVED => 'Archived',
+    ];
+
     use HasFactory;
 
     protected $fillable = [
@@ -42,6 +54,11 @@ class Mod extends Model
         'rating' => 'decimal:2',
     ];
 
+    public function statusLabel(): string
+    {
+        return self::STATUS_LABELS[$this->status] ?? ucfirst($this->status);
+    }
+
     public function author(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
@@ -64,7 +81,17 @@ class Mod extends Model
 
     public function scopePublished(Builder $query): Builder
     {
-        return $query->where('status', 'published');
+        return $query->where('status', self::STATUS_PUBLISHED);
+    }
+
+    public function scopePending(Builder $query): Builder
+    {
+        return $query->where('status', self::STATUS_PENDING);
+    }
+
+    public function scopeDrafts(Builder $query): Builder
+    {
+        return $query->where('status', self::STATUS_DRAFT);
     }
 
     public function scopePopular(Builder $query): Builder

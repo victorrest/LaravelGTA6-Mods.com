@@ -23,6 +23,10 @@ class ModManagementController extends Controller
     {
         $data = $request->validated();
 
+        $user = Auth::user();
+        $status = $user?->isAdmin() ? Mod::STATUS_PUBLISHED : Mod::STATUS_PENDING;
+        $publishedAt = $status === Mod::STATUS_PUBLISHED ? now() : null;
+
         $mod = Mod::create([
             'user_id' => Auth::id(),
             'title' => $data['title'],
@@ -33,13 +37,19 @@ class ModManagementController extends Controller
             'download_url' => $data['download_url'],
             'file_size' => $data['file_size'] ?? null,
             'hero_image_path' => $this->storeHeroImage($request),
-            'status' => 'published',
-            'published_at' => now(),
+            'status' => $status,
+            'published_at' => $publishedAt,
         ]);
 
         $mod->categories()->sync($data['category_ids']);
 
-        return redirect()->route('mods.show', $mod)->with('status', 'Mod published successfully.');
+        cache()->forget('home:landing');
+
+        $message = $status === Mod::STATUS_PUBLISHED
+            ? 'Mod published successfully.'
+            : 'Your mod has been submitted for review. You will be notified once it is approved.';
+
+        return redirect()->route('mods.my')->with('status', $message);
     }
 
     public function edit(Mod $mod)
@@ -74,12 +84,14 @@ class ModManagementController extends Controller
         $mod->save();
         $mod->categories()->sync($data['category_ids']);
 
+        cache()->forget('home:landing');
+
         return redirect()->route('mods.show', $mod)->with('status', 'Mod updated successfully.');
     }
 
     public function myMods()
     {
-        $mods = Auth::user()->mods()->with('categories')->orderByDesc('published_at')->get();
+        $mods = Auth::user()->mods()->with('categories')->latest('created_at')->get();
 
         return view('mods.my', [
             'mods' => $mods,

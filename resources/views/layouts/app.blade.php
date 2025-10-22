@@ -39,6 +39,9 @@
                 <h3 class="text-xs uppercase tracking-wide text-white/60">Account</h3>
                 @auth
                     <ul class="space-y-2 text-sm">
+                        @if (auth()->user()->isAdmin())
+                            <li><a href="{{ route('admin.dashboard') }}" class="block px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 transition">Admin vezérlőpult</a></li>
+                        @endif
                         <li><a href="{{ route('mods.upload') }}" class="block px-3 py-2 rounded-lg bg-pink-600 text-white text-center font-semibold hover:bg-pink-500 transition">Upload mod</a></li>
                         <li><a href="{{ route('mods.my') }}" class="block px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 transition">My uploads</a></li>
                         <li>
@@ -101,6 +104,12 @@
                                         <p class="text-xs text-gray-500 truncate">{{ auth()->user()->email }}</p>
                                     </div>
                                     <nav class="py-1" aria-label="Account menu">
+                                        @if (auth()->user()->isAdmin())
+                                            <a href="{{ route('admin.dashboard') }}" class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 transition hover:bg-gray-100" role="menuitem">
+                                                <i class="fa-solid fa-screwdriver-wrench text-gray-400"></i>
+                                                <span>Admin vezérlőpult</span>
+                                            </a>
+                                        @endif
                                         <a href="{{ route('mods.my') }}" class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 transition hover:bg-gray-100" role="menuitem">
                                             <i class="fa-solid fa-cloud-arrow-up text-gray-400"></i>
                                             <span>My uploads</span>
