@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use RuntimeException;
 
 class ModManagementController extends Controller
 {
@@ -145,7 +146,13 @@ class ModManagementController extends Controller
     private function storeHeroImage(ModStoreRequest|ModUpdateRequest $request): ?string
     {
         if ($token = $request->input('hero_image_token')) {
-            return $this->temporaryUploadService->moveToPublic($token, 'mods/hero-images')['path'] ?? null;
+            try {
+                return $this->temporaryUploadService->moveToPublic($token, 'mods/hero-images')['path'] ?? null;
+            } catch (RuntimeException $exception) {
+                throw ValidationException::withMessages([
+                    'hero_image' => 'The hero image upload has expired. Please upload it again.',
+                ]);
+            }
         }
 
         if (! $request->hasFile('hero_image')) {
@@ -158,7 +165,13 @@ class ModManagementController extends Controller
     private function storeModFile(ModStoreRequest|ModUpdateRequest $request): ?array
     {
         if ($token = $request->input('mod_file_token')) {
-            return $this->temporaryUploadService->moveToPublic($token, 'mods/files');
+            try {
+                return $this->temporaryUploadService->moveToPublic($token, 'mods/files');
+            } catch (RuntimeException $exception) {
+                throw ValidationException::withMessages([
+                    'mod_file' => 'Your mod archive upload has expired. Please upload the file again.',
+                ]);
+            }
         }
 
         if (! $request->hasFile('mod_file')) {
@@ -184,7 +197,14 @@ class ModManagementController extends Controller
             ->values();
 
         foreach ($galleryTokens as $token) {
-            $upload = $this->temporaryUploadService->moveToPublic($token, 'mods/gallery');
+            try {
+                $upload = $this->temporaryUploadService->moveToPublic($token, 'mods/gallery');
+            } catch (RuntimeException $exception) {
+                throw ValidationException::withMessages([
+                    'gallery_images' => 'One or more screenshot uploads have expired. Please upload them again.',
+                ]);
+            }
+
             $mod->galleryImages()->create([
                 'path' => $upload['path'],
                 'position' => ++$position,
