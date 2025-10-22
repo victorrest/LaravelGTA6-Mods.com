@@ -2,6 +2,11 @@
 
 @section('content')
     @php
+        $tabLinks = [
+            'description' => route('mods.show', ['mod' => $mod->slug]),
+            'comments' => route('mods.show', ['mod' => $mod->slug, 'tab' => 'comments']),
+            'changelog' => route('mods.show', ['mod' => $mod->slug, 'tab' => 'changelog']),
+        ];
         $ratingDisplay = $ratingValue ? number_format($ratingValue, 1) : '—';
     @endphp
 
@@ -105,7 +110,7 @@
 
                 <div class="card overflow-hidden">
                     <div class="flex border-b border-gray-200 bg-gray-50">
-                        @foreach (['description', 'comments', 'changelog'] as $tabKey)
+                        @foreach ($tabLinks as $tabKey => $tabUrl)
                             @php
                                 $isActive = $activeTab === $tabKey;
                                 $activeClass = 'text-pink-600 border-pink-500 bg-white';
