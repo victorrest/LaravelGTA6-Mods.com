@@ -108,9 +108,11 @@
                     <div class="flex border-b border-gray-200 bg-gray-50">
                         @foreach ($tabNavigation as $tab)
                             @php
-                                $tabKey = $tab['key'] ?? '';
+                                $tabKey = (string) ($tab['key'] ?? '');
                             @endphp
-                            @continue($tabKey === '')
+                            @if ($tabKey === '')
+                                @continue
+                            @endif
                             @php
                                 $isActive = (bool) ($tab['is_active'] ?? false);
                                 $activeClass = 'text-pink-600 border-pink-500 bg-white';
