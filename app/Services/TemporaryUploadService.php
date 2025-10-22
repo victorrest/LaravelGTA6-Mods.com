@@ -17,7 +17,7 @@ class TemporaryUploadService
         $this->localDisk = $localDisk ?: Storage::disk('local');
     }
 
-    public function moveToPublic(string $token, string $targetDirectory): array
+    public function moveToPublic(string $token, string $targetDirectory, ?string $expectedCategory = null): array
     {
         $meta = $this->readMeta($token);
 
@@ -27,6 +27,10 @@ class TemporaryUploadService
 
         if ((int) ($meta['user_id'] ?? 0) !== Auth::id()) {
             throw new RuntimeException('You are not allowed to use this upload.');
+        }
+
+        if ($expectedCategory !== null && ($meta['upload_category'] ?? null) !== $expectedCategory) {
+            throw new RuntimeException('Temporary upload type mismatch.');
         }
 
         $localFilePath = $this->buildPath($token, $meta['final_name'] ?? null);
