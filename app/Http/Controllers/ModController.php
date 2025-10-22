@@ -7,6 +7,8 @@ use App\Models\ModCategory;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
 
 class ModController extends Controller
@@ -39,7 +41,7 @@ class ModController extends Controller
     {
         abort_unless($mod->status === 'published', Response::HTTP_NOT_FOUND);
 
-        $mod->loadMissing(['author', 'categories'])->loadCount('comments');
+        $mod->loadMissing(['author', 'categories', 'galleryImages'])->loadCount('comments');
 
         $comments = $mod->comments()->with('author')->latest()->take(20)->get();
 
@@ -84,12 +86,14 @@ class ModController extends Controller
             'updated_at' => optional($mod->updated_at)->format('M d, Y'),
         ];
 
-        $galleryImages = [
-            [
+        $galleryImages = collect($mod->galleryImages)
+            ->map(fn ($image) => [
+                'src' => $image->url,
+                'alt' => $mod->title,
+            ])->prepend([
                 'src' => $mod->hero_image_url,
                 'alt' => $mod->title,
-            ],
-        ];
+            ])->unique('src')->values()->all();
 
         return view('mods.show', [
             'mod' => $mod,
@@ -127,6 +131,15 @@ class ModController extends Controller
         abort_unless($mod->status === 'published', Response::HTTP_NOT_FOUND);
 
         $mod->increment('downloads');
+
+        if ($mod->file_path && ! Str::startsWith($mod->file_path, ['http://', 'https://'])) {
+            if (Storage::disk('public')->exists($mod->file_path)) {
+                $extension = pathinfo($mod->file_path, PATHINFO_EXTENSION) ?: 'zip';
+                $filename = Str::slug($mod->title ?: 'gta6-mod') . '.' . $extension;
+
+                return Storage::disk('public')->download($mod->file_path, $filename);
+            }
+        }
 
         return redirect()->away($mod->download_url);
     }
