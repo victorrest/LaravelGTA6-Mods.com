@@ -108,6 +108,7 @@
                     <div class="flex border-b border-gray-200 bg-gray-50">
                         @foreach ($tabRoutes as $tabKey => $tabRoute)
                             @php
+                                $tabUrl = $tabRoute ?? '#';
                                 $isActive = $activeTab === $tabKey;
                                 $activeClass = 'text-pink-600 border-pink-500 bg-white';
                                 $inactiveClass = 'text-gray-600 border-transparent hover:text-pink-600';
