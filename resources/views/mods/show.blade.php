@@ -80,6 +80,22 @@
                     </div>
                 </div>
 
+                @if (count($galleryImages) > 1)
+                    <div class="card p-5 space-y-4">
+                        <div class="flex items-center justify-between">
+                            <h2 class="text-lg font-semibold text-gray-900">Galéria</h2>
+                            <span class="text-xs text-gray-500">{{ count($galleryImages) }} kép</span>
+                        </div>
+                        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                            @foreach (array_slice($galleryImages, 1) as $image)
+                                <div class="group relative overflow-hidden rounded-xl border border-gray-200">
+                                    <img src="{{ $image['src'] }}" alt="{{ $image['alt'] }}" class="h-40 w-full object-cover transition-transform duration-300 group-hover:scale-105">
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
+
                 <div class="card border-t border-b border-gray-200 py-4 px-4 md:px-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div class="flex items-center flex-wrap gap-4 md:gap-6 text-gray-600">
                         <div class="flex items-center space-x-2">
