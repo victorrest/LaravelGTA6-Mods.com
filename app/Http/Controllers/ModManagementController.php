@@ -9,9 +9,12 @@ use App\Models\ModCategory;
 use App\Services\TemporaryUploadService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use RuntimeException;
+use Throwable;
 
 class ModManagementController extends Controller
 {
@@ -34,38 +37,52 @@ class ModManagementController extends Controller
         $status = $user?->isAdmin() ? Mod::STATUS_PUBLISHED : Mod::STATUS_PENDING;
         $publishedAt = $status === Mod::STATUS_PUBLISHED ? now() : null;
 
-        $heroImagePath = $this->storeHeroImage($request);
-        $modFile = $this->storeModFile($request);
-
         $downloadUrl = $data['download_url'] ?? null;
+        $expectsUploadedArchive = $request->filled('mod_file_token') || $request->hasFile('mod_file');
 
-        if (! $downloadUrl && $modFile) {
-            $downloadUrl = $modFile['public_url'];
-        }
-
-        if (! $downloadUrl) {
+        if (! $downloadUrl && ! $expectsUploadedArchive) {
             throw ValidationException::withMessages([
                 'download_url' => 'Please provide a download URL or upload a mod file.',
             ]);
         }
+        $filesForRollback = [];
 
-        $mod = Mod::create([
-            'user_id' => Auth::id(),
-            'title' => $data['title'],
-            'slug' => $this->generateUniqueSlug($data['title']),
-            'excerpt' => Str::limit(strip_tags($data['description']), 200),
-            'description' => $data['description'],
-            'version' => $data['version'],
-            'download_url' => $downloadUrl,
-            'file_path' => $modFile['path'] ?? null,
-            'file_size' => $data['file_size'] ?? ($modFile['size'] ?? null),
-            'hero_image_path' => $heroImagePath,
-            'status' => $status,
-            'published_at' => $publishedAt,
-        ]);
+        DB::beginTransaction();
 
-        $mod->categories()->sync($data['category_ids']);
-        $this->storeGalleryImages($request, $mod);
+        try {
+            $modFile = $this->storeModFile($request, $filesForRollback);
+
+            if (! $downloadUrl && $modFile) {
+                $downloadUrl = $modFile['public_url'];
+            }
+
+            $heroImagePath = $this->storeHeroImage($request, $filesForRollback);
+
+            $mod = Mod::create([
+                'user_id' => Auth::id(),
+                'title' => $data['title'],
+                'slug' => $this->generateUniqueSlug($data['title']),
+                'excerpt' => Str::limit(strip_tags($data['description']), 200),
+                'description' => $data['description'],
+                'version' => $data['version'],
+                'download_url' => $downloadUrl,
+                'file_path' => $modFile['path'] ?? null,
+                'file_size' => $data['file_size'] ?? ($modFile['size'] ?? null),
+                'hero_image_path' => $heroImagePath,
+                'status' => $status,
+                'published_at' => $publishedAt,
+            ]);
+
+            $mod->categories()->sync($data['category_ids']);
+            $this->storeGalleryImages($request, $mod, $filesForRollback);
+
+            DB::commit();
+        } catch (Throwable $exception) {
+            DB::rollBack();
+            $this->deleteFiles($filesForRollback);
+
+            throw $exception;
+        }
 
         cache()->forget('home:landing');
 
@@ -92,41 +109,66 @@ class ModManagementController extends Controller
 
         $data = $request->validated();
 
-        $modFile = $this->storeModFile($request);
+        $filesForRollback = [];
+        $filesToDeleteAfterCommit = [];
 
-        $mod->fill([
-            'title' => $data['title'],
-            'excerpt' => Str::limit(strip_tags($data['description']), 200),
-            'description' => $data['description'],
-            'version' => $data['version'],
-            'download_url' => $data['download_url'] ?? $mod->download_url,
-            'file_size' => $data['file_size'] ?? $mod->file_size,
-        ]);
+        DB::beginTransaction();
 
-        if ($imagePath = $this->storeHeroImage($request)) {
-            $mod->hero_image_path = $imagePath;
-        }
+        try {
+            $modFile = $this->storeModFile($request, $filesForRollback);
 
-        if ($modFile) {
-            if ($mod->file_path && ! Str::startsWith($mod->file_path, ['http://', 'https://'])) {
-                Storage::disk('public')->delete($mod->file_path);
+            $mod->fill([
+                'title' => $data['title'],
+                'excerpt' => Str::limit(strip_tags($data['description']), 200),
+                'description' => $data['description'],
+                'version' => $data['version'],
+                'download_url' => $data['download_url'] ?? $mod->download_url,
+                'file_size' => $data['file_size'] ?? $mod->file_size,
+            ]);
+
+            if ($imagePath = $this->storeHeroImage($request, $filesForRollback)) {
+                if ($mod->hero_image_path && ! Str::startsWith($mod->hero_image_path, ['http://', 'https://'])) {
+                    $filesToDeleteAfterCommit[] = $mod->hero_image_path;
+                }
+
+                $mod->hero_image_path = $imagePath;
             }
 
-            $mod->file_path = $modFile['path'];
-            $mod->download_url = $data['download_url'] ?? $modFile['public_url'];
-            $mod->file_size = $data['file_size'] ?? $modFile['size'];
+            if ($modFile) {
+                if ($mod->file_path && ! Str::startsWith($mod->file_path, ['http://', 'https://'])) {
+                    $filesToDeleteAfterCommit[] = $mod->file_path;
+                }
+
+                $mod->file_path = $modFile['path'];
+                $mod->download_url = $data['download_url'] ?? $modFile['public_url'];
+                $mod->file_size = $data['file_size'] ?? $modFile['size'];
+            }
+
+            if (! $mod->download_url) {
+                throw ValidationException::withMessages([
+                    'download_url' => 'Please provide a download URL or upload a mod file.',
+                ]);
+            }
+
+            $mod->save();
+            $mod->categories()->sync($data['category_ids']);
+
+            $removedGalleryPaths = $this->removeGalleryImages($request, $mod);
+            if ($removedGalleryPaths) {
+                $filesToDeleteAfterCommit = array_merge($filesToDeleteAfterCommit, $removedGalleryPaths);
+            }
+
+            $this->storeGalleryImages($request, $mod, $filesForRollback);
+
+            DB::commit();
+        } catch (Throwable $exception) {
+            DB::rollBack();
+            $this->deleteFiles($filesForRollback);
+
+            throw $exception;
         }
 
-        if (! $mod->download_url) {
-            throw ValidationException::withMessages([
-                'download_url' => 'Please provide a download URL or upload a mod file.',
-            ]);
-        }
-
-        $mod->save();
-        $mod->categories()->sync($data['category_ids']);
-        $this->removeGalleryImages($request, $mod);
-        $this->storeGalleryImages($request, $mod);
+        $this->deleteFiles($filesToDeleteAfterCommit);
 
         cache()->forget('home:landing');
 
@@ -142,23 +184,46 @@ class ModManagementController extends Controller
         ]);
     }
 
-    private function storeHeroImage(ModStoreRequest|ModUpdateRequest $request): ?string
+    private function storeHeroImage(ModStoreRequest|ModUpdateRequest $request, array &$filesForRollback): ?string
     {
         if ($token = $request->input('hero_image_token')) {
-            return $this->temporaryUploadService->moveToPublic($token, 'mods/hero-images')['path'] ?? null;
+            try {
+                $upload = $this->temporaryUploadService->moveToPublic($token, 'mods/hero-images', 'hero_image');
+                $filesForRollback[] = $upload['path'];
+
+                return $upload['path'] ?? null;
+            } catch (RuntimeException $exception) {
+                $request->merge(['hero_image_token' => null]);
+
+                throw ValidationException::withMessages([
+                    'hero_image' => 'The hero image upload has expired. Please upload it again.',
+                ]);
+            }
         }
 
         if (! $request->hasFile('hero_image')) {
             return null;
         }
 
-        return $request->file('hero_image')->store('mods/hero-images', 'public');
+        $path = $request->file('hero_image')->store('mods/hero-images', 'public');
+        $filesForRollback[] = $path;
+
+        return $path;
     }
 
-    private function storeModFile(ModStoreRequest|ModUpdateRequest $request): ?array
+    private function storeModFile(ModStoreRequest|ModUpdateRequest $request, array &$filesForRollback): ?array
     {
         if ($token = $request->input('mod_file_token')) {
-            return $this->temporaryUploadService->moveToPublic($token, 'mods/files');
+            try {
+                $upload = $this->temporaryUploadService->moveToPublic($token, 'mods/files', 'mod_archive');
+                $filesForRollback[] = $upload['path'];
+
+                return $upload;
+            } catch (RuntimeException $exception) {
+                throw ValidationException::withMessages([
+                    'mod_file' => 'Your mod archive upload has expired. Please upload the file again.',
+                ]);
+            }
         }
 
         if (! $request->hasFile('mod_file')) {
@@ -167,6 +232,7 @@ class ModManagementController extends Controller
 
         $file = $request->file('mod_file');
         $path = $file->store('mods/files', 'public');
+        $filesForRollback[] = $path;
 
         return [
             'path' => $path,
@@ -175,7 +241,7 @@ class ModManagementController extends Controller
         ];
     }
 
-    private function storeGalleryImages(ModStoreRequest|ModUpdateRequest $request, Mod $mod): void
+    private function storeGalleryImages(ModStoreRequest|ModUpdateRequest $request, Mod $mod, array &$filesForRollback): void
     {
         $position = (int) $mod->galleryImages()->max('position');
 
@@ -184,7 +250,16 @@ class ModManagementController extends Controller
             ->values();
 
         foreach ($galleryTokens as $token) {
-            $upload = $this->temporaryUploadService->moveToPublic($token, 'mods/gallery');
+            try {
+                $upload = $this->temporaryUploadService->moveToPublic($token, 'mods/gallery', 'gallery_image');
+            } catch (RuntimeException $exception) {
+                throw ValidationException::withMessages([
+                    'gallery_images' => 'One or more screenshot uploads have expired. Please upload them again.',
+                ]);
+            }
+
+            $filesForRollback[] = $upload['path'];
+
             $mod->galleryImages()->create([
                 'path' => $upload['path'],
                 'position' => ++$position,
@@ -194,32 +269,53 @@ class ModManagementController extends Controller
         $galleryImages = $request->file('gallery_images', []);
 
         foreach ($galleryImages as $image) {
+            $path = $image->store('mods/gallery', 'public');
+            $filesForRollback[] = $path;
+
             $mod->galleryImages()->create([
-                'path' => $image->store('mods/gallery', 'public'),
+                'path' => $path,
                 'position' => ++$position,
             ]);
         }
     }
 
-    private function removeGalleryImages(ModUpdateRequest $request, Mod $mod): void
+    private function removeGalleryImages(ModUpdateRequest $request, Mod $mod): array
     {
         $ids = collect($request->input('remove_gallery_image_ids', []))
             ->filter()
             ->map(fn ($id) => (int) $id);
 
         if ($ids->isEmpty()) {
-            return;
+            return [];
         }
+
+        $paths = [];
 
         $mod->galleryImages()
             ->whereIn('id', $ids)
             ->get()
-            ->each(function ($image) {
+            ->each(function ($image) use (&$paths) {
                 if (! Str::startsWith($image->path, ['http://', 'https://'])) {
-                    Storage::disk('public')->delete($image->path);
+                    $paths[] = $image->path;
                 }
+
                 $image->delete();
             });
+
+        return $paths;
+    }
+
+    private function deleteFiles(array $paths): void
+    {
+        $uniquePaths = array_unique(array_filter($paths));
+
+        foreach ($uniquePaths as $path) {
+            if (Str::startsWith($path, ['http://', 'https://'])) {
+                continue;
+            }
+
+            Storage::disk('public')->delete($path);
+        }
     }
 
     private function generateUniqueSlug(string $title): string
