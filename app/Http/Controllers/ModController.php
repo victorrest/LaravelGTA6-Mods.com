@@ -51,10 +51,65 @@ class ModController extends Controller
             ->limit(4)
             ->get();
 
+        $breadcrumbs = [
+            [
+                'label' => 'Home',
+                'url' => route('home'),
+                'is_home' => true,
+            ],
+        ];
+
+        $primaryCategory = $mod->categories->first();
+
+        if ($primaryCategory) {
+            $breadcrumbs[] = [
+                'label' => $primaryCategory->name,
+                'url' => route('mods.index', ['category' => $primaryCategory->slug]),
+            ];
+        }
+
+        $breadcrumbs[] = [
+            'label' => $mod->title,
+            'url' => route('mods.show', $mod),
+        ];
+
+        $ratingValue = $mod->rating ? (float) $mod->rating : null;
+        $ratingFullStars = $ratingValue ? (int) floor($ratingValue) : 0;
+        $ratingHasHalf = $ratingValue ? ($ratingValue - $ratingFullStars) >= 0.5 : false;
+
+        $metaDetails = [
+            'version' => $mod->version,
+            'file_size' => $mod->file_size_label,
+            'uploaded_at' => optional($mod->published_at)->format('M d, Y'),
+            'updated_at' => optional($mod->updated_at)->format('M d, Y'),
+        ];
+
+        $galleryImages = [
+            [
+                'src' => $mod->hero_image_url,
+                'alt' => $mod->title,
+            ],
+        ];
+
+        $requestedTab = request()->string('tab')->toString();
+        $allowedTabs = ['description', 'comments', 'changelog'];
+        $activeTab = in_array($requestedTab, $allowedTabs, true) ? $requestedTab : 'description';
+
         return view('mods.show', [
             'mod' => $mod,
             'comments' => $comments,
             'relatedMods' => $relatedMods,
+            'breadcrumbs' => $breadcrumbs,
+            'primaryCategory' => $primaryCategory,
+            'downloadUrl' => $mod->download_url,
+            'downloadFormatted' => number_format($mod->downloads),
+            'likesFormatted' => number_format($mod->likes),
+            'ratingValue' => $ratingValue,
+            'ratingFullStars' => $ratingFullStars,
+            'ratingHasHalf' => $ratingHasHalf,
+            'metaDetails' => $metaDetails,
+            'galleryImages' => $galleryImages,
+            'activeTab' => $activeTab,
         ]);
     }
 

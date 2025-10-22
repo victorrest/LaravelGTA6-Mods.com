@@ -84,10 +84,12 @@ class HomeController extends Controller
         })->values()->all();
 
         $latestNewsPayload = $homeData['latestNews']->map(function (NewsArticle $article) {
+            $placeholderImage = 'https://placehold.co/400x225/111827/f9fafb?text=GTA6+News';
+
             return [
                 'title' => $article->title,
                 'link' => route('news.show', $article),
-                'image' => null,
+                'image' => $placeholderImage,
                 'category' => 'News',
                 'date' => optional($article->published_at)->format('M d, Y'),
                 'summary' => $article->excerpt,
