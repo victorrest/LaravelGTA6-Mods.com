@@ -7,14 +7,6 @@ use Illuminate\Foundation\Http\FormRequest;
 class ModUpdateRequest extends FormRequest
 {
     /**
-     * The names of the attributes that should not be flashed to the session on validation errors.
-     */
-    protected $dontFlash = [
-        'hero_image_token',
-        'mod_file_token',
-    ];
-
-    /**
      * Determine if the user is authorized to make this request.
      */
     public function authorize(): bool

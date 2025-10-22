@@ -35,20 +35,22 @@ class ModManagementController extends Controller
         $status = $user?->isAdmin() ? Mod::STATUS_PUBLISHED : Mod::STATUS_PENDING;
         $publishedAt = $status === Mod::STATUS_PUBLISHED ? now() : null;
 
-        $heroImagePath = $this->storeHeroImage($request);
-        $modFile = $this->storeModFile($request);
-
         $downloadUrl = $data['download_url'] ?? null;
+        $expectsUploadedArchive = $request->filled('mod_file_token') || $request->hasFile('mod_file');
+
+        if (! $downloadUrl && ! $expectsUploadedArchive) {
+            throw ValidationException::withMessages([
+                'download_url' => 'Please provide a download URL or upload a mod file.',
+            ]);
+        }
+
+        $modFile = $this->storeModFile($request);
 
         if (! $downloadUrl && $modFile) {
             $downloadUrl = $modFile['public_url'];
         }
 
-        if (! $downloadUrl) {
-            throw ValidationException::withMessages([
-                'download_url' => 'Please provide a download URL or upload a mod file.',
-            ]);
-        }
+        $heroImagePath = $this->storeHeroImage($request);
 
         $mod = Mod::create([
             'user_id' => Auth::id(),
@@ -149,6 +151,8 @@ class ModManagementController extends Controller
             try {
                 return $this->temporaryUploadService->moveToPublic($token, 'mods/hero-images')['path'] ?? null;
             } catch (RuntimeException $exception) {
+                $request->merge(['hero_image_token' => null]);
+
                 throw ValidationException::withMessages([
                     'hero_image' => 'The hero image upload has expired. Please upload it again.',
                 ]);
