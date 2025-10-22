@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Exceptions\TemporaryUploadMissingException;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -23,7 +22,7 @@ class TemporaryUploadService
         $meta = $this->readMeta($token);
 
         if (! $meta) {
-            throw new TemporaryUploadMissingException('Temporary upload not found.');
+            throw new RuntimeException('Temporary upload not found.');
         }
 
         if ((int) ($meta['user_id'] ?? 0) !== Auth::id()) {
@@ -33,7 +32,7 @@ class TemporaryUploadService
         $localFilePath = $this->buildPath($token, $meta['final_name'] ?? null);
 
         if (! $this->localDisk->exists($localFilePath)) {
-            throw new TemporaryUploadMissingException('Temporary upload file is missing.');
+            throw new RuntimeException('Temporary upload file is missing.');
         }
 
         $publicDisk = Storage::disk('public');
