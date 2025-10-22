@@ -21,6 +21,7 @@ class DatabaseSeeder extends Seeder
         $admin = User::factory()->create([
             'name' => 'GTA Nexus Admin',
             'email' => 'admin@gta6-mods.com',
+            'is_admin' => true,
         ]);
 
         $creators = User::factory(9)->create();
