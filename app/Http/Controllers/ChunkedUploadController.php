@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
@@ -39,9 +40,10 @@ class ChunkedUploadController extends Controller
         $basePath = self::BASE_DIRECTORY . '/' . $uploadToken;
         $chunksPath = $basePath . '/chunks';
 
-        if (! $disk->exists($chunksPath) && ! $disk->makeDirectory($chunksPath, 0755, true)) {
-            abort(500, 'Unable to prepare chunk directory.');
-        }
+        $disk->makeDirectory($chunksPath);
+
+        $absoluteChunksPath = $disk->path($chunksPath);
+        File::ensureDirectoryExists($absoluteChunksPath);
 
         $chunkName = str_pad((string) $chunkIndex, 6, '0', STR_PAD_LEFT) . '.part';
         $disk->putFileAs($chunksPath, $chunk, $chunkName);
@@ -54,17 +56,16 @@ class ChunkedUploadController extends Controller
             ]);
         }
 
-        if (! $disk->exists($basePath) && ! $disk->makeDirectory($basePath, 0755, true)) {
-            abort(500, 'Unable to prepare upload directory.');
-        }
+        $disk->makeDirectory($basePath);
+
+        $absoluteBasePath = $disk->path($basePath);
+        File::ensureDirectoryExists($absoluteBasePath);
 
         $finalName = $this->generateFinalFilename($data['original_name']);
         $finalPath = $basePath . '/' . $finalName;
-        $absoluteFinalPath = storage_path('app/' . $finalPath);
+        $absoluteFinalPath = $disk->path($finalPath);
 
-        if (! is_dir(dirname($absoluteFinalPath)) && ! mkdir(dirname($absoluteFinalPath), 0755, true) && ! is_dir(dirname($absoluteFinalPath))) {
-            abort(500, 'Unable to create destination directory.');
-        }
+        File::ensureDirectoryExists(dirname($absoluteFinalPath));
 
         $outputStream = fopen($absoluteFinalPath, 'ab');
         if ($outputStream === false) {
@@ -72,7 +73,7 @@ class ChunkedUploadController extends Controller
         }
 
         for ($index = 0; $index < $totalChunks; $index++) {
-            $partPath = storage_path('app/' . $chunksPath . '/' . str_pad((string) $index, 6, '0', STR_PAD_LEFT) . '.part');
+            $partPath = $disk->path($chunksPath . '/' . str_pad((string) $index, 6, '0', STR_PAD_LEFT) . '.part');
             if (! file_exists($partPath)) {
                 fclose($outputStream);
                 $disk->delete($finalPath);
