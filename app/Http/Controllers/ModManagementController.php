@@ -6,6 +6,7 @@ use App\Http\Requests\ModStoreRequest;
 use App\Http\Requests\ModUpdateRequest;
 use App\Models\Mod;
 use App\Models\ModCategory;
+use App\Services\TemporaryUploadService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -14,6 +15,10 @@ use Illuminate\Validation\ValidationException;
 
 class ModManagementController extends Controller
 {
+    public function __construct(private TemporaryUploadService $temporaryUploadService)
+    {
+    }
+
     public function create()
     {
         return view('mods.upload', [
@@ -139,6 +144,10 @@ class ModManagementController extends Controller
 
     private function storeHeroImage(ModStoreRequest|ModUpdateRequest $request): ?string
     {
+        if ($token = $request->input('hero_image_token')) {
+            return $this->temporaryUploadService->moveToPublic($token, 'mods/hero-images')['path'] ?? null;
+        }
+
         if (! $request->hasFile('hero_image')) {
             return null;
         }
@@ -148,6 +157,10 @@ class ModManagementController extends Controller
 
     private function storeModFile(ModStoreRequest|ModUpdateRequest $request): ?array
     {
+        if ($token = $request->input('mod_file_token')) {
+            return $this->temporaryUploadService->moveToPublic($token, 'mods/files');
+        }
+
         if (! $request->hasFile('mod_file')) {
             return null;
         }
@@ -164,13 +177,21 @@ class ModManagementController extends Controller
 
     private function storeGalleryImages(ModStoreRequest|ModUpdateRequest $request, Mod $mod): void
     {
-        $galleryImages = $request->file('gallery_images', []);
+        $position = (int) $mod->galleryImages()->max('position');
 
-        if (! $galleryImages) {
-            return;
+        $galleryTokens = collect($request->input('gallery_image_tokens', []))
+            ->filter()
+            ->values();
+
+        foreach ($galleryTokens as $token) {
+            $upload = $this->temporaryUploadService->moveToPublic($token, 'mods/gallery');
+            $mod->galleryImages()->create([
+                'path' => $upload['path'],
+                'position' => ++$position,
+            ]);
         }
 
-        $position = (int) $mod->galleryImages()->max('position');
+        $galleryImages = $request->file('gallery_images', []);
 
         foreach ($galleryImages as $image) {
             $mod->galleryImages()->create([
