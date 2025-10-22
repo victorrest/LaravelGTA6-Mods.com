@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\TemporaryUploadMissingException;
 use App\Http\Requests\ModStoreRequest;
 use App\Http\Requests\ModUpdateRequest;
 use App\Models\Mod;
@@ -12,7 +13,6 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
-use RuntimeException;
 
 class ModManagementController extends Controller
 {
@@ -148,9 +148,9 @@ class ModManagementController extends Controller
         if ($token = $request->input('hero_image_token')) {
             try {
                 return $this->temporaryUploadService->moveToPublic($token, 'mods/hero-images')['path'] ?? null;
-            } catch (RuntimeException $exception) {
+            } catch (TemporaryUploadMissingException) {
                 throw ValidationException::withMessages([
-                    'hero_image' => 'The hero image upload has expired. Please upload it again.',
+                    'hero_image' => 'Your hero image upload has expired. Please upload it again.',
                 ]);
             }
         }
@@ -167,9 +167,9 @@ class ModManagementController extends Controller
         if ($token = $request->input('mod_file_token')) {
             try {
                 return $this->temporaryUploadService->moveToPublic($token, 'mods/files');
-            } catch (RuntimeException $exception) {
+            } catch (TemporaryUploadMissingException) {
                 throw ValidationException::withMessages([
-                    'mod_file' => 'Your mod archive upload has expired. Please upload the file again.',
+                    'mod_file' => 'Your mod file upload has expired. Please upload the file again.',
                 ]);
             }
         }
@@ -199,9 +199,9 @@ class ModManagementController extends Controller
         foreach ($galleryTokens as $token) {
             try {
                 $upload = $this->temporaryUploadService->moveToPublic($token, 'mods/gallery');
-            } catch (RuntimeException $exception) {
+            } catch (TemporaryUploadMissingException) {
                 throw ValidationException::withMessages([
-                    'gallery_images' => 'One or more screenshot uploads have expired. Please upload them again.',
+                    'gallery_images' => 'One or more gallery image uploads have expired. Please upload them again.',
                 ]);
             }
 
