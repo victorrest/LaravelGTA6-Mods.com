@@ -26,9 +26,13 @@ class ModStoreRequest extends FormRequest
             'version' => ['required', 'string', 'max:50'],
             'category_ids' => ['required', 'array', 'min:1'],
             'category_ids.*' => ['integer', 'exists:mod_categories,id'],
-            'download_url' => ['required', 'url'],
+            'download_url' => ['nullable', 'url', 'required_without_all:mod_file,mod_file_token'],
             'description' => ['required', 'string', 'min:20'],
             'hero_image' => ['nullable', 'image', 'max:4096'],
+            'gallery_images' => ['nullable', 'array', 'max:12'],
+            'gallery_images.*' => ['image', 'max:8192'],
+            'mod_file' => ['nullable', 'file', 'max:204800', 'required_without_all:download_url,mod_file_token'],
+            'mod_file_token' => ['nullable', 'string', 'required_without_all:download_url,mod_file'],
             'file_size' => ['nullable', 'numeric', 'min:0'],
         ];
     }

@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\NewsController as AdminNewsController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ForumController;
+use App\Http\Controllers\ChunkedUploadController;
 use App\Http\Controllers\InstallController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ModController;
@@ -32,6 +33,7 @@ Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->n
 
 Route::get('/mods', [ModController::class, 'index'])->name('mods.index');
 Route::middleware('auth')->group(function () {
+    Route::post('/uploads/chunks', [ChunkedUploadController::class, 'store'])->name('uploads.chunks');
     Route::get('/mods/upload', [ModManagementController::class, 'create'])->name('mods.upload');
     Route::post('/mods', [ModManagementController::class, 'store'])->name('mods.store');
     Route::get('/mods/{mod:slug}/edit', [ModManagementController::class, 'edit'])->name('mods.edit');
