@@ -117,10 +117,8 @@ async function unpinMod() {
             method: 'DELETE',
             headers: {
                 'X-CSRF-TOKEN': csrfToken,
-                'X-Requested-With': 'XMLHttpRequest',
                 'Accept': 'application/json'
-            },
-            credentials: 'same-origin'
+            }
         });
 
         const data = await response.json();

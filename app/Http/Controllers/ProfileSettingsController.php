@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Mod;
 use App\Models\User;
 use App\Models\UserSocialLink;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
@@ -236,64 +238,49 @@ class ProfileSettingsController extends Controller
     /**
      * Pin a mod to profile
      */
-    public function pinMod(Request $request, int $modId)
+    public function pinMod(Request $request, Mod $mod): JsonResponse
     {
         $user = $request->user();
-        $mod = $user->mods()->whereKey($modId)->first();
 
-        if (! $mod) {
-            return response()->json([
-                'success' => false,
-                'message' => 'You can only pin your own mods',
-            ], 403);
-        }
-
-        // Check if user owns the mod
         if ($mod->user_id !== $user->id) {
             return response()->json([
                 'success' => false,
-                'message' => 'You can only pin your own mods',
+                'message' => 'You can only pin your own mods.',
             ], 403);
         }
 
-        if ($user->pinned_mod_id === $mod->id) {
-            return response()->json([
-                'success' => true,
-                'message' => 'This mod is already pinned',
-                'pinned_mod_id' => $user->pinned_mod_id,
-            ]);
-        }
+        $message = 'This mod is already pinned to your profile.';
 
-        $user->forceFill(['pinned_mod_id' => $mod->id])->save();
+        if ($user->pinned_mod_id !== $mod->id) {
+            $user->forceFill(['pinned_mod_id' => $mod->id])->save();
+            $message = 'Mod pinned to your profile.';
+        }
 
         return response()->json([
             'success' => true,
-            'message' => 'Mod pinned successfully',
-            'pinned_mod_id' => $user->pinned_mod_id,
+            'message' => $message,
+            'pinned' => true,
         ]);
     }
 
     /**
      * Unpin mod from profile
      */
-    public function unpinMod()
+    public function unpinMod(Request $request): JsonResponse
     {
-        $user = Auth::user();
+        $user = $request->user();
 
-        if (is_null($user->pinned_mod_id)) {
-            return response()->json([
-                'success' => true,
-                'message' => 'No mod is currently pinned',
-                'pinned_mod_id' => null,
-            ]);
+        $message = 'You do not have a pinned mod.';
+
+        if ($user->pinned_mod_id) {
+            $user->forceFill(['pinned_mod_id' => null])->save();
+            $message = 'Mod removed from your profile.';
         }
-
-        $user->forceFill(['pinned_mod_id' => null])->save();
 
         return response()->json([
             'success' => true,
-            'message' => 'Mod unpinned successfully',
-            'pinned_mod_id' => null,
+            'message' => $message,
+            'pinned' => false,
         ]);
     }
 

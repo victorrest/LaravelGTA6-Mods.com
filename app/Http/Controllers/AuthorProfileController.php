@@ -15,9 +15,7 @@ class AuthorProfileController extends Controller
      */
     public function show(Request $request, $username)
     {
-        $author = User::where('name', $username)
-            ->with(['pinnedMod.categories'])
-            ->firstOrFail();
+        $author = User::with(['pinnedMod.categories'])->where('name', $username)->firstOrFail();
         $isOwner = Auth::check() && Auth::id() === $author->id;
 
         // Available tabs
@@ -62,11 +60,6 @@ class AuthorProfileController extends Controller
 
         // Get pinned mod
         $pinnedMod = $author->pinnedMod;
-
-        if ($pinnedMod) {
-            $pinnedMod->setAttribute('thumbnail_url', $pinnedMod->hero_image_url);
-            $pinnedMod->setAttribute('average_rating', $pinnedMod->rating);
-        }
 
         return view('author.profile', compact(
             'author',
