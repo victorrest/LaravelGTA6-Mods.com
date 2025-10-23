@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Mod;
+use App\Models\ModCategory;
 use App\Models\ModDownloadToken;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -12,9 +13,12 @@ use Symfony\Component\HttpFoundation\Response;
 
 class ModDownloadController extends Controller
 {
-    public function store(Request $request, Mod $mod): RedirectResponse
+    public function store(Request $request, ModCategory $category, Mod $mod): RedirectResponse
     {
         abort_unless($mod->status === Mod::STATUS_PUBLISHED, Response::HTTP_NOT_FOUND);
+
+        // Verify that the mod belongs to this category
+        abort_unless($mod->categories->contains($category), Response::HTTP_NOT_FOUND);
 
         $user = $request->user();
         $isExternal = ! $mod->file_path;
@@ -47,8 +51,8 @@ class ModDownloadController extends Controller
         $mod = $downloadToken->mod;
 
         if (! $mod || $mod->status !== Mod::STATUS_PUBLISHED || $downloadToken->hasExpired() || $downloadToken->wasUsed()) {
-            if ($mod) {
-                return redirect()->route('mods.show', $mod)->with('downloadError', 'The download session has expired. Please try again.');
+            if ($mod && $mod->primary_category) {
+                return redirect()->route('mods.show', [$mod->primary_category, $mod])->with('downloadError', 'The download session has expired. Please try again.');
             }
 
             return redirect()->route('mods.index')->with('downloadError', 'The download session has expired. Please try again.');
@@ -89,11 +93,11 @@ class ModDownloadController extends Controller
         }
 
         if ($downloadToken->hasExpired()) {
-            return redirect()->route('mods.show', $mod)->with('downloadError', 'The download session has expired. Please try again.');
+            return redirect()->route('mods.show', [$mod->primary_category, $mod])->with('downloadError', 'The download session has expired. Please try again.');
         }
 
         if ($downloadToken->wasUsed()) {
-            return redirect()->route('mods.show', $mod)->with('status', 'This download link was already used.');
+            return redirect()->route('mods.show', [$mod->primary_category, $mod])->with('status', 'This download link was already used.');
         }
 
         $downloadToken->markUsed();
@@ -102,7 +106,7 @@ class ModDownloadController extends Controller
         if ($downloadToken->is_external) {
             $target = $downloadToken->external_url ?: $mod->download_url;
 
-            return $target ? redirect()->away($target) : redirect()->route('mods.show', $mod)->with('downloadError', 'Download link is not available.');
+            return $target ? redirect()->away($target) : redirect()->route('mods.show', [$mod->primary_category, $mod])->with('downloadError', 'Download link is not available.');
         }
 
         if ($mod->file_path && Storage::disk('public')->exists($mod->file_path)) {
@@ -114,6 +118,6 @@ class ModDownloadController extends Controller
 
         return $mod->download_url
             ? redirect()->away($mod->download_url)
-            : redirect()->route('mods.show', $mod)->with('downloadError', 'Download link is not available.');
+            : redirect()->route('mods.show', [$mod->primary_category, $mod])->with('downloadError', 'Download link is not available.');
     }
 }

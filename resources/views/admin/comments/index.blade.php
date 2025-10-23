@@ -23,7 +23,7 @@
                     <div>
                         <strong class="text-gray-900">{{ $comment->author?->name ?? 'Ismeretlen' }}</strong>
                         <span> • {{ $comment->created_at->diffForHumans() }}</span>
-                        <span> • <a href="{{ route('mods.show', $comment->mod) }}" class="text-pink-600 hover:text-pink-500">{{ $comment->mod?->title }}</a></span>
+                        <span> • <a href="{{ route('mods.show', [$comment->mod->primary_category, $comment->mod]) }}" class="text-pink-600 hover:text-pink-500">{{ $comment->mod?->title }}</a></span>
                     </div>
                     <form method="POST" action="{{ route('admin.comments.destroy', $comment) }}" onsubmit="return confirm('Biztosan törlöd ezt a hozzászólást?');">
                         @csrf

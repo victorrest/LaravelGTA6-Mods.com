@@ -90,19 +90,26 @@ class ModManagementController extends Controller
         return redirect()->route('mods.my')->with('status', $message);
     }
 
-    public function edit(Mod $mod)
+    public function edit(ModCategory $category, Mod $mod)
     {
         abort_unless(Auth::user()?->is($mod->author), 403);
+
+        // Verify that the mod belongs to this category
+        abort_unless($mod->categories->contains($category), 404);
 
         return view('mods.edit', [
             'mod' => $mod->load(['categories', 'galleryImages']),
             'categories' => ModCategory::query()->orderBy('name')->get(),
+            'category' => $category,
         ]);
     }
 
-    public function update(ModUpdateRequest $request, Mod $mod): RedirectResponse
+    public function update(ModUpdateRequest $request, ModCategory $category, Mod $mod): RedirectResponse
     {
         abort_unless(Auth::user()?->is($mod->author), 403);
+
+        // Verify that the mod belongs to this category
+        abort_unless($mod->categories->contains($category), 404);
 
         $data = $request->validated();
 
@@ -171,7 +178,7 @@ class ModManagementController extends Controller
 
         cache()->forget('home:landing');
 
-        return redirect()->route('mods.show', $mod)->with('status', 'Mod updated successfully.');
+        return redirect()->route('mods.show', [$mod->primary_category, $mod])->with('status', 'Mod updated successfully.');
     }
 
     public function myMods()

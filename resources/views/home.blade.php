@@ -31,7 +31,7 @@
                     >
                         @if ($hasFeatured && $primaryFeatured)
                             @php($primaryImage = $primaryFeatured->hero_image_url)
-                            <a href="{{ route('mods.show', $primaryFeatured) }}" id="featured-main-display" class="block relative group rounded-lg overflow-hidden">
+                            <a href="{{ route('mods.show', [$primaryFeatured->primary_category, $primaryFeatured]) }}" id="featured-main-display" class="block relative group rounded-lg overflow-hidden">
                                 <div id="featured-image-container" class="relative w-full aspect-video bg-gray-800">
                                     <img id="featured-image-1" src="{{ $primaryImage }}" alt="{{ $primaryFeatured->title }}" class="absolute inset-0 w-full h-full object-cover" style="opacity: 1;">
                                     <img id="featured-image-2" src="" alt="" class="absolute inset-0 w-full h-full object-cover" style="opacity: 0;">
@@ -89,7 +89,7 @@
             @if ($hasPopular)
                 @foreach ($popularMods as $mod)
                     <div class="card hover:shadow-xl transition duration-300">
-                        <a href="{{ route('mods.show', $mod) }}" class="block">
+                        <a href="{{ route('mods.show', [$mod->primary_category, $mod]) }}" class="block">
                             <div class="relative">
                                 <img src="{{ $mod->hero_image_url }}" alt="{{ $mod->title }}" class="w-full h-auto object-cover rounded-t-xl">
                                 <div class="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/70 to-transparent text-white text-xs">
@@ -133,7 +133,7 @@
             @if ($hasLatest)
                 @foreach ($latestMods as $mod)
                     <div class="card hover:shadow-xl transition duration-300">
-                        <a href="{{ route('mods.show', $mod) }}" class="block">
+                        <a href="{{ route('mods.show', [$mod->primary_category, $mod]) }}" class="block">
                             <div class="relative">
                                 <img src="{{ $mod->hero_image_url }}" alt="{{ $mod->title }}" class="w-full h-auto object-cover rounded-t-xl">
                                 <div class="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/70 to-transparent text-white text-xs">
