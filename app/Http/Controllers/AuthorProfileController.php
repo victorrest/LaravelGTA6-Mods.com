@@ -58,6 +58,9 @@ class AuthorProfileController extends Controller
         // Get preset avatars
         $presetAvatars = $this->getPresetAvatars();
 
+        // Get pinned mod
+        $pinnedMod = $author->pinnedMod;
+
         return view('author.profile', compact(
             'author',
             'isOwner',
@@ -67,7 +70,8 @@ class AuthorProfileController extends Controller
             'recentActivities',
             'popularMods',
             'socialLinks',
-            'presetAvatars'
+            'presetAvatars',
+            'pinnedMod'
         ));
     }
 

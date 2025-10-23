@@ -102,6 +102,8 @@ Route::middleware('auth')->prefix('profile')->name('profile.')->group(function (
     Route::delete('/banner', [ProfileSettingsController::class, 'deleteBanner'])->name('banner.delete');
     Route::post('/social-links', [ProfileSettingsController::class, 'updateSocialLinks'])->name('social.update');
     Route::post('/password', [ProfileSettingsController::class, 'changePassword'])->name('password.change');
+    Route::post('/pin-mod/{modId}', [ProfileSettingsController::class, 'pinMod'])->name('mod.pin');
+    Route::delete('/pin-mod', [ProfileSettingsController::class, 'unpinMod'])->name('mod.unpin');
 });
 
 // Activity Routes

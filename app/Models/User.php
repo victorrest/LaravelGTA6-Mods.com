@@ -36,6 +36,7 @@ class User extends Authenticatable
         'banner',
         'profile_views',
         'last_activity_at',
+        'pinned_mod_id',
     ];
 
     /**
@@ -112,6 +113,11 @@ class User extends Authenticatable
     public function bookmarkedMods(): BelongsToMany
     {
         return $this->belongsToMany(Mod::class, 'bookmarks')->withTimestamps();
+    }
+
+    public function pinnedMod()
+    {
+        return $this->belongsTo(Mod::class, 'pinned_mod_id');
     }
 
     // Following relationships

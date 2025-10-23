@@ -14,13 +14,23 @@
         font-family: 'Sofia Sans Condensed', sans-serif;
     }
 
-    .header-background {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    /* Override default header background for author profile */
+    .gta6mods-author-profile .header-background {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        background-size: cover !important;
+        background-position: center !important;
+        background-repeat: no-repeat !important;
         @if($author->getBannerUrl())
-            background-image: url('{{ $author->getBannerUrl() }}');
-            background-size: cover;
-            background-position: center;
+            background-image: url('{{ $author->getBannerUrl() }}') !important;
         @endif
+    }
+
+    @media (min-width: 1280px) {
+        .gta6mods-author-profile .header-background {
+            @if($author->getBannerUrl())
+                background-position: center -200px !important;
+            @endif
+        }
     }
 
     .verification-badge {
@@ -173,16 +183,38 @@
                 <!-- Profile Tabs Navigation -->
                 <div class="bg-white rounded-lg shadow-sm">
                     <div class="border-b border-gray-200 px-6">
-                        <nav class="flex -mb-px space-x-6 overflow-x-auto" role="tablist">
-                            @foreach($tabs as $tabKey => $tab)
+                        <nav class="flex -mb-px space-x-6" role="tablist">
+                            <!-- Visible Tabs Container -->
+                            <div id="visible-tabs" class="flex -mb-px space-x-6 flex-1 overflow-hidden">
+                                @foreach($tabs as $tabKey => $tab)
+                                    <button type="button"
+                                            class="profile-tab-btn py-4 px-2 font-semibold text-sm whitespace-nowrap {{ $activeTab === $tabKey ? 'active' : 'text-gray-600' }}"
+                                            data-tab="{{ $tabKey }}"
+                                            data-tab-label="{{ $tab['label'] }}"
+                                            data-tab-icon="{{ $tab['icon'] }}"
+                                            onclick="switchTab('{{ $tabKey }}')">
+                                        <i class="{{ $tab['icon'] }} mr-2"></i>
+                                        <span>{{ $tab['label'] }}</span>
+                                    </button>
+                                @endforeach
+                            </div>
+
+                            <!-- More Dropdown (Hidden by default) -->
+                            <div class="relative hidden" id="tabs-dropdown-container">
                                 <button type="button"
-                                        class="profile-tab-btn py-4 px-2 font-semibold text-sm whitespace-nowrap {{ $activeTab === $tabKey ? 'active' : 'text-gray-600' }}"
-                                        data-tab="{{ $tabKey }}"
-                                        onclick="switchTab('{{ $tabKey }}')">
-                                    <i class="{{ $tab['icon'] }} mr-2"></i>
-                                    <span>{{ $tab['label'] }}</span>
+                                        id="tabs-dropdown-btn"
+                                        class="profile-tab-btn py-4 px-2 font-semibold text-sm whitespace-nowrap text-gray-600 hover:text-pink-600"
+                                        onclick="toggleTabsDropdown()">
+                                    <i class="fas fa-ellipsis-h mr-1"></i>
+                                    <span>More</span>
                                 </button>
-                            @endforeach
+
+                                <!-- Dropdown Menu -->
+                                <div id="tabs-dropdown-menu"
+                                     class="hidden absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50 min-w-[200px]">
+                                    <!-- Overflow tabs will be inserted here -->
+                                </div>
+                            </div>
                         </nav>
                     </div>
 
@@ -206,7 +238,7 @@
             <aside class="lg:col-span-4">
                 <div class="sticky top-6 space-y-6">
                     <!-- Author Summary Card -->
-                    <div class="bg-white rounded-lg shadow-sm p-6 text-center mt-20">
+                    <div class="bg-white rounded-lg shadow-sm p-6 text-center">
                         <!-- Avatar -->
                         <img src="{{ $author->getAvatarUrl(256) }}"
                              alt="{{ $author->name }}"
@@ -336,6 +368,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Initialize profile functionality
     initProfileFunctionality();
+
+    // Initialize responsive tabs
+    initResponsiveTabs();
+    window.addEventListener('resize', initResponsiveTabs);
 });
 
 function switchTab(tabName) {
@@ -421,5 +457,105 @@ function initProfileFunctionality() {
         });
     }
 }
+
+// Responsive tabs with overflow dropdown
+function initResponsiveTabs() {
+    const visibleTabsContainer = document.getElementById('visible-tabs');
+    const dropdownContainer = document.getElementById('tabs-dropdown-container');
+    const dropdownMenu = document.getElementById('tabs-dropdown-menu');
+
+    if (!visibleTabsContainer || !dropdownContainer || !dropdownMenu) return;
+
+    const allTabs = Array.from(visibleTabsContainer.querySelectorAll('.profile-tab-btn'));
+    const containerWidth = visibleTabsContainer.parentElement.offsetWidth;
+    const dropdownBtnWidth = 100; // Approximate width of "More" button
+
+    // Calculate available width (container width minus dropdown button width)
+    const availableWidth = containerWidth - dropdownBtnWidth - 50; // 50px for margins
+
+    let currentWidth = 0;
+    let visibleCount = 0;
+
+    // Determine how many tabs can fit
+    allTabs.forEach((tab, index) => {
+        const tabWidth = tab.offsetWidth + 24; // 24px for space-x-6 margin
+
+        if (currentWidth + tabWidth <= availableWidth) {
+            currentWidth += tabWidth;
+            visibleCount++;
+        }
+    });
+
+    // Ensure at least 2 tabs are always visible on mobile, 3 on tablet, all on desktop
+    const minVisible = window.innerWidth < 640 ? 2 : window.innerWidth < 1024 ? 3 : allTabs.length;
+    visibleCount = Math.max(minVisible, visibleCount);
+
+    // If all tabs fit or we're forcing all visible, hide dropdown
+    if (visibleCount >= allTabs.length) {
+        dropdownContainer.classList.add('hidden');
+        dropdownMenu.innerHTML = '';
+
+        // Show all tabs
+        allTabs.forEach(tab => {
+            tab.classList.remove('hidden');
+        });
+        return;
+    }
+
+    // Show dropdown and move overflow tabs
+    dropdownContainer.classList.remove('hidden');
+    dropdownMenu.innerHTML = '';
+
+    allTabs.forEach((tab, index) => {
+        if (index >= visibleCount) {
+            // Hide from main nav
+            tab.classList.add('hidden');
+
+            // Add to dropdown
+            const tabKey = tab.dataset.tab;
+            const tabLabel = tab.dataset.tabLabel;
+            const tabIcon = tab.dataset.tabIcon;
+            const isActive = tab.classList.contains('active');
+
+            const dropdownItem = document.createElement('button');
+            dropdownItem.type = 'button';
+            dropdownItem.className = `w-full text-left px-4 py-2 text-sm hover:bg-pink-50 transition ${isActive ? 'bg-pink-100 text-pink-600 font-semibold' : 'text-gray-700'}`;
+            dropdownItem.innerHTML = `<i class="${tabIcon} mr-2"></i>${tabLabel}`;
+            dropdownItem.onclick = () => {
+                switchTab(tabKey);
+                closeTabsDropdown();
+            };
+
+            dropdownMenu.appendChild(dropdownItem);
+        } else {
+            // Show in main nav
+            tab.classList.remove('hidden');
+        }
+    });
+}
+
+function toggleTabsDropdown() {
+    const dropdownMenu = document.getElementById('tabs-dropdown-menu');
+    if (dropdownMenu) {
+        dropdownMenu.classList.toggle('hidden');
+    }
+}
+
+function closeTabsDropdown() {
+    const dropdownMenu = document.getElementById('tabs-dropdown-menu');
+    if (dropdownMenu) {
+        dropdownMenu.classList.add('hidden');
+    }
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', function(event) {
+    const dropdownContainer = document.getElementById('tabs-dropdown-container');
+    const dropdownMenu = document.getElementById('tabs-dropdown-menu');
+
+    if (dropdownContainer && dropdownMenu && !dropdownContainer.contains(event.target)) {
+        dropdownMenu.classList.add('hidden');
+    }
+});
 </script>
 @endpush
