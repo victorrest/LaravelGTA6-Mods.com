@@ -15,6 +15,12 @@ use App\Http\Controllers\ModController;
 use App\Http\Controllers\ModDownloadController;
 use App\Http\Controllers\ModManagementController;
 use App\Http\Controllers\NewsController;
+use App\Http\Controllers\AuthorProfileController;
+use App\Http\Controllers\ProfileSettingsController;
+use App\Http\Controllers\ActivityController;
+use App\Http\Controllers\BookmarkController;
+use App\Http\Controllers\FollowController;
+use App\Http\Controllers\NotificationController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/install', [InstallController::class, 'index'])->name('install.index');
@@ -81,6 +87,50 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
 
     Route::get('comments', [AdminCommentController::class, 'index'])->name('comments.index');
     Route::delete('comments/{comment}', [AdminCommentController::class, 'destroy'])->name('comments.destroy');
+});
+
+// Author Profile Routes
+Route::get('/author/{username}', [AuthorProfileController::class, 'show'])->name('author.profile');
+
+// Profile Settings Routes (Auth Required)
+Route::middleware('auth')->prefix('profile')->name('profile.')->group(function () {
+    Route::post('/settings', [ProfileSettingsController::class, 'updateProfile'])->name('settings.update');
+    Route::post('/avatar', [ProfileSettingsController::class, 'uploadAvatar'])->name('avatar.upload');
+    Route::post('/avatar/preset', [ProfileSettingsController::class, 'selectPresetAvatar'])->name('avatar.preset');
+    Route::delete('/avatar', [ProfileSettingsController::class, 'deleteAvatar'])->name('avatar.delete');
+    Route::post('/banner', [ProfileSettingsController::class, 'uploadBanner'])->name('banner.upload');
+    Route::delete('/banner', [ProfileSettingsController::class, 'deleteBanner'])->name('banner.delete');
+    Route::post('/social-links', [ProfileSettingsController::class, 'updateSocialLinks'])->name('social.update');
+    Route::post('/password', [ProfileSettingsController::class, 'changePassword'])->name('password.change');
+});
+
+// Activity Routes
+Route::middleware('auth')->prefix('activity')->name('activity.')->group(function () {
+    Route::post('/status', [ActivityController::class, 'createStatus'])->name('status.create');
+    Route::delete('/status/{id}', [ActivityController::class, 'deleteStatus'])->name('status.delete');
+});
+
+// API Routes for async content loading
+Route::prefix('api')->name('api.')->group(function () {
+    Route::get('/author/{userId}/activities', [ActivityController::class, 'getUserActivities'])->name('author.activities');
+    Route::get('/author/{userId}/followers', [FollowController::class, 'followers'])->name('author.followers');
+    Route::get('/author/{userId}/following', [FollowController::class, 'following'])->name('author.following');
+
+    Route::middleware('auth')->group(function () {
+        // Bookmarks
+        Route::get('/bookmarks', [BookmarkController::class, 'index'])->name('bookmarks.index');
+        Route::post('/bookmarks/{modId}/toggle', [BookmarkController::class, 'toggle'])->name('bookmarks.toggle');
+        Route::get('/bookmarks/{modId}/check', [BookmarkController::class, 'check'])->name('bookmarks.check');
+
+        // Follow
+        Route::post('/follow/{userId}/toggle', [FollowController::class, 'toggle'])->name('follow.toggle');
+
+        // Notifications
+        Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+        Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount'])->name('notifications.unread');
+        Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead'])->name('notifications.read');
+        Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead'])->name('notifications.readAll');
+    });
 });
 
 // Legacy redirects for old mod URLs
