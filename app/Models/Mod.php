@@ -187,4 +187,14 @@ class Mod extends Model
     {
         return Attribute::get(fn (): string => $this->attributes['description'] ?? '');
     }
+
+    protected function primaryCategory(): Attribute
+    {
+        return Attribute::get(fn (): ?ModCategory => $this->categories->first());
+    }
+
+    public function getCategorySlug(): string
+    {
+        return $this->primaryCategory?->slug ?? 'uncategorized';
+    }
 }

@@ -35,14 +35,8 @@ Route::get('/mods', [ModController::class, 'index'])->name('mods.index');
 Route::middleware('auth')->group(function () {
     Route::get('/mods/upload', [ModManagementController::class, 'create'])->name('mods.upload');
     Route::post('/mods', [ModManagementController::class, 'store'])->name('mods.store');
-    Route::get('/mods/{mod:slug}/edit', [ModManagementController::class, 'edit'])->name('mods.edit');
-    Route::put('/mods/{mod:slug}', [ModManagementController::class, 'update'])->name('mods.update');
     Route::get('/dashboard/mods', [ModManagementController::class, 'myMods'])->name('mods.my');
-    Route::post('/mods/{mod:slug}/rate', [ModController::class, 'rate'])->name('mods.rate');
 });
-Route::get('/mods/{mod:slug}', [ModController::class, 'show'])->name('mods.show');
-Route::post('/mods/{mod:slug}/comment', [ModController::class, 'comment'])->middleware('auth')->name('mods.comment');
-Route::post('/mods/{mod:slug}/download', [ModDownloadController::class, 'store'])->name('mods.download');
 Route::get('/download/{downloadToken:token}', [ModDownloadController::class, 'show'])->name('mods.download.waiting');
 Route::post('/download/{downloadToken:token}/complete', [ModDownloadController::class, 'complete'])->name('mods.download.complete');
 
@@ -88,3 +82,51 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('comments', [AdminCommentController::class, 'index'])->name('comments.index');
     Route::delete('comments/{comment}', [AdminCommentController::class, 'destroy'])->name('comments.destroy');
 });
+
+// Legacy redirects for old mod URLs
+Route::get('/mods/{mod:slug}', function (\App\Models\Mod $mod) {
+    if ($mod->primary_category) {
+        return redirect()->route('mods.show', [$mod->primary_category, $mod], 301);
+    }
+    return redirect()->route('mods.index');
+})->name('mods.show.legacy');
+
+Route::post('/mods/{mod:slug}/download', function (\App\Models\Mod $mod) {
+    if ($mod->primary_category) {
+        return redirect()->route('mods.download', [$mod->primary_category, $mod], 307);
+    }
+    return redirect()->route('mods.index');
+});
+
+Route::middleware('auth')->group(function () {
+    Route::get('/mods/{mod:slug}/edit', function (\App\Models\Mod $mod) {
+        if ($mod->primary_category) {
+            return redirect()->route('mods.edit', [$mod->primary_category, $mod], 301);
+        }
+        return redirect()->route('mods.index');
+    });
+
+    Route::post('/mods/{mod:slug}/rate', function (\App\Models\Mod $mod) {
+        if ($mod->primary_category) {
+            return redirect()->route('mods.rate', [$mod->primary_category, $mod], 307);
+        }
+        return redirect()->route('mods.index');
+    });
+
+    Route::post('/mods/{mod:slug}/comment', function (\App\Models\Mod $mod) {
+        if ($mod->primary_category) {
+            return redirect()->route('mods.comment', [$mod->primary_category, $mod], 307);
+        }
+        return redirect()->route('mods.index');
+    });
+});
+
+// Category-based mod routes (must be at the end to avoid conflicts)
+Route::get('/{category:slug}/{mod:slug}', [ModController::class, 'show'])->name('mods.show');
+Route::middleware('auth')->group(function () {
+    Route::get('/{category:slug}/{mod:slug}/edit', [ModManagementController::class, 'edit'])->name('mods.edit');
+    Route::put('/{category:slug}/{mod:slug}', [ModManagementController::class, 'update'])->name('mods.update');
+    Route::post('/{category:slug}/{mod:slug}/rate', [ModController::class, 'rate'])->name('mods.rate');
+    Route::post('/{category:slug}/{mod:slug}/comment', [ModController::class, 'comment'])->name('mods.comment');
+});
+Route::post('/{category:slug}/{mod:slug}/download', [ModDownloadController::class, 'store'])->name('mods.download');

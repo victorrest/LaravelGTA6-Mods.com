@@ -48,7 +48,7 @@
                 </div>
             </div>
             <div class="flex flex-col items-stretch md:items-end gap-3 w-full md:w-auto">
-                <form method="POST" action="{{ route('mods.download', $mod) }}" class="w-full md:w-auto">
+                <form method="POST" action="{{ route('mods.download', [$primaryCategory, $mod]) }}" class="w-full md:w-auto">
                     @csrf
                     <button type="submit" class="btn-download font-bold py-3 px-5 rounded-[12px] transition flex items-center justify-center w-full md:w-auto bg-pink-600 text-white hover:bg-pink-700 shadow">
                         <i class="fa-solid fa-download mr-2"></i>
@@ -71,7 +71,7 @@
                     </p>
 
                     @auth
-                        <form method="POST" action="{{ route('mods.rate', $mod) }}" class="space-y-2" data-rating-form data-rating-initial="{{ $userRating ?? 0 }}">
+                        <form method="POST" action="{{ route('mods.rate', [$primaryCategory, $mod]) }}" class="space-y-2" data-rating-form data-rating-initial="{{ $userRating ?? 0 }}">
                             @csrf
                             <input type="hidden" name="rating" value="{{ $userRating ?? '' }}" data-rating-input>
                             <div class="flex justify-start md:justify-end gap-1 text-2xl" data-rating-stars aria-label="Add le az értékelésed">
@@ -184,7 +184,7 @@
                             @endforelse
                         </div>
                         @auth
-                            <form method="POST" action="{{ route('mods.comment', $mod) }}" class="space-y-3">
+                            <form method="POST" action="{{ route('mods.comment', [$primaryCategory, $mod]) }}" class="space-y-3">
                                 @csrf
                                 <textarea name="body" rows="4" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-pink-500" placeholder="Írd meg a véleményed"></textarea>
                                 <button type="submit" class="inline-flex items-center justify-center px-4 py-2 bg-pink-600 text-white text-sm font-medium rounded-lg shadow hover:bg-pink-700 transition">Hozzászólás küldése</button>
@@ -207,7 +207,7 @@
                 <div class="card p-6 space-y-4">
                     <h2 class="text-lg font-semibold text-gray-900">Letöltés</h2>
                     <p class="text-sm text-gray-600 leading-relaxed">Ez a mod a közösség által lett feltöltve és folyamatosan karbantartva.</p>
-                    <form method="POST" action="{{ route('mods.download', $mod) }}">
+                    <form method="POST" action="{{ route('mods.download', [$primaryCategory, $mod]) }}">
                         @csrf
                         <button type="submit" class="w-full inline-flex items-center justify-center px-4 py-3 bg-pink-600 text-white font-semibold rounded-xl shadow hover:bg-pink-700 transition">
                             <i class="fa-solid fa-download mr-2"></i>Letöltés most
@@ -226,7 +226,7 @@
                     <ul class="space-y-3 text-sm text-gray-600">
                         @forelse ($relatedMods as $related)
                             <li class="border-b border-gray-200 pb-3 last:border-0 last:pb-0">
-                                <a href="{{ route('mods.show', $related) }}" class="font-semibold text-gray-900 hover:text-pink-600">{{ $related->title }}</a>
+                                <a href="{{ route('mods.show', [$related->primary_category, $related]) }}" class="font-semibold text-gray-900 hover:text-pink-600">{{ $related->title }}</a>
                                 <span class="block text-xs text-gray-400 mt-1">{{ $related->category_names }}</span>
                             </li>
                         @empty
