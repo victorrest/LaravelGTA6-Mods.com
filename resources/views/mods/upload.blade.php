@@ -134,15 +134,9 @@
                 @csrf
                 @include('components.validation-errors')
 
-                <input type="hidden" name="hero_image_token" id="hero_image_token" value="{{ old('hero_image_token') }}">
-                <input type="hidden" name="mod_file_token" id="mod_file_token" value="{{ old('mod_file_token') }}">
                 <input type="hidden" name="description" id="description" value="{{ old('description') }}">
                 <input type="hidden" name="file_size" id="file_size" value="{{ old('file_size') }}">
-                <div id="gallery-token-container">
-                    @foreach (old('gallery_image_tokens', []) as $token)
-                        <input type="hidden" name="gallery_image_tokens[]" value="{{ $token }}" data-token="{{ $token }}">
-                    @endforeach
-                </div>
+                <input type="file" name="hero_image" id="hero_image_input" class="hidden" accept="image/png, image/jpeg, image/webp">
 
                 <div id="form-step-1">
                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -201,7 +195,7 @@
                                             <p class="mb-2 text-sm text-gray-500"><span class="font-semibold">Click to upload</span> or drag and drop</p>
                                             <p class="text-xs text-gray-500">JPG, PNG (MAX. 10MB)</p>
                                         </div>
-                                        <input id="screenshot-upload" type="file" class="hidden" multiple accept="image/png, image/jpeg, image/webp">
+                                        <input id="screenshot-upload" name="gallery_images[]" type="file" class="hidden" multiple accept="image/png, image/jpeg, image/webp">
                                     </label>
                                 </div>
                                 <p class="text-xs text-gray-500 mt-1">The first image is the default featured image. You can drag to reorder.</p>
@@ -269,7 +263,7 @@
                                             <p class="text-xs text-gray-500">Allowed: .zip, .rar, .7z, .oiv (MAX. 400MB)</p>
                                         </div>
                                         <div id="mod-file-preview" class="hidden items-center justify-center text-center p-4"></div>
-                                        <input id="mod_file_input" type="file" class="hidden" accept=".zip,.rar,.7z,.oiv">
+                                        <input id="mod_file_input" name="mod_file" type="file" class="hidden" accept=".zip,.rar,.7z,.oiv">
                                     </label>
                                 </div>
                             </div>
@@ -414,9 +408,6 @@
         document.addEventListener('DOMContentLoaded', () => {
             document.body.classList.add('mod-upload-page');
 
-            const chunkEndpoint = @json(route('mods.uploads.chunk'));
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
-            const chunkSize = 512 * 1024;
             const MAX_SCREENSHOTS = 12;
 
             let pswpLightbox = null;
@@ -455,20 +446,16 @@
             descriptionTextarea.addEventListener('input', autoResizeTextarea);
             autoResizeTextarea();
 
+            const heroInput = document.getElementById('hero_image_input');
             const screenshotInput = document.getElementById('screenshot-upload');
             const dropzoneLabel = document.getElementById('dropzone-label');
             const imagePreviewContainer = document.getElementById('image-preview-container');
             const heroStatusLabel = document.getElementById('hero-upload-status');
-            heroStatusLabel.textContent = 'Select a featured screenshot to continue.';
-
-            const heroTokenInput = document.getElementById('hero_image_token');
-            const galleryTokenContainer = document.getElementById('gallery-token-container');
 
             const authorsContainer = document.getElementById('authors-container');
             const addAuthorBtn = document.getElementById('add-author-btn');
 
             const modFileInput = document.getElementById('mod_file_input');
-            const modFileTokenInput = document.getElementById('mod_file_token');
             const modDropzoneLabel = document.getElementById('mod-dropzone-label');
             const modDropzoneContent = document.getElementById('mod-dropzone-content');
             const modFilePreview = document.getElementById('mod-file-preview');
@@ -496,17 +483,8 @@
             const previewSidebarSourceInfo = document.getElementById('preview-sidebar-source-info');
 
             let currentStep = 0;
-            let activeUploads = 0;
             let screenshotItems = [];
             let usingUrlMode = Boolean(downloadUrlInput.value);
-
-            const beginUpload = () => {
-                activeUploads += 1;
-            };
-
-            const finishUpload = () => {
-                activeUploads = Math.max(0, activeUploads - 1);
-            };
 
             const setStep = (stepIndex) => {
                 currentStep = stepIndex;
@@ -593,53 +571,20 @@
                 container.appendChild(list);
             };
 
-            const addGalleryToken = (token) => {
-                const input = document.createElement('input');
-                input.type = 'hidden';
-                input.name = 'gallery_image_tokens[]';
-                input.value = token;
-                input.dataset.token = token;
-                galleryTokenContainer.appendChild(input);
-            };
+            const syncScreenshotInputs = () => {
+                const galleryTransfer = new DataTransfer();
+                screenshotItems.forEach((item) => galleryTransfer.items.add(item.file));
+                screenshotInput.files = galleryTransfer.files;
 
-            const removeGalleryToken = (token) => {
-                const target = galleryTokenContainer.querySelector(`input[data-token="${token}"]`);
-                if (target) {
-                    target.remove();
-                }
-            };
-
-            const syncGalleryTokens = () => {
-                galleryTokenContainer.innerHTML = '';
-                screenshotItems.forEach((item) => {
-                    if (!item.isFeatured && item.token) {
-                        addGalleryToken(item.token);
-                    }
-                });
-            };
-
-            const updateHeroSelection = () => {
-                const featuredItem = screenshotItems.find((item) => item.isFeatured);
-
-                if (!featuredItem) {
-                    heroTokenInput.value = '';
-                    heroStatusLabel.textContent = 'Select a featured screenshot to continue.';
-                    return;
-                }
-
-                if (featuredItem.uploading) {
-                    heroTokenInput.value = '';
-                    heroStatusLabel.textContent = 'Uploading featured screenshot…';
-                    return;
-                }
-
-                if (featuredItem.token) {
-                    heroTokenInput.value = featuredItem.token;
-                    heroStatusLabel.textContent = 'Featured screenshot ready.';
+                const heroTransfer = new DataTransfer();
+                const featured = screenshotItems.find((item) => item.isFeatured);
+                if (featured) {
+                    heroTransfer.items.add(featured.file);
+                    heroStatusLabel.textContent = `Featured image: ${featured.file.name}`;
                 } else {
-                    heroTokenInput.value = '';
-                    heroStatusLabel.textContent = 'Preparing featured screenshot…';
+                    heroStatusLabel.textContent = '';
                 }
+                heroInput.files = heroTransfer.files;
             };
 
             const renderScreenshotPreviews = () => {
@@ -666,23 +611,14 @@
                     deleteBtn.addEventListener('click', (event) => {
                         event.stopPropagation();
                         const [removed] = screenshotItems.splice(index, 1);
-                        if (removed?.token) {
-                            removeGalleryToken(removed.token);
-                        }
                         if (removed?.previewUrl) {
                             URL.revokeObjectURL(removed.previewUrl);
                         }
-                        if (!screenshotItems.some((entry) => entry.isFeatured)) {
-                            if (screenshotItems.length > 0) {
-                                screenshotItems[0].isFeatured = true;
-                            } else {
-                                heroTokenInput.value = '';
-                                heroStatusLabel.textContent = 'Select a featured screenshot to continue.';
-                            }
+                        if (!screenshotItems.some((entry) => entry.isFeatured) && screenshotItems.length > 0) {
+                            screenshotItems[0].isFeatured = true;
                         }
                         renderScreenshotPreviews();
-                        syncGalleryTokens();
-                        updateHeroSelection();
+                        syncScreenshotInputs();
                     });
 
                     const radioLabel = document.createElement('label');
@@ -693,14 +629,12 @@
                     radioInput.name = 'featured_image_choice';
                     radioInput.className = 'hidden peer';
                     radioInput.checked = item.isFeatured;
-                    radioInput.disabled = item.uploading;
                     radioInput.addEventListener('change', () => {
                         screenshotItems.forEach((entry, idx) => {
                             entry.isFeatured = idx === index;
                         });
+                        syncScreenshotInputs();
                         renderScreenshotPreviews();
-                        syncGalleryTokens();
-                        updateHeroSelection();
                     });
 
                     const customRadio = document.createElement('span');
@@ -717,22 +651,15 @@
                     wrapper.appendChild(deleteBtn);
                     wrapper.appendChild(radioLabel);
 
-                    if (item.uploading) {
-                        const overlay = document.createElement('div');
-                        overlay.className = 'absolute inset-0 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center text-white text-xs font-semibold gap-2';
-                        overlay.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Uploading…</span>';
-                        wrapper.appendChild(overlay);
-                    }
-
                     if (item.isFeatured) {
                         wrapper.classList.add('ring-2', 'ring-pink-500', 'ring-offset-2', 'ring-offset-white');
                     }
 
-                    imagePreviewContainer.appendChild(wrapper);
-                });
+                imagePreviewContainer.appendChild(wrapper);
+            });
 
-                updateHeroSelection();
-            };
+            syncScreenshotInputs();
+        };
 
             let draggedIndex = null;
 
@@ -787,8 +714,6 @@
                 const [draggedItem] = screenshotItems.splice(draggedIndex, 1);
                 screenshotItems.splice(targetIndex, 0, draggedItem);
                 renderScreenshotPreviews();
-                syncGalleryTokens();
-                updateHeroSelection();
             });
 
             const handleScreenshotFiles = (files) => {
@@ -804,39 +729,14 @@
                     }
 
                     const previewUrl = URL.createObjectURL(file);
-                    const item = {
+                    screenshotItems.push({
                         file,
                         previewUrl,
-                        token: null,
-                        uploading: true,
                         isFeatured: screenshotItems.length === 0,
-                    };
-
-                    screenshotItems.push(item);
-                    renderScreenshotPreviews();
-                    updateHeroSelection();
-
-                    beginUpload();
-
-                    uploadFileInChunks(file, 'gallery_image')
-                        .then((result) => {
-                            item.token = result.upload_token;
-                            item.uploading = false;
-                            syncGalleryTokens();
-                            renderScreenshotPreviews();
-                            updateHeroSelection();
-                        })
-                        .catch((error) => {
-                            console.error(error);
-                            alert('Screenshot upload failed. Please try again.');
-                            screenshotItems = screenshotItems.filter((entry) => entry !== item);
-                            renderScreenshotPreviews();
-                            updateHeroSelection();
-                        })
-                        .finally(() => {
-                            finishUpload();
-                        });
+                    });
                 });
+
+                renderScreenshotPreviews();
             };
 
             screenshotInput.addEventListener('change', (event) => {
@@ -867,127 +767,39 @@
                 handleScreenshotFiles(event.dataTransfer.files);
             });
 
-            const uploadFileInChunks = async (file, category, onProgress = () => {}) => {
-                const totalChunks = Math.max(Math.ceil(file.size / chunkSize), 1);
-                const uploadToken = crypto.randomUUID();
-                let responseData = null;
-
-                for (let index = 0; index < totalChunks; index += 1) {
-                    const start = index * chunkSize;
-                    const end = Math.min(start + chunkSize, file.size);
-                    const chunk = file.slice(start, end);
-
-                    const formData = new FormData();
-                    formData.append('chunk', chunk, file.name);
-                    formData.append('original_name', file.name);
-                    formData.append('mime_type', file.type || 'application/octet-stream');
-                    formData.append('chunk_index', index);
-                    formData.append('total_chunks', totalChunks);
-                    formData.append('upload_token', uploadToken);
-                    formData.append('upload_category', category);
-
-                    const response = await fetch(chunkEndpoint, {
-                        method: 'POST',
-                        headers: {
-                            'X-CSRF-TOKEN': csrfToken,
-                            'X-Requested-With': 'XMLHttpRequest',
-                            'Accept': 'application/json',
-                        },
-                        body: formData,
-                    });
-
-                    if (!response.ok) {
-                        const errorBody = await response.text();
-                        throw new Error(errorBody || 'Chunk upload failed.');
-                    }
-
-                    const payloadText = await response.text();
-                    let data;
-                    try {
-                        data = payloadText ? JSON.parse(payloadText) : null;
-                    } catch (parseError) {
-                        console.error('Failed to parse upload response:', payloadText);
-                        throw new Error('Upload failed due to an unexpected server response.');
-                    }
-
-                    if (!data) {
-                        throw new Error('Upload failed due to an empty server response.');
-                    }
-
-                    responseData = data;
-                    onProgress({ index: index + 1, total: totalChunks });
-                }
-
-                return responseData;
-            };
-
             const handleModFile = (files) => {
-                if (!files || !files.length) {
+                const file = files && files.length ? files[0] : null;
+
+                if (!file) {
+                    modFilePreview.classList.add('hidden');
+                    modFilePreview.classList.remove('flex');
+                    modDropzoneContent.classList.remove('hidden');
+                    modFileInput.value = '';
+                    fileSizeHiddenInput.value = '';
                     return;
                 }
 
-                const file = files[0];
-                modFileInput.files = files;
                 modDropzoneContent.classList.add('hidden');
                 modFilePreview.innerHTML = `
-                    <div class="flex flex-col items-center text-gray-700">
+                    <div class="flex flex-col items-center">
                         <i class="fas fa-check-circle text-green-500 text-4xl"></i>
                         <p class="font-semibold mt-2 break-all">${file.name}</p>
                         <p class="text-sm text-gray-500">${(file.size / 1024 / 1024).toFixed(2)} MB</p>
-                        <button type="button" class="mt-2 text-sm font-semibold text-red-600 hover:text-red-800 transition" id="remove-mod-file-btn">Remove</button>
+                        <button type="button" id="remove-mod-file-btn" class="mt-2 text-sm font-semibold text-red-600 hover:text-red-800 transition">Remove</button>
                     </div>
                 `;
                 modFilePreview.classList.remove('hidden');
                 modFilePreview.classList.add('flex');
 
-                beginUpload();
-                const sizeLabel = modFilePreview.querySelector('p.text-sm');
+                fileSizeHiddenInput.value = (file.size / 1024 / 1024).toFixed(2);
 
-                uploadFileInChunks(file, 'mod_archive', ({ index, total }) => {
-                    const progress = Math.round((index / total) * 100);
-                    if (sizeLabel) {
-                        sizeLabel.textContent = `${(file.size / 1024 / 1024).toFixed(2)} MB • ${progress}%`;
-                    }
-                })
-                    .then((result) => {
-                        modFileTokenInput.value = result.upload_token;
-
-                        const sizeBytes = Number(result.size_bytes ?? 0);
-                        let sizeMb = Number(result.size_mb ?? 0);
-
-                        if (!sizeMb && sizeBytes) {
-                            sizeMb = sizeBytes / 1048576;
-                        }
-
-                        if (!sizeMb) {
-                            sizeMb = file.size / 1024 / 1024;
-                        }
-
-                        fileSizeHiddenInput.value = sizeMb ? sizeMb.toFixed(2) : '';
-
-                        if (sizeLabel) {
-                            sizeLabel.textContent = `${(file.size / 1024 / 1024).toFixed(2)} MB • 100%`;
-                        }
-                    })
-                    .catch((error) => {
-                        console.error(error);
-                        alert('Mod archive upload failed. Please try again.');
-                        modFileTokenInput.value = '';
-                        modFilePreview.classList.add('hidden');
-                        modFilePreview.classList.remove('flex');
-                        modDropzoneContent.classList.remove('hidden');
-                    })
-                    .finally(() => {
-                        finishUpload();
-                    });
-
-                modFilePreview.querySelector('#remove-mod-file-btn').addEventListener('click', () => {
+                const removeBtn = modFilePreview.querySelector('#remove-mod-file-btn');
+                removeBtn.addEventListener('click', () => {
                     modFileInput.value = '';
-                    modFileTokenInput.value = '';
                     fileSizeHiddenInput.value = '';
-                    modDropzoneContent.classList.remove('hidden');
                     modFilePreview.classList.add('hidden');
                     modFilePreview.classList.remove('flex');
+                    modDropzoneContent.classList.remove('hidden');
                 });
             };
 
@@ -1021,11 +833,7 @@
                 if (useUrl) {
                     fileUploadView.classList.add('hidden');
                     urlView.classList.remove('hidden');
-                    modFileInput.value = '';
-                    modFileTokenInput.value = '';
-                    modDropzoneContent.classList.remove('hidden');
-                    modFilePreview.classList.add('hidden');
-                    modFilePreview.classList.remove('flex');
+                    handleModFile(null);
                 } else {
                     urlView.classList.add('hidden');
                     fileUploadView.classList.remove('hidden');
@@ -1074,14 +882,6 @@
                     errors.push('Please upload at least one screenshot.');
                 }
 
-                if (screenshotItems.length && !heroTokenInput.value) {
-                    errors.push('Please wait until the featured screenshot finishes uploading.');
-                }
-
-                if (activeUploads > 0) {
-                    errors.push('Please wait for ongoing uploads to finish before continuing.');
-                }
-
                 if (errors.length === 0) {
                     descriptionInput.value = descriptionPayload.json;
                 }
@@ -1112,17 +912,13 @@
                         fileSizeHiddenInput.value = convertedSize;
                     }
                 } else {
-                    if (!modFileTokenInput.value) {
+                    if (!modFileInput.files.length) {
                         errors.push('Please upload a mod archive file.');
                     }
                 }
 
                 if (!versionInput.value.trim()) {
                     errors.push('The "Version" field is required.');
-                }
-
-                if (activeUploads > 0) {
-                    errors.push('Please wait for ongoing uploads to finish before continuing.');
                 }
 
                 displayErrors(step2ErrorsContainer, errors);
@@ -1264,12 +1060,6 @@
             };
 
             const handleFormSubmit = (event) => {
-                if (activeUploads > 0) {
-                    event.preventDefault();
-                    alert('Please wait for all uploads to finish before submitting.');
-                    return;
-                }
-
                 if (!descriptionInput.value) {
                     const payload = buildDescriptionPayload();
                     descriptionInput.value = payload.json;
