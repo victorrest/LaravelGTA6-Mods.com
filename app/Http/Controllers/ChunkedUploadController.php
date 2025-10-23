@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\TemporaryUpload;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -107,6 +108,22 @@ class ChunkedUploadController extends Controller
             'completed_at' => now()->timestamp,
         ];
 
+        TemporaryUpload::updateOrCreate(
+            ['token' => $uploadToken],
+            [
+                'user_id' => Auth::id(),
+                'category' => $data['upload_category'],
+                'disk' => 'local',
+                'relative_path' => $finalPath,
+                'original_name' => $data['original_name'],
+                'mime_type' => $data['mime_type'],
+                'size_bytes' => $sizeBytes,
+                'completed_at' => now(),
+                'expires_at' => now()->addHours(12),
+                'claimed_at' => null,
+            ]
+        );
+
         $disk->put($basePath . '/meta.json', json_encode($meta));
 
         $this->cleanExpiredDirectories();
@@ -132,9 +149,19 @@ class ChunkedUploadController extends Controller
     private function cleanExpiredDirectories(): void
     {
         $disk = Storage::disk('local');
+
+        TemporaryUpload::query()
+            ->expired()
+            ->each(function (TemporaryUpload $upload) use ($disk) {
+                $diskToUse = $upload->disk === 'local' ? $disk : Storage::disk($upload->disk);
+                $diskToUse->deleteDirectory(dirname($upload->relative_path));
+                $upload->delete();
+            });
+
         if (! $disk->exists(self::BASE_DIRECTORY)) {
             return;
         }
+
         $directories = $disk->directories(self::BASE_DIRECTORY);
 
         foreach ($directories as $directory) {
