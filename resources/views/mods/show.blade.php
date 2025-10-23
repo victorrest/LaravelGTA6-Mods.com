@@ -214,23 +214,23 @@
                         </button>
                     </form>
 
-                    @auth
-                        @if (auth()->id() === $mod->user_id)
-                            @php
-                                $isPinned = auth()->user()->pinned_mod_id === $mod->id;
-                            @endphp
-                            <button
-                                id="pin-mod-btn"
-                                onclick="togglePinMod(this)"
-                                data-mod-id="{{ $mod->id }}"
-                                data-pinned="{{ $isPinned ? 'true' : 'false' }}"
-                                class="w-full inline-flex items-center justify-center px-4 py-2 {{ $isPinned ? 'bg-purple-600 hover:bg-purple-700' : 'bg-gray-600 hover:bg-gray-700' }} text-white text-sm font-semibold rounded-lg shadow transition"
-                            >
-                                <i class="fas fa-thumbtack mr-2 {{ $isPinned ? '' : 'rotate-45' }}"></i>
-                                <span id="pin-mod-text" data-pin-text>{{ $isPinned ? 'Unpin from Profile' : 'Pin to Profile' }}</span>
-                            </button>
-                        @endif
-                    @endauth
+                    @php
+                        $canManagePin = auth()->check() && auth()->id() === $mod->user_id;
+                        $isPinned = $canManagePin ? auth()->user()->pinned_mod_id === $mod->id : false;
+                    @endphp
+
+                    @if ($canManagePin)
+                        <button
+                            type="button"
+                            data-pin-mod-button
+                            data-mod-id="{{ $mod->id }}"
+                            data-is-pinned="{{ $isPinned ? 'true' : 'false' }}"
+                            class="w-full inline-flex items-center justify-center px-4 py-2 {{ $isPinned ? 'bg-purple-600 hover:bg-purple-700' : 'bg-gray-600 hover:bg-gray-700' }} text-white text-sm font-semibold rounded-lg shadow transition"
+                        >
+                            <i class="fas fa-thumbtack mr-2 {{ $isPinned ? '' : 'rotate-45' }}" aria-hidden="true"></i>
+                            <span data-pin-mod-text>{{ $isPinned ? 'Unpin from Profile' : 'Pin to Profile' }}</span>
+                        </button>
+                    @endif
 
                     <div class="text-sm text-gray-500 space-y-1">
                         <p><strong>Verzió:</strong> {{ $metaDetails['version'] ?? '—' }}</p>
@@ -260,81 +260,74 @@
 
 @push('scripts')
 <script>
-async function togglePinMod(button) {
-    const btn = typeof button === 'string' ? document.getElementById(button) : button;
+document.addEventListener('DOMContentLoaded', () => {
+    const pinButton = document.querySelector('[data-pin-mod-button]');
 
-    if (!btn) {
+    if (!pinButton) {
         return;
     }
 
-    const text = btn.querySelector('[data-pin-text]');
-    const icon = btn.querySelector('i');
-    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
-    const modId = btn.dataset.modId;
-    const isPinned = btn.dataset.pinned === 'true';
-    const originalText = text ? text.textContent : '';
+    pinButton.addEventListener('click', async () => {
+        const modId = pinButton.getAttribute('data-mod-id');
+        const isPinned = pinButton.getAttribute('data-is-pinned') === 'true';
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+        const text = pinButton.querySelector('[data-pin-mod-text]');
+        const icon = pinButton.querySelector('i');
 
-    try {
-        btn.disabled = true;
-        btn.classList.add('opacity-75', 'cursor-not-allowed');
-
-        if (text) {
-            text.textContent = 'Saving...';
+        if (!csrfToken || !modId) {
+            return;
         }
 
-        const url = isPinned ? '/profile/pin-mod' : `/profile/pin-mod/${modId}`;
-        const method = isPinned ? 'DELETE' : 'POST';
+        pinButton.disabled = true;
+        pinButton.classList.add('opacity-60', 'cursor-not-allowed');
 
-        const response = await fetch(url, {
-            method,
-            headers: {
-                'X-CSRF-TOKEN': csrfToken,
-                'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-            },
-        });
+        try {
+            const response = await fetch(isPinned ? '/profile/pin-mod' : `/profile/pin-mod/${modId}`, {
+                method: isPinned ? 'DELETE' : 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                },
+                credentials: 'same-origin'
+            });
 
-        const data = await response.json();
+            const data = await response.json().catch(() => null);
 
-        if (!response.ok || !data.success) {
-            throw new Error(data.message || 'Failed to update pinned mod.');
-        }
+            if (response.ok && data?.success) {
+                const nowPinned = !isPinned;
 
-        const pinnedNow = Boolean(data.isPinned);
-        btn.dataset.pinned = pinnedNow ? 'true' : 'false';
+                pinButton.setAttribute('data-is-pinned', nowPinned ? 'true' : 'false');
+                pinButton.classList.toggle('bg-purple-600', nowPinned);
+                pinButton.classList.toggle('hover:bg-purple-700', nowPinned);
+                pinButton.classList.toggle('bg-gray-600', !nowPinned);
+                pinButton.classList.toggle('hover:bg-gray-700', !nowPinned);
 
-        if (pinnedNow) {
-            btn.classList.remove('bg-gray-600', 'hover:bg-gray-700');
-            btn.classList.add('bg-purple-600', 'hover:bg-purple-700');
-            icon?.classList.remove('rotate-45');
-            if (text) {
-                text.textContent = 'Unpin from Profile';
+                if (icon) {
+                    icon.classList.toggle('rotate-45', !nowPinned);
+                }
+
+                if (text) {
+                    text.textContent = nowPinned ? 'Unpin from Profile' : 'Pin to Profile';
+                }
+
+                const message = document.createElement('div');
+                message.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+                message.textContent = data.message ?? (nowPinned ? 'Mod pinned successfully' : 'Mod unpinned successfully');
+                document.body.appendChild(message);
+                setTimeout(() => message.remove(), 3000);
+            } else {
+                alert(data?.message || 'Failed to update pinned mod');
             }
-        } else {
-            btn.classList.remove('bg-purple-600', 'hover:bg-purple-700');
-            btn.classList.add('bg-gray-600', 'hover:bg-gray-700');
-            icon?.classList.add('rotate-45');
-            if (text) {
-                text.textContent = 'Pin to Profile';
-            }
+        } catch (error) {
+            console.error('Error toggling pin:', error);
+            alert('Failed to update pinned mod. Please try again.');
+        } finally {
+            pinButton.disabled = false;
+            pinButton.classList.remove('opacity-60', 'cursor-not-allowed');
         }
-
-        const message = document.createElement('div');
-        message.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
-        message.textContent = data.message || (pinnedNow ? 'Mod pinned to profile.' : 'Mod unpinned from profile.');
-        document.body.appendChild(message);
-        setTimeout(() => message.remove(), 3000);
-    } catch (error) {
-        console.error('Error toggling pin:', error);
-        if (text) {
-            text.textContent = originalText || text.textContent;
-        }
-        alert(error.message || 'Failed to update pinned mod. Please try again.');
-    } finally {
-        btn.disabled = false;
-        btn.classList.remove('opacity-75', 'cursor-not-allowed');
-    }
-}
+    });
+});
 </script>
 @endpush
 

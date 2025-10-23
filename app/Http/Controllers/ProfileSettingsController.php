@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Mod;
 use App\Models\User;
 use App\Models\UserSocialLink;
 use Illuminate\Http\Request;
@@ -240,20 +239,28 @@ class ProfileSettingsController extends Controller
     public function pinMod(Request $request, int $modId)
     {
         $user = $request->user();
-        $mod = Mod::query()->findOrFail($modId);
+        $mod = $user->mods()->whereKey($modId)->first();
 
+        if (! $mod) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You can only pin your own mods',
+            ], 403);
+        }
+
+        // Check if user owns the mod
         if ($mod->user_id !== $user->id) {
             return response()->json([
                 'success' => false,
-                'message' => 'You can only pin your own mods.',
+                'message' => 'You can only pin your own mods',
             ], 403);
         }
 
         if ($user->pinned_mod_id === $mod->id) {
             return response()->json([
                 'success' => true,
-                'message' => 'This mod is already pinned to your profile.',
-                'isPinned' => true,
+                'message' => 'This mod is already pinned',
+                'pinned_mod_id' => $user->pinned_mod_id,
             ]);
         }
 
@@ -261,23 +268,23 @@ class ProfileSettingsController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Mod pinned to your profile.',
-            'isPinned' => true,
+            'message' => 'Mod pinned successfully',
+            'pinned_mod_id' => $user->pinned_mod_id,
         ]);
     }
 
     /**
      * Unpin mod from profile
      */
-    public function unpinMod(Request $request)
+    public function unpinMod()
     {
-        $user = $request->user();
+        $user = Auth::user();
 
-        if (! $user->pinned_mod_id) {
+        if (is_null($user->pinned_mod_id)) {
             return response()->json([
                 'success' => true,
-                'message' => 'No mod is currently pinned to your profile.',
-                'isPinned' => false,
+                'message' => 'No mod is currently pinned',
+                'pinned_mod_id' => null,
             ]);
         }
 
@@ -285,8 +292,8 @@ class ProfileSettingsController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Mod unpinned from your profile.',
-            'isPinned' => false,
+            'message' => 'Mod unpinned successfully',
+            'pinned_mod_id' => null,
         ]);
     }
 
