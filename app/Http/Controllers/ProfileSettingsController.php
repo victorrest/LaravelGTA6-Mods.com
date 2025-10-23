@@ -236,10 +236,17 @@ class ProfileSettingsController extends Controller
     /**
      * Pin a mod to profile
      */
-    public function pinMod($modId)
+    public function pinMod(Request $request, int $modId)
     {
-        $user = Auth::user();
-        $mod = \App\Models\Mod::findOrFail($modId);
+        $user = $request->user();
+        $mod = $user->mods()->whereKey($modId)->first();
+
+        if (! $mod) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You can only pin your own mods',
+            ], 403);
+        }
 
         // Check if user owns the mod
         if ($mod->user_id !== $user->id) {
@@ -249,11 +256,20 @@ class ProfileSettingsController extends Controller
             ], 403);
         }
 
-        $user->update(['pinned_mod_id' => $mod->id]);
+        if ($user->pinned_mod_id === $mod->id) {
+            return response()->json([
+                'success' => true,
+                'message' => 'This mod is already pinned',
+                'pinned_mod_id' => $user->pinned_mod_id,
+            ]);
+        }
+
+        $user->forceFill(['pinned_mod_id' => $mod->id])->save();
 
         return response()->json([
             'success' => true,
             'message' => 'Mod pinned successfully',
+            'pinned_mod_id' => $user->pinned_mod_id,
         ]);
     }
 
@@ -264,11 +280,20 @@ class ProfileSettingsController extends Controller
     {
         $user = Auth::user();
 
-        $user->update(['pinned_mod_id' => null]);
+        if (is_null($user->pinned_mod_id)) {
+            return response()->json([
+                'success' => true,
+                'message' => 'No mod is currently pinned',
+                'pinned_mod_id' => null,
+            ]);
+        }
+
+        $user->forceFill(['pinned_mod_id' => null])->save();
 
         return response()->json([
             'success' => true,
             'message' => 'Mod unpinned successfully',
+            'pinned_mod_id' => null,
         ]);
     }
 
