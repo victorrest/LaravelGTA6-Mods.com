@@ -55,18 +55,43 @@
                         <span>Download</span>
                     </button>
                 </form>
-                <div class="text-sm text-gray-500 md:text-right">
+                <div class="text-sm text-gray-500 md:text-right space-y-2">
                     <div class="flex items-center justify-start md:justify-end gap-1 text-xl font-bold text-gray-900">
                         <span>{{ $ratingDisplay }}</span>
                         <span class="text-base font-normal text-gray-500">/ 5</span>
                     </div>
-                    <div class="flex justify-start md:justify-end gap-1 mt-1 text-lg">
+                    <div class="flex justify-start md:justify-end gap-1 text-lg text-yellow-400" aria-label="Átlagos értékelés">
                         @for ($i = 1; $i <= 5; $i++)
                             @php($isHalf = $ratingHasHalf && $i === $ratingFullStars + 1)
                             <i class="fa-solid {{ $i <= $ratingFullStars ? 'fa-star text-yellow-400' : ($isHalf ? 'fa-star-half-stroke text-yellow-400' : 'fa-star text-gray-300') }}"></i>
                         @endfor
                     </div>
-                    <p class="text-xs text-gray-400 mt-1">Közösségi értékelés</p>
+                    <p class="text-xs text-gray-400">
+                        Közösségi értékelés · {{ number_format($ratingCount) }} értékelés
+                    </p>
+
+                    @auth
+                        <form method="POST" action="{{ route('mods.rate', $mod) }}" class="space-y-2" data-rating-form data-rating-initial="{{ $userRating ?? 0 }}">
+                            @csrf
+                            <input type="hidden" name="rating" value="{{ $userRating ?? '' }}" data-rating-input>
+                            <div class="flex justify-start md:justify-end gap-1 text-2xl" data-rating-stars aria-label="Add le az értékelésed">
+                                @for ($i = 1; $i <= 5; $i++)
+                                    <button type="button" class="rating-star bg-transparent p-1 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-pink-500 transition-transform" data-rating-value="{{ $i }}" aria-label="{{ $i }} csillag">
+                                        <i class="fa-star {{ $userRating && $i <= $userRating ? 'fa-solid text-amber-400' : 'fa-regular text-gray-300' }}"></i>
+                                    </button>
+                                @endfor
+                            </div>
+                            <div class="flex items-center justify-start md:justify-end gap-2">
+                                <button type="submit" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-pink-600 text-white text-xs font-semibold shadow transition disabled:opacity-60 disabled:cursor-not-allowed" data-rating-submit disabled>
+                                    <i class="fa-solid fa-paper-plane text-xs"></i>
+                                    <span>Értékelés mentése</span>
+                                </button>
+                                <span class="text-xs text-gray-400" data-rating-feedback>{{ $userRating ? 'Jelenlegi értékelésed: ' . $userRating . '/5' : 'Kattints egy csillagra a saját értékelésedhez.' }}</span>
+                            </div>
+                        </form>
+                    @else
+                        <p class="text-xs text-gray-400">A saját értékelésed leadásához <a href="{{ route('login') }}" class="text-pink-600 hover:text-pink-700 font-medium">jelentkezz be</a>.</p>
+                    @endauth
                 </div>
             </div>
         </div>

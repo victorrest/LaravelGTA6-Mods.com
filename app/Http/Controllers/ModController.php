@@ -7,8 +7,6 @@ use App\Models\ModCategory;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
 
 class ModController extends Controller
@@ -45,6 +43,10 @@ class ModController extends Controller
 
         $comments = $mod->comments()->with('author')->latest()->take(20)->get();
 
+        $userRating = Auth::check()
+            ? $mod->ratings()->where('user_id', Auth::id())->value('rating')
+            : null;
+
         $relatedMods = Mod::query()
             ->published()
             ->whereKeyNot($mod->getKey())
@@ -75,7 +77,7 @@ class ModController extends Controller
             'url' => route('mods.show', $mod),
         ];
 
-        $ratingValue = $mod->rating ? (float) $mod->rating : null;
+        $ratingValue = $mod->ratings_count > 0 ? (float) $mod->rating : null;
         $ratingFullStars = $ratingValue ? (int) floor($ratingValue) : 0;
         $ratingHasHalf = $ratingValue ? ($ratingValue - $ratingFullStars) >= 0.5 : false;
 
@@ -107,9 +109,36 @@ class ModController extends Controller
             'ratingValue' => $ratingValue,
             'ratingFullStars' => $ratingFullStars,
             'ratingHasHalf' => $ratingHasHalf,
+            'ratingCount' => $mod->ratings_count,
+            'userRating' => $userRating ? (int) $userRating : null,
             'metaDetails' => $metaDetails,
             'galleryImages' => $galleryImages,
         ]);
+    }
+
+    public function rate(Request $request, Mod $mod): RedirectResponse
+    {
+        abort_unless($mod->status === Mod::STATUS_PUBLISHED, Response::HTTP_NOT_FOUND);
+
+        $data = $request->validate([
+            'rating' => ['required', 'integer', 'min:1', 'max:5'],
+        ]);
+
+        $userId = $request->user()->getKey();
+        $existing = $mod->ratings()->where('user_id', $userId)->first();
+
+        if ($existing && (int) $existing->rating === (int) $data['rating']) {
+            $existing->delete();
+
+            return back()->with('status', 'Your rating has been removed.');
+        }
+
+        $mod->ratings()->updateOrCreate(
+            ['user_id' => $userId],
+            ['rating' => (int) $data['rating']]
+        );
+
+        return back()->with('status', 'Thanks for rating this mod!');
     }
 
     public function comment(Request $request, Mod $mod): RedirectResponse
@@ -126,21 +155,4 @@ class ModController extends Controller
         return back()->with('status', 'Comment posted successfully.');
     }
 
-    public function download(Mod $mod)
-    {
-        abort_unless($mod->status === 'published', Response::HTTP_NOT_FOUND);
-
-        $mod->increment('downloads');
-
-        if ($mod->file_path && ! Str::startsWith($mod->file_path, ['http://', 'https://'])) {
-            if (Storage::disk('public')->exists($mod->file_path)) {
-                $extension = pathinfo($mod->file_path, PATHINFO_EXTENSION) ?: 'zip';
-                $filename = Str::slug($mod->title ?: 'gta6-mod') . '.' . $extension;
-
-                return Storage::disk('public')->download($mod->file_path, $filename);
-            }
-        }
-
-        return redirect()->away($mod->download_url);
-    }
 }
