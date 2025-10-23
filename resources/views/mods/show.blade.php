@@ -215,13 +215,19 @@
                     </form>
 
                     @auth
-                        @if(auth()->id() === $mod->user_id)
+                        @if (auth()->id() === $mod->user_id)
                             @php
                                 $isPinned = auth()->user()->pinned_mod_id === $mod->id;
                             @endphp
-                            <button onclick="togglePinMod({{ $mod->id }}, {{ $isPinned ? 'true' : 'false' }})" id="pin-mod-btn" class="w-full inline-flex items-center justify-center px-4 py-2 {{ $isPinned ? 'bg-purple-600 hover:bg-purple-700' : 'bg-gray-600 hover:bg-gray-700' }} text-white text-sm font-semibold rounded-lg shadow transition">
+                            <button
+                                id="pin-mod-btn"
+                                onclick="togglePinMod(this)"
+                                data-mod-id="{{ $mod->id }}"
+                                data-pinned="{{ $isPinned ? 'true' : 'false' }}"
+                                class="w-full inline-flex items-center justify-center px-4 py-2 {{ $isPinned ? 'bg-purple-600 hover:bg-purple-700' : 'bg-gray-600 hover:bg-gray-700' }} text-white text-sm font-semibold rounded-lg shadow transition"
+                            >
                                 <i class="fas fa-thumbtack mr-2 {{ $isPinned ? '' : 'rotate-45' }}"></i>
-                                <span id="pin-mod-text">{{ $isPinned ? 'Unpin from Profile' : 'Pin to Profile' }}</span>
+                                <span id="pin-mod-text" data-pin-text>{{ $isPinned ? 'Unpin from Profile' : 'Pin to Profile' }}</span>
                             </button>
                         @endif
                     @endauth
@@ -254,65 +260,79 @@
 
 @push('scripts')
 <script>
-async function togglePinMod(modId, isPinned) {
-    const btn = document.getElementById('pin-mod-btn');
-    const text = document.getElementById('pin-mod-text');
+async function togglePinMod(button) {
+    const btn = typeof button === 'string' ? document.getElementById(button) : button;
+
+    if (!btn) {
+        return;
+    }
+
+    const text = btn.querySelector('[data-pin-text]');
     const icon = btn.querySelector('i');
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+    const modId = btn.dataset.modId;
+    const isPinned = btn.dataset.pinned === 'true';
+    const originalText = text ? text.textContent : '';
 
     try {
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+        btn.disabled = true;
+        btn.classList.add('opacity-75', 'cursor-not-allowed');
 
-        let url, method;
-        if (isPinned) {
-            // Unpin
-            url = '/profile/pin-mod';
-            method = 'DELETE';
-        } else {
-            // Pin
-            url = `/profile/pin-mod/${modId}`;
-            method = 'POST';
+        if (text) {
+            text.textContent = 'Saving...';
         }
 
+        const url = isPinned ? '/profile/pin-mod' : `/profile/pin-mod/${modId}`;
+        const method = isPinned ? 'DELETE' : 'POST';
+
         const response = await fetch(url, {
-            method: method,
+            method,
             headers: {
                 'X-CSRF-TOKEN': csrfToken,
-                'Accept': 'application/json'
-            }
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
         });
 
         const data = await response.json();
 
-        if (response.ok && data.success) {
-            // Update button state
-            if (isPinned) {
-                // Was pinned, now unpinned
-                btn.classList.remove('bg-purple-600', 'hover:bg-purple-700');
-                btn.classList.add('bg-gray-600', 'hover:bg-gray-700');
-                icon.classList.add('rotate-45');
-                text.textContent = 'Pin to Profile';
-                btn.setAttribute('onclick', `togglePinMod(${modId}, false)`);
-            } else {
-                // Was unpinned, now pinned
-                btn.classList.remove('bg-gray-600', 'hover:bg-gray-700');
-                btn.classList.add('bg-purple-600', 'hover:bg-purple-700');
-                icon.classList.remove('rotate-45');
-                text.textContent = 'Unpin from Profile';
-                btn.setAttribute('onclick', `togglePinMod(${modId}, true)`);
-            }
-
-            // Show success message
-            const message = document.createElement('div');
-            message.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
-            message.textContent = data.message;
-            document.body.appendChild(message);
-            setTimeout(() => message.remove(), 3000);
-        } else {
-            alert(data.message || 'Failed to update pinned mod');
+        if (!response.ok || !data.success) {
+            throw new Error(data.message || 'Failed to update pinned mod.');
         }
+
+        const pinnedNow = Boolean(data.isPinned);
+        btn.dataset.pinned = pinnedNow ? 'true' : 'false';
+
+        if (pinnedNow) {
+            btn.classList.remove('bg-gray-600', 'hover:bg-gray-700');
+            btn.classList.add('bg-purple-600', 'hover:bg-purple-700');
+            icon?.classList.remove('rotate-45');
+            if (text) {
+                text.textContent = 'Unpin from Profile';
+            }
+        } else {
+            btn.classList.remove('bg-purple-600', 'hover:bg-purple-700');
+            btn.classList.add('bg-gray-600', 'hover:bg-gray-700');
+            icon?.classList.add('rotate-45');
+            if (text) {
+                text.textContent = 'Pin to Profile';
+            }
+        }
+
+        const message = document.createElement('div');
+        message.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+        message.textContent = data.message || (pinnedNow ? 'Mod pinned to profile.' : 'Mod unpinned from profile.');
+        document.body.appendChild(message);
+        setTimeout(() => message.remove(), 3000);
     } catch (error) {
         console.error('Error toggling pin:', error);
-        alert('Failed to update pinned mod. Please try again.');
+        if (text) {
+            text.textContent = originalText || text.textContent;
+        }
+        alert(error.message || 'Failed to update pinned mod. Please try again.');
+    } finally {
+        btn.disabled = false;
+        btn.classList.remove('opacity-75', 'cursor-not-allowed');
     }
 }
 </script>
