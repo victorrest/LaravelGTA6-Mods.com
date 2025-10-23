@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\ModController as AdminModController;
 use App\Http\Controllers\Admin\NewsController as AdminNewsController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\ChunkedUploadController;
 use App\Http\Controllers\ForumController;
 use App\Http\Controllers\InstallController;
 use App\Http\Controllers\HomeController;
@@ -38,6 +39,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/mods/{mod:slug}/edit', [ModManagementController::class, 'edit'])->name('mods.edit');
     Route::put('/mods/{mod:slug}', [ModManagementController::class, 'update'])->name('mods.update');
     Route::get('/dashboard/mods', [ModManagementController::class, 'myMods'])->name('mods.my');
+    Route::post('/mods/uploads/chunk', [ChunkedUploadController::class, 'store'])->name('mods.uploads.chunk');
     Route::post('/mods/{mod:slug}/rate', [ModController::class, 'rate'])->name('mods.rate');
 });
 Route::get('/mods/{mod:slug}', [ModController::class, 'show'])->name('mods.show');

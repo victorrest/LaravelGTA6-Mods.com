@@ -134,10 +134,15 @@
                 @csrf
                 @include('components.validation-errors')
 
+                <input type="hidden" name="hero_image_token" id="hero_image_token" value="{{ old('hero_image_token') }}">
+                <input type="hidden" name="mod_file_token" id="mod_file_token" value="{{ old('mod_file_token') }}">
                 <input type="hidden" name="description" id="description" value="{{ old('description') }}">
                 <input type="hidden" name="file_size" id="file_size" value="{{ old('file_size') }}">
-                <input type="file" name="hero_image" id="hero_image_input" class="hidden" accept="image/png,image/jpeg,image/webp">
-                <input type="file" name="gallery_images[]" id="gallery_images_input" class="hidden" accept="image/png,image/jpeg,image/webp" multiple>
+                <div id="gallery-token-container">
+                    @foreach (old('gallery_image_tokens', []) as $token)
+                        <input type="hidden" name="gallery_image_tokens[]" value="{{ $token }}" data-token="{{ $token }}">
+                    @endforeach
+                </div>
 
                 <div id="form-step-1">
                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -264,7 +269,7 @@
                                             <p class="text-xs text-gray-500">Allowed: .zip, .rar, .7z, .oiv (MAX. 400MB)</p>
                                         </div>
                                         <div id="mod-file-preview" class="hidden items-center justify-center text-center p-4"></div>
-                                            <input id="mod_file_input" name="mod_file" type="file" class="hidden" accept=".zip,.rar,.7z,.oiv">
+                                        <input id="mod_file_input" type="file" class="hidden" accept=".zip,.rar,.7z,.oiv">
                                     </label>
                                 </div>
                             </div>
@@ -409,7 +414,12 @@
         document.addEventListener('DOMContentLoaded', () => {
             document.body.classList.add('mod-upload-page');
 
+            const chunkEndpoint = @json(route('mods.uploads.chunk'));
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
+            const chunkSize = 512 * 1024;
             const MAX_SCREENSHOTS = 12;
+
+            let pswpLightbox = null;
 
             const form = document.getElementById('mod-upload-form');
             const formSteps = [
@@ -438,17 +448,27 @@
             const descriptionTextarea = document.getElementById('description-textarea');
             const descriptionInput = document.getElementById('description');
 
+            const autoResizeTextarea = () => {
+                descriptionTextarea.style.height = 'auto';
+                descriptionTextarea.style.height = `${descriptionTextarea.scrollHeight}px`;
+            };
+            descriptionTextarea.addEventListener('input', autoResizeTextarea);
+            autoResizeTextarea();
+
             const screenshotInput = document.getElementById('screenshot-upload');
-            const galleryInput = document.getElementById('gallery_images_input');
-            const heroInput = document.getElementById('hero_image_input');
             const dropzoneLabel = document.getElementById('dropzone-label');
             const imagePreviewContainer = document.getElementById('image-preview-container');
             const heroStatusLabel = document.getElementById('hero-upload-status');
+            heroStatusLabel.textContent = 'Select a featured screenshot to continue.';
+
+            const heroTokenInput = document.getElementById('hero_image_token');
+            const galleryTokenContainer = document.getElementById('gallery-token-container');
 
             const authorsContainer = document.getElementById('authors-container');
             const addAuthorBtn = document.getElementById('add-author-btn');
 
             const modFileInput = document.getElementById('mod_file_input');
+            const modFileTokenInput = document.getElementById('mod_file_token');
             const modDropzoneLabel = document.getElementById('mod-dropzone-label');
             const modDropzoneContent = document.getElementById('mod-dropzone-content');
             const modFilePreview = document.getElementById('mod-file-preview');
@@ -475,54 +495,17 @@
             const previewSidebarTags = document.getElementById('preview-sidebar-tags');
             const previewSidebarSourceInfo = document.getElementById('preview-sidebar-source-info');
 
-            let usingUrlMode = Boolean(downloadUrlInput.value);
-            let pswpLightbox = null;
-            let screenshotItems = [];
             let currentStep = 0;
+            let activeUploads = 0;
+            let screenshotItems = [];
+            let usingUrlMode = Boolean(downloadUrlInput.value);
 
-            const autoResizeTextarea = () => {
-                descriptionTextarea.style.height = 'auto';
-                descriptionTextarea.style.height = `${descriptionTextarea.scrollHeight}px`;
-            };
-            descriptionTextarea.addEventListener('input', autoResizeTextarea);
-            autoResizeTextarea();
-
-            const destroyLightbox = () => {
-                if (pswpLightbox) {
-                    pswpLightbox.destroy();
-                    pswpLightbox = null;
-                }
+            const beginUpload = () => {
+                activeUploads += 1;
             };
 
-            const initializeLightbox = () => {
-                destroyLightbox();
-                pswpLightbox = new PhotoSwipeLightbox({
-                    gallery: '#preview-gallery-container',
-                    children: 'a.gallery-item',
-                    pswpModule: () => import('https://unpkg.com/photoswipe@5/dist/photoswipe.esm.js'),
-                });
-                pswpLightbox.init();
-            };
-
-            const syncFileInputs = () => {
-                if (!window.DataTransfer) {
-                    return;
-                }
-
-                const galleryTransfer = new DataTransfer();
-                screenshotItems.forEach((item) => galleryTransfer.items.add(item.file));
-                galleryInput.files = galleryTransfer.files;
-
-                const featured = screenshotItems.find((item) => item.isFeatured);
-                if (featured) {
-                    const heroTransfer = new DataTransfer();
-                    heroTransfer.items.add(featured.file);
-                    heroInput.files = heroTransfer.files;
-                    heroStatusLabel.textContent = 'Featured image ready.';
-                } else {
-                    heroInput.value = '';
-                    heroStatusLabel.textContent = '';
-                }
+            const finishUpload = () => {
+                activeUploads = Math.max(0, activeUploads - 1);
             };
 
             const setStep = (stepIndex) => {
@@ -537,96 +520,169 @@
             };
 
             const sanitizeAllowedHtml = (input) => {
-                if (!input) {
-                    return '';
-                }
+                const template = document.createElement('template');
+                template.innerHTML = input;
+                const allowed = new Set(['B', 'I', 'U', 'UL', 'OL', 'LI', 'BR']);
 
-                const allowedTags = ['b', 'i', 'u', 'ul', 'ol', 'li', 'br'];
-                const tempElement = document.createElement('div');
-                tempElement.innerHTML = input;
-
-                const traverse = (node) => {
-                    [...node.children].forEach((child) => {
-                        if (!allowedTags.includes(child.tagName.toLowerCase())) {
-                            child.replaceWith(child.textContent || '');
+                const process = (node) => {
+                    Array.from(node.children).forEach((child) => {
+                        if (!allowed.has(child.tagName)) {
+                            const fragment = document.createDocumentFragment();
+                            while (child.firstChild) {
+                                fragment.appendChild(child.firstChild);
+                            }
+                            child.replaceWith(fragment);
                         } else {
-                            traverse(child);
+                            process(child);
                         }
                     });
                 };
 
-                traverse(tempElement);
-
-                return tempElement.innerHTML;
+                process(template.content);
+                return template.innerHTML;
             };
 
             const buildDescriptionPayload = () => {
-                const rawValue = descriptionTextarea.value;
-                const sanitizedHtml = sanitizeAllowedHtml(rawValue.replace(/\n/g, '<br>'));
-                const plainText = rawValue.trim();
+                const rawText = descriptionTextarea.value.trim();
+                if (!rawText) {
+                    return { json: '', plainTextLength: 0, htmlPreview: '' };
+                }
+
+                const paragraphs = rawText.split(/\n{2,}/).map((paragraph) => paragraph.trim()).filter(Boolean);
+                const blocks = [];
+                const htmlPieces = [];
+
+                paragraphs.forEach((paragraph) => {
+                    const html = sanitizeAllowedHtml(paragraph.split('\n').map((line) => line.trim()).join('<br>'));
+                    if (!html) {
+                        return;
+                    }
+                    blocks.push({ type: 'paragraph', data: { text: html } });
+                    htmlPieces.push(`<p>${html}</p>`);
+                });
+
+                const jsonPayload = JSON.stringify({
+                    time: Date.now(),
+                    version: '2.28.2',
+                    blocks,
+                });
+
+                const plainTextLength = paragraphs.join(' ').replace(/<[^>]+>/g, '').length;
 
                 return {
-                    html: sanitizedHtml,
-                    plain: plainText,
-                    json: JSON.stringify({
-                        time: Date.now(),
-                        version: '2.27.0',
-                        blocks: [
-                            {
-                                type: 'paragraph',
-                                data: { text: sanitizedHtml || ' ' },
-                            },
-                        ],
-                    }),
+                    json: jsonPayload,
+                    plainTextLength,
+                    htmlPreview: htmlPieces.join(''),
                 };
             };
 
-            const getAuthorsList = () => Array.from(authorsContainer.querySelectorAll('input[name="authors[]"]'))
-                .map((input) => input.value.trim())
-                .filter(Boolean);
-
-            const ensureFeaturedExists = () => {
-                if (!screenshotItems.length) {
-                    heroStatusLabel.textContent = '';
+            const displayErrors = (container, messages) => {
+                container.innerHTML = '';
+                if (!messages.length) {
                     return;
                 }
 
-                if (!screenshotItems.some((item) => item.isFeatured)) {
-                    screenshotItems[0].isFeatured = true;
+                const list = document.createElement('ul');
+                list.className = 'list-disc list-inside text-sm text-red-600 bg-red-100 p-4 rounded-lg space-y-1';
+                messages.forEach((message) => {
+                    const item = document.createElement('li');
+                    item.textContent = message;
+                    list.appendChild(item);
+                });
+
+                container.appendChild(list);
+            };
+
+            const addGalleryToken = (token) => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'gallery_image_tokens[]';
+                input.value = token;
+                input.dataset.token = token;
+                galleryTokenContainer.appendChild(input);
+            };
+
+            const removeGalleryToken = (token) => {
+                const target = galleryTokenContainer.querySelector(`input[data-token="${token}"]`);
+                if (target) {
+                    target.remove();
+                }
+            };
+
+            const syncGalleryTokens = () => {
+                galleryTokenContainer.innerHTML = '';
+                screenshotItems.forEach((item) => {
+                    if (!item.isFeatured && item.token) {
+                        addGalleryToken(item.token);
+                    }
+                });
+            };
+
+            const updateHeroSelection = () => {
+                const featuredItem = screenshotItems.find((item) => item.isFeatured);
+
+                if (!featuredItem) {
+                    heroTokenInput.value = '';
+                    heroStatusLabel.textContent = 'Select a featured screenshot to continue.';
+                    return;
+                }
+
+                if (featuredItem.uploading) {
+                    heroTokenInput.value = '';
+                    heroStatusLabel.textContent = 'Uploading featured screenshot…';
+                    return;
+                }
+
+                if (featuredItem.token) {
+                    heroTokenInput.value = featuredItem.token;
+                    heroStatusLabel.textContent = 'Featured screenshot ready.';
+                } else {
+                    heroTokenInput.value = '';
+                    heroStatusLabel.textContent = 'Preparing featured screenshot…';
                 }
             };
 
             const renderScreenshotPreviews = () => {
-                ensureFeaturedExists();
                 imagePreviewContainer.innerHTML = '';
-
                 screenshotItems.forEach((item, index) => {
                     const wrapper = document.createElement('div');
-                    wrapper.className = 'relative group aspect-video rounded-lg cursor-grab w-[calc(50%-0.5rem)] bg-gray-100 overflow-hidden';
-                    wrapper.dataset.index = index;
+                    wrapper.className = 'relative group aspect-video rounded-lg cursor-grab w-[calc(50%-0.5rem)] border border-gray-200 overflow-hidden';
                     wrapper.draggable = true;
+                    wrapper.dataset.index = String(index);
 
                     const img = document.createElement('img');
                     img.src = item.previewUrl;
-                    img.alt = `Screenshot ${index + 1}`;
+                    img.alt = item.file?.name ?? `Screenshot ${index + 1}`;
                     img.className = 'w-full h-full object-cover pointer-events-none';
 
-                    const badge = document.createElement('span');
-                    badge.className = 'absolute top-2 left-2 w-7 h-7 flex items-center justify-center bg-black/60 rounded-full text-white text-xs font-bold z-10 pointer-events-none';
-                    badge.textContent = index + 1;
+                    const numberBadge = document.createElement('span');
+                    numberBadge.className = 'absolute top-2 left-2 w-7 h-7 flex items-center justify-center bg-black/60 rounded-full text-white text-xs font-bold z-10 pointer-events-none';
+                    numberBadge.textContent = index + 1;
 
                     const deleteBtn = document.createElement('button');
                     deleteBtn.type = 'button';
                     deleteBtn.className = 'absolute top-2 right-2 w-7 h-7 flex items-center justify-center bg-black/60 rounded-full text-white hover:bg-red-500 transition-colors z-10';
                     deleteBtn.innerHTML = '<i class="fas fa-times text-sm"></i>';
                     deleteBtn.addEventListener('click', (event) => {
-                        event.preventDefault();
+                        event.stopPropagation();
                         const [removed] = screenshotItems.splice(index, 1);
-                        if (removed) {
+                        if (removed?.token) {
+                            removeGalleryToken(removed.token);
+                        }
+                        if (removed?.previewUrl) {
                             URL.revokeObjectURL(removed.previewUrl);
                         }
+                        if (!screenshotItems.some((entry) => entry.isFeatured)) {
+                            if (screenshotItems.length > 0) {
+                                screenshotItems[0].isFeatured = true;
+                            } else {
+                                heroTokenInput.value = '';
+                                heroStatusLabel.textContent = 'Select a featured screenshot to continue.';
+                            }
+                        }
                         renderScreenshotPreviews();
-                        syncFileInputs();
+                        syncGalleryTokens();
+                        updateHeroSelection();
                     });
 
                     const radioLabel = document.createElement('label');
@@ -634,64 +690,78 @@
 
                     const radioInput = document.createElement('input');
                     radioInput.type = 'radio';
-                    radioInput.name = 'featured_screenshot';
+                    radioInput.name = 'featured_image_choice';
                     radioInput.className = 'hidden peer';
                     radioInput.checked = item.isFeatured;
+                    radioInput.disabled = item.uploading;
                     radioInput.addEventListener('change', () => {
-                        screenshotItems.forEach((entry, entryIndex) => {
-                            entry.isFeatured = entryIndex === index;
+                        screenshotItems.forEach((entry, idx) => {
+                            entry.isFeatured = idx === index;
                         });
                         renderScreenshotPreviews();
-                        syncFileInputs();
+                        syncGalleryTokens();
+                        updateHeroSelection();
                     });
 
-                    const radioIndicator = document.createElement('span');
-                    radioIndicator.className = 'w-4 h-4 rounded-full border-2 border-white flex-shrink-0 mr-1.5 peer-checked:bg-pink-500 peer-checked:border-pink-500 transition-colors duration-200';
+                    const customRadio = document.createElement('span');
+                    customRadio.className = 'w-4 h-4 rounded-full border-2 border-white flex-shrink-0 mr-1.5 peer-checked:bg-pink-500 peer-checked:border-pink-500 transition-colors duration-200';
+
+                    const labelText = document.createTextNode('Featured');
 
                     radioLabel.appendChild(radioInput);
-                    radioLabel.appendChild(radioIndicator);
-                    radioLabel.appendChild(document.createTextNode('Featured'));
+                    radioLabel.appendChild(customRadio);
+                    radioLabel.appendChild(labelText);
+
+                    wrapper.appendChild(img);
+                    wrapper.appendChild(numberBadge);
+                    wrapper.appendChild(deleteBtn);
+                    wrapper.appendChild(radioLabel);
+
+                    if (item.uploading) {
+                        const overlay = document.createElement('div');
+                        overlay.className = 'absolute inset-0 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center text-white text-xs font-semibold gap-2';
+                        overlay.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Uploading…</span>';
+                        wrapper.appendChild(overlay);
+                    }
 
                     if (item.isFeatured) {
                         wrapper.classList.add('ring-2', 'ring-pink-500', 'ring-offset-2', 'ring-offset-white');
                     }
 
-                    wrapper.appendChild(img);
-                    wrapper.appendChild(badge);
-                    wrapper.appendChild(deleteBtn);
-                    wrapper.appendChild(radioLabel);
-
                     imagePreviewContainer.appendChild(wrapper);
                 });
 
-                syncFileInputs();
+                updateHeroSelection();
             };
 
             let draggedIndex = null;
 
             imagePreviewContainer.addEventListener('dragstart', (event) => {
-                const target = event.target.closest('[draggable="true"]');
-                if (!target) {
+                const index = event.target.dataset.index;
+                if (typeof index === 'undefined') {
                     return;
                 }
-                draggedIndex = Number(target.dataset.index);
-                target.classList.add('opacity-50');
+                draggedIndex = Number(index);
                 event.dataTransfer.effectAllowed = 'move';
+                setTimeout(() => {
+                    event.target.classList.add('dragging');
+                }, 0);
             });
 
             imagePreviewContainer.addEventListener('dragend', (event) => {
-                const target = event.target.closest('[draggable="true"]');
-                if (target) {
-                    target.classList.remove('opacity-50');
+                if (!event.target.classList.contains('dragging')) {
+                    return;
                 }
+                event.target.classList.remove('dragging');
                 draggedIndex = null;
+                imagePreviewContainer.querySelectorAll('.drag-over').forEach((element) => element.classList.remove('drag-over'));
             });
 
             imagePreviewContainer.addEventListener('dragover', (event) => {
                 event.preventDefault();
                 const target = event.target.closest('[draggable="true"]');
                 imagePreviewContainer.querySelectorAll('.drag-over').forEach((element) => element.classList.remove('drag-over'));
-                if (target && Number(target.dataset.index) !== draggedIndex) {
+                if (target && target.dataset.index !== undefined && Number(target.dataset.index) !== draggedIndex) {
                     target.classList.add('drag-over');
                 }
             });
@@ -717,6 +787,8 @@
                 const [draggedItem] = screenshotItems.splice(draggedIndex, 1);
                 screenshotItems.splice(targetIndex, 0, draggedItem);
                 renderScreenshotPreviews();
+                syncGalleryTokens();
+                updateHeroSelection();
             });
 
             const handleScreenshotFiles = (files) => {
@@ -732,14 +804,39 @@
                     }
 
                     const previewUrl = URL.createObjectURL(file);
-                    screenshotItems.push({
+                    const item = {
                         file,
                         previewUrl,
+                        token: null,
+                        uploading: true,
                         isFeatured: screenshotItems.length === 0,
-                    });
-                });
+                    };
 
-                renderScreenshotPreviews();
+                    screenshotItems.push(item);
+                    renderScreenshotPreviews();
+                    updateHeroSelection();
+
+                    beginUpload();
+
+                    uploadFileInChunks(file, 'gallery_image')
+                        .then((result) => {
+                            item.token = result.upload_token;
+                            item.uploading = false;
+                            syncGalleryTokens();
+                            renderScreenshotPreviews();
+                            updateHeroSelection();
+                        })
+                        .catch((error) => {
+                            console.error(error);
+                            alert('Screenshot upload failed. Please try again.');
+                            screenshotItems = screenshotItems.filter((entry) => entry !== item);
+                            renderScreenshotPreviews();
+                            updateHeroSelection();
+                        })
+                        .finally(() => {
+                            finishUpload();
+                        });
+                });
             };
 
             screenshotInput.addEventListener('change', (event) => {
@@ -770,31 +867,123 @@
                 handleScreenshotFiles(event.dataTransfer.files);
             });
 
+            const uploadFileInChunks = async (file, category, onProgress = () => {}) => {
+                const totalChunks = Math.max(Math.ceil(file.size / chunkSize), 1);
+                const uploadToken = crypto.randomUUID();
+                let responseData = null;
+
+                for (let index = 0; index < totalChunks; index += 1) {
+                    const start = index * chunkSize;
+                    const end = Math.min(start + chunkSize, file.size);
+                    const chunk = file.slice(start, end);
+
+                    const formData = new FormData();
+                    formData.append('chunk', chunk, file.name);
+                    formData.append('original_name', file.name);
+                    formData.append('mime_type', file.type || 'application/octet-stream');
+                    formData.append('chunk_index', index);
+                    formData.append('total_chunks', totalChunks);
+                    formData.append('upload_token', uploadToken);
+                    formData.append('upload_category', category);
+
+                    const response = await fetch(chunkEndpoint, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': csrfToken,
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json',
+                        },
+                        body: formData,
+                    });
+
+                    if (!response.ok) {
+                        const errorBody = await response.text();
+                        throw new Error(errorBody || 'Chunk upload failed.');
+                    }
+
+                    const payloadText = await response.text();
+                    let data;
+                    try {
+                        data = payloadText ? JSON.parse(payloadText) : null;
+                    } catch (parseError) {
+                        console.error('Failed to parse upload response:', payloadText);
+                        throw new Error('Upload failed due to an unexpected server response.');
+                    }
+
+                    if (!data) {
+                        throw new Error('Upload failed due to an empty server response.');
+                    }
+
+                    responseData = data;
+                    onProgress({ index: index + 1, total: totalChunks });
+                }
+
+                return responseData;
+            };
+
             const handleModFile = (files) => {
                 if (!files || !files.length) {
                     return;
                 }
 
                 const file = files[0];
-                const sizeMb = (file.size / 1024 / 1024).toFixed(2);
-
+                modFileInput.files = files;
                 modDropzoneContent.classList.add('hidden');
                 modFilePreview.innerHTML = `
                     <div class="flex flex-col items-center text-gray-700">
                         <i class="fas fa-check-circle text-green-500 text-4xl"></i>
                         <p class="font-semibold mt-2 break-all">${file.name}</p>
-                        <p class="text-sm text-gray-500">${sizeMb} MB</p>
+                        <p class="text-sm text-gray-500">${(file.size / 1024 / 1024).toFixed(2)} MB</p>
                         <button type="button" class="mt-2 text-sm font-semibold text-red-600 hover:text-red-800 transition" id="remove-mod-file-btn">Remove</button>
                     </div>
                 `;
                 modFilePreview.classList.remove('hidden');
                 modFilePreview.classList.add('flex');
 
-                fileSizeHiddenInput.value = sizeMb;
+                beginUpload();
+                const sizeLabel = modFilePreview.querySelector('p.text-sm');
 
-                const removeBtn = modFilePreview.querySelector('#remove-mod-file-btn');
-                removeBtn.addEventListener('click', () => {
+                uploadFileInChunks(file, 'mod_archive', ({ index, total }) => {
+                    const progress = Math.round((index / total) * 100);
+                    if (sizeLabel) {
+                        sizeLabel.textContent = `${(file.size / 1024 / 1024).toFixed(2)} MB • ${progress}%`;
+                    }
+                })
+                    .then((result) => {
+                        modFileTokenInput.value = result.upload_token;
+
+                        const sizeBytes = Number(result.size_bytes ?? 0);
+                        let sizeMb = Number(result.size_mb ?? 0);
+
+                        if (!sizeMb && sizeBytes) {
+                            sizeMb = sizeBytes / 1048576;
+                        }
+
+                        if (!sizeMb) {
+                            sizeMb = file.size / 1024 / 1024;
+                        }
+
+                        fileSizeHiddenInput.value = sizeMb ? sizeMb.toFixed(2) : '';
+
+                        if (sizeLabel) {
+                            sizeLabel.textContent = `${(file.size / 1024 / 1024).toFixed(2)} MB • 100%`;
+                        }
+                    })
+                    .catch((error) => {
+                        console.error(error);
+                        alert('Mod archive upload failed. Please try again.');
+                        modFileTokenInput.value = '';
+                        modFilePreview.classList.add('hidden');
+                        modFilePreview.classList.remove('flex');
+                        modDropzoneContent.classList.remove('hidden');
+                    })
+                    .finally(() => {
+                        finishUpload();
+                    });
+
+                modFilePreview.querySelector('#remove-mod-file-btn').addEventListener('click', () => {
                     modFileInput.value = '';
+                    modFileTokenInput.value = '';
                     fileSizeHiddenInput.value = '';
                     modDropzoneContent.classList.remove('hidden');
                     modFilePreview.classList.add('hidden');
@@ -833,7 +1022,7 @@
                     fileUploadView.classList.add('hidden');
                     urlView.classList.remove('hidden');
                     modFileInput.value = '';
-                    fileSizeHiddenInput.value = '';
+                    modFileTokenInput.value = '';
                     modDropzoneContent.classList.remove('hidden');
                     modFilePreview.classList.add('hidden');
                     modFilePreview.classList.remove('flex');
@@ -841,6 +1030,7 @@
                     urlView.classList.add('hidden');
                     fileUploadView.classList.remove('hidden');
                     downloadUrlInput.value = '';
+                    fileSizeHiddenInput.value = '';
                     fileSizeInput.value = '';
                 }
             };
@@ -856,26 +1046,11 @@
                 }
             }
 
-            const syncManualFileSize = () => {
-                if (!usingUrlMode) {
-                    return;
-                }
-
-                let sizeValue = Number(fileSizeInput.value);
-                if (!sizeValue || sizeValue <= 0) {
-                    fileSizeHiddenInput.value = '';
-                    return;
-                }
-
-                if (fileSizeUnit.value === 'GB') {
-                    sizeValue *= 1024;
-                }
-
-                fileSizeHiddenInput.value = sizeValue.toFixed(2);
+            const getAuthorsList = () => {
+                return Array.from(authorsContainer.querySelectorAll('input[name="authors[]"]'))
+                    .map((input) => input.value.trim())
+                    .filter(Boolean);
             };
-
-            fileSizeInput.addEventListener('input', syncManualFileSize);
-            fileSizeUnit.addEventListener('change', syncManualFileSize);
 
             const validateStep1 = () => {
                 const errors = [];
@@ -889,152 +1064,166 @@
                     errors.push('Please select a category.');
                 }
 
-                if (!descriptionPayload.plain) {
+                if (!descriptionPayload.json) {
                     errors.push('The description cannot be empty.');
+                } else if (descriptionPayload.plainTextLength < 20) {
+                    errors.push('Description must contain at least 20 characters of meaningful text.');
                 }
 
                 if (!screenshotItems.length) {
                     errors.push('Please upload at least one screenshot.');
                 }
 
-                step1ErrorsContainer.innerHTML = '';
-                if (errors.length) {
-                    const list = document.createElement('ul');
-                    list.className = 'list-disc list-inside text-sm text-red-600 bg-red-100 p-4 rounded-lg';
-                    errors.forEach((message) => {
-                        const li = document.createElement('li');
-                        li.textContent = message;
-                        list.appendChild(li);
-                    });
-                    step1ErrorsContainer.appendChild(list);
-                    return false;
+                if (screenshotItems.length && !heroTokenInput.value) {
+                    errors.push('Please wait until the featured screenshot finishes uploading.');
                 }
 
-                descriptionInput.value = descriptionPayload.json;
+                if (activeUploads > 0) {
+                    errors.push('Please wait for ongoing uploads to finish before continuing.');
+                }
 
-                return true;
+                if (errors.length === 0) {
+                    descriptionInput.value = descriptionPayload.json;
+                }
+
+                displayErrors(step1ErrorsContainer, errors);
+                return errors.length === 0;
+            };
+
+            const convertToMb = (value, unit) => {
+                const numeric = Number(value);
+                if (Number.isNaN(numeric) || numeric <= 0) {
+                    return '';
+                }
+                return unit === 'GB' ? (numeric * 1024).toFixed(2) : numeric.toFixed(2);
             };
 
             const validateStep2 = () => {
                 const errors = [];
 
-                if (!versionInput.value.trim()) {
-                    errors.push('The "Version" field is required.');
-                }
-
                 if (usingUrlMode) {
                     if (!downloadUrlInput.value.trim()) {
                         errors.push('Please provide a valid download URL.');
                     }
-
-                    const sizeValue = Number(fileSizeInput.value);
-                    if (!sizeValue || sizeValue <= 0) {
+                    const convertedSize = convertToMb(fileSizeInput.value, fileSizeUnit.value);
+                    if (!convertedSize) {
                         errors.push('Please enter a valid file size.');
+                    } else {
+                        fileSizeHiddenInput.value = convertedSize;
                     }
-                } else if (!modFileInput.files.length && !downloadUrlInput.value.trim()) {
-                    errors.push('Please upload a mod file or provide a download URL.');
+                } else {
+                    if (!modFileTokenInput.value) {
+                        errors.push('Please upload a mod archive file.');
+                    }
                 }
 
-                step2ErrorsContainer.innerHTML = '';
-                if (errors.length) {
-                    const list = document.createElement('ul');
-                    list.className = 'list-disc list-inside text-sm text-red-600 bg-red-100 p-4 rounded-lg';
-                    errors.forEach((message) => {
-                        const li = document.createElement('li');
-                        li.textContent = message;
-                        list.appendChild(li);
-                    });
-                    step2ErrorsContainer.appendChild(list);
-                    return false;
+                if (!versionInput.value.trim()) {
+                    errors.push('The "Version" field is required.');
                 }
 
-                return true;
+                if (activeUploads > 0) {
+                    errors.push('Please wait for ongoing uploads to finish before continuing.');
+                }
+
+                displayErrors(step2ErrorsContainer, errors);
+                return errors.length === 0;
+            };
+
+            const destroyLightbox = () => {
+                if (pswpLightbox) {
+                    pswpLightbox.destroy();
+                    pswpLightbox = null;
+                }
+            };
+
+            const initializeLightbox = () => {
+                destroyLightbox();
+                pswpLightbox = new PhotoSwipeLightbox({
+                    gallery: '#preview-gallery-container',
+                    children: 'a.gallery-item',
+                    pswpModule: () => import('https://unpkg.com/photoswipe@5/dist/photoswipe.esm.js'),
+                });
+                pswpLightbox.init();
             };
 
             const populatePreview = () => {
-                const authors = getAuthorsList();
-                const tags = tagsInput.value
-                    .split(',')
-                    .map((tag) => tag.trim())
-                    .filter(Boolean);
                 const descriptionPayload = buildDescriptionPayload();
+                const authors = getAuthorsList();
+                const categoryText = categorySelect.options[categorySelect.selectedIndex]?.text ?? '';
+                const formattedDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
                 previewHeader.innerHTML = `
-                    <div class="flex items-center space-x-3">
-                        <h1 class="text-2xl md:text-4xl font-bold text-gray-900">${titleInput.value.trim()}</h1>
-                        <span class="text-xl md:text-2xl font-semibold text-gray-400">${versionInput.value.trim()}</span>
-                    </div>
-                    <div class="flex items-center text-sm text-gray-500 mt-1">
-                        <span>by</span>
-                        <span class="font-semibold text-pink-600 ml-1">${authors.join(', ') || 'Unknown author'}</span>
+                    <div class="flex flex-col md:flex-row md:items-center md:space-x-3">
+                        <div class="flex items-center space-x-3">
+                            <h1 class="text-2xl md:text-4xl font-bold text-gray-900">${titleInput.value.trim()}</h1>
+                            <span class="text-xl md:text-2xl font-semibold text-gray-400">${versionInput.value.trim()}</span>
+                        </div>
+                        <div class="flex items-center text-sm text-gray-500 mt-1 md:mt-0">
+                            <span>by</span>
+                            <span class="font-semibold text-pink-600 ml-1">${authors.join(', ') || 'Unknown'}</span>
+                        </div>
                     </div>
                 `;
 
-                previewDescriptionContent.innerHTML = descriptionPayload.html || '<p>No description provided.</p>';
+                previewDescriptionContent.innerHTML = descriptionPayload.htmlPreview || '<p class="text-sm text-gray-500">No description provided.</p>';
 
-                previewSidebarAuthors.textContent = authors.join(', ') || 'Unknown author';
-                previewSidebarVersion.textContent = versionInput.value.trim() || '1.0';
-                previewSidebarUpdated.textContent = new Date().toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                });
-                previewSidebarCategory.textContent = categorySelect.options[categorySelect.selectedIndex]?.textContent || 'Uncategorised';
+                previewSidebarAuthors.textContent = authors.join(', ') || 'Unknown';
+                previewSidebarVersion.textContent = versionInput.value.trim() || '—';
+                previewSidebarUpdated.textContent = formattedDate;
+                previewSidebarCategory.textContent = categoryText || '—';
 
                 previewSidebarTags.innerHTML = '';
+                const tags = tagsInput.value.split(',').map((tag) => tag.trim()).filter(Boolean);
                 if (tags.length) {
                     tags.forEach((tag) => {
-                        const span = document.createElement('span');
-                        span.className = 'bg-gray-200 text-gray-700 text-xs font-semibold px-2.5 py-1 rounded-full';
-                        span.textContent = tag;
-                        previewSidebarTags.appendChild(span);
+                        const pill = document.createElement('span');
+                        pill.className = 'bg-gray-200 text-gray-700 text-xs font-semibold px-2.5 py-1 rounded-full';
+                        pill.textContent = tag;
+                        previewSidebarTags.appendChild(pill);
                     });
                 } else {
                     previewSidebarTags.textContent = 'No tags provided.';
                 }
 
                 previewSidebarSourceInfo.innerHTML = '';
-                if (usingUrlMode && downloadUrlInput.value.trim()) {
-                    const sizeValue = Number(fileSizeInput.value);
-                    const unit = fileSizeUnit.value || 'MB';
+                if (usingUrlMode) {
+                    const sizeText = fileSizeHiddenInput.value ? `${Number(fileSizeHiddenInput.value).toFixed(2)} MB` : 'Unknown size';
                     previewSidebarSourceInfo.innerHTML = `
-                        <p class="preview-value font-mono text-sm bg-gray-200 p-2 rounded break-words">${downloadUrlInput.value.trim()}</p>
-                        <p class="text-right text-sm text-gray-600 mt-1">Size: <strong>${sizeValue ? `${sizeValue} ${unit}` : 'Unknown'}</strong></p>
+                        <p class="font-mono text-sm bg-gray-200 p-2 rounded break-words">${downloadUrlInput.value.trim()}</p>
+                        <p class="text-right text-sm text-gray-600 mt-1">Size: <strong>${sizeText}</strong></p>
                     `;
-                } else if (modFileInput.files.length) {
+                } else if (modFileInput.files.length > 0) {
                     const file = modFileInput.files[0];
                     previewSidebarSourceInfo.innerHTML = `
-                        <p class="preview-value font-mono text-sm bg-gray-200 p-2 rounded break-words">${file.name}</p>
+                        <p class="font-mono text-sm bg-gray-200 p-2 rounded break-words">${file.name}</p>
                         <p class="text-right text-sm text-gray-600 mt-1">Size: <strong>${(file.size / 1024 / 1024).toFixed(2)} MB</strong></p>
                     `;
                 } else {
-                    previewSidebarSourceInfo.textContent = 'No file selected yet.';
+                    previewSidebarSourceInfo.textContent = 'External link required or upload file';
                 }
 
                 previewGalleryFeatured.innerHTML = '';
                 previewGalleryThumbnails.innerHTML = '';
                 previewLoadMoreContainer.innerHTML = '';
 
-                if (!screenshotItems.length) {
-                    destroyLightbox();
-                    return;
+                const featuredItem = screenshotItems.find((item) => item.isFeatured);
+                const otherItems = screenshotItems.filter((item) => !item.isFeatured);
+
+                if (featuredItem) {
+                    const featuredLink = document.createElement('a');
+                    featuredLink.href = featuredItem.previewUrl;
+                    featuredLink.dataset.pswpWidth = 1600;
+                    featuredLink.dataset.pswpHeight = 900;
+                    featuredLink.className = 'gallery-item block w-full h-full';
+                    const featuredImg = document.createElement('img');
+                    featuredImg.src = featuredItem.previewUrl;
+                    featuredImg.alt = 'Featured screenshot';
+                    featuredImg.className = 'w-full h-full object-cover';
+                    featuredLink.appendChild(featuredImg);
+                    previewGalleryFeatured.appendChild(featuredLink);
+                } else {
+                    previewGalleryFeatured.innerHTML = '<div class="w-full h-full flex items-center justify-center text-sm text-gray-500">Add a featured screenshot to populate this area.</div>';
                 }
-
-                const featuredItem = screenshotItems.find((item) => item.isFeatured) || screenshotItems[0];
-                const otherItems = screenshotItems.filter((item) => item !== featuredItem);
-
-                const featuredLink = document.createElement('a');
-                featuredLink.href = featuredItem.previewUrl;
-                featuredLink.dataset.pswpWidth = 1600;
-                featuredLink.dataset.pswpHeight = 900;
-                featuredLink.className = 'gallery-item block w-full h-full';
-
-                const featuredImg = document.createElement('img');
-                featuredImg.src = featuredItem.previewUrl;
-                featuredImg.alt = 'Featured Screenshot';
-                featuredImg.className = 'w-full h-full object-cover';
-                featuredLink.appendChild(featuredImg);
-                previewGalleryFeatured.appendChild(featuredLink);
 
                 otherItems.forEach((item, index) => {
                     const thumbLink = document.createElement('a');
@@ -1075,12 +1264,16 @@
             };
 
             const handleFormSubmit = (event) => {
-                if (!descriptionInput.value) {
-                    descriptionInput.value = buildDescriptionPayload().json;
+                if (activeUploads > 0) {
+                    event.preventDefault();
+                    alert('Please wait for all uploads to finish before submitting.');
+                    return;
                 }
 
-                syncManualFileSize();
-                syncFileInputs();
+                if (!descriptionInput.value) {
+                    const payload = buildDescriptionPayload();
+                    descriptionInput.value = payload.json;
+                }
             };
 
             const addAuthorField = () => {
