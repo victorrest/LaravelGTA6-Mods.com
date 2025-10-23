@@ -102,6 +102,10 @@ class ModController extends Controller
                 'alt' => $mod->title,
             ])->unique('src')->values()->all();
 
+        $authUser = Auth::user();
+        $canManagePin = $authUser && $authUser->getKey() === $mod->user_id;
+        $isPinnedByOwner = $canManagePin && (int) $authUser->pinned_mod_id === (int) $mod->id;
+
         return view('mods.show', [
             'mod' => $mod,
             'comments' => $comments,
@@ -118,6 +122,8 @@ class ModController extends Controller
             'userRating' => $userRating ? (int) $userRating : null,
             'metaDetails' => $metaDetails,
             'galleryImages' => $galleryImages,
+            'canManagePin' => $canManagePin,
+            'isPinnedByOwner' => $isPinnedByOwner,
         ]);
     }
 
