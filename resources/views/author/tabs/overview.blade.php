@@ -122,18 +122,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
 
                 try {
+                    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+
                     const response = await fetch('/activity/status', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                            'X-CSRF-TOKEN': csrfToken,
+                            'Accept': 'application/json'
                         },
                         body: JSON.stringify({ content })
                     });
 
                     const data = await response.json();
 
-                    if (data.success) {
+                    if (response.ok && data.success) {
                         // Clear textarea
                         statusTextarea.textContent = '';
                         statusTextarea.classList.add('empty');
@@ -142,11 +145,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         // Reload activity feed
                         location.reload();
                     } else {
-                        alert(data.message || 'Failed to post status update');
+                        const errorMsg = data.message || data.errors?.content?.[0] || 'Failed to post status update';
+                        alert(errorMsg);
+                        console.error('Server error:', data);
                     }
                 } catch (error) {
                     console.error('Error posting status:', error);
-                    alert('Failed to post status update');
+                    alert('Network error: Failed to post status update. Please check your connection.');
                 }
             });
         }

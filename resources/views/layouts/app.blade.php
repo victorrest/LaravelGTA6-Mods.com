@@ -46,7 +46,7 @@
                             <div id="account-menu" class="relative">
                                 <button id="account-menu-button" type="button" class="flex items-center gap-2 rounded-full focus:outline-none text-white" aria-expanded="false" aria-haspopup="true" aria-controls="account-menu-dropdown">
                                     <span class="sr-only">Open account menu</span>
-                                    <img src="https://www.gravatar.com/avatar/{{ md5(strtolower(trim(auth()->user()->email ?? ''))) }}?s=72&d=mp" alt="{{ auth()->user()->name }} avatar" class="h-9 w-9 rounded-full object-cover">
+                                    <img src="{{ auth()->user()->getAvatarUrl(72) }}" alt="{{ auth()->user()->name }} avatar" class="h-9 w-9 rounded-full object-cover" id="header-user-avatar">
                                     <i class="fa-solid fa-chevron-down hidden md:inline-block text-white text-xs"></i>
                                 </button>
                                 <div id="account-menu-dropdown" class="hidden absolute right-0 mt-3 w-56 bg-white rounded-lg shadow-xl z-50 border text-gray-700" role="menu" aria-hidden="true">
@@ -55,16 +55,33 @@
                                         <p class="text-xs text-gray-500 truncate">{{ auth()->user()->email }}</p>
                                     </div>
                                     <nav class="py-1" aria-label="Account menu">
+                                        <a href="{{ route('author.profile', auth()->user()->name) }}" class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 transition hover:bg-gray-100" role="menuitem">
+                                            <i class="fa-solid fa-user text-gray-400"></i>
+                                            <span>My Profile</span>
+                                        </a>
+                                        <a href="{{ route('author.profile', auth()->user()->name) }}?tab=uploads" class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 transition hover:bg-gray-100" role="menuitem">
+                                            <i class="fa-solid fa-upload text-gray-400"></i>
+                                            <span>My Uploads</span>
+                                        </a>
+                                        <a href="{{ route('author.profile', auth()->user()->name) }}?tab=bookmarks" class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 transition hover:bg-gray-100" role="menuitem">
+                                            <i class="fa-solid fa-bookmark text-gray-400"></i>
+                                            <span>Bookmarks</span>
+                                        </a>
+                                        <a href="{{ route('author.profile', auth()->user()->name) }}?tab=notifications" class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 transition hover:bg-gray-100" role="menuitem">
+                                            <i class="fa-solid fa-bell text-gray-400"></i>
+                                            <span>Notifications</span>
+                                        </a>
+                                        <a href="{{ route('author.profile', auth()->user()->name) }}?tab=settings" class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 transition hover:bg-gray-100" role="menuitem">
+                                            <i class="fa-solid fa-cog text-gray-400"></i>
+                                            <span>Settings</span>
+                                        </a>
+                                        <div class="border-t my-1"></div>
                                         @if (auth()->user()->isAdmin())
                                             <a href="{{ route('admin.dashboard') }}" class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 transition hover:bg-gray-100" role="menuitem">
                                                 <i class="fa-solid fa-screwdriver-wrench text-gray-400"></i>
-                                                <span>Admin vezérlőpult</span>
+                                                <span>Admin Panel</span>
                                             </a>
                                         @endif
-                                        <a href="{{ route('mods.my') }}" class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 transition hover:bg-gray-100" role="menuitem">
-                                            <i class="fa-solid fa-cloud-arrow-up text-gray-400"></i>
-                                            <span>My uploads</span>
-                                        </a>
                                         <form action="{{ route('logout') }}" method="POST">
                                             @csrf
                                             <button type="submit" class="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-gray-700 transition hover:bg-gray-100">

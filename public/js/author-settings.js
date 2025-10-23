@@ -129,11 +129,8 @@ function initAvatarSettings() {
                     showNotification('Avatar uploaded successfully', 'success');
                     avatarPreview.src = data.avatar_url;
 
-                    // Update main avatar
-                    const mainAvatar = document.getElementById('author-avatar');
-                    if (mainAvatar) {
-                        mainAvatar.src = data.avatar_url;
-                    }
+                    // Update all avatars on page
+                    updateAllAvatars(data.avatar_url);
 
                     // Show delete button
                     if (deleteAvatarBtn) {
@@ -174,11 +171,8 @@ function initAvatarSettings() {
                     showNotification('Avatar deleted successfully', 'success');
                     avatarPreview.src = data.avatar_url;
 
-                    // Update main avatar
-                    const mainAvatar = document.getElementById('author-avatar');
-                    if (mainAvatar) {
-                        mainAvatar.src = data.avatar_url;
-                    }
+                    // Update all avatars on page
+                    updateAllAvatars(data.avatar_url);
 
                     // Hide delete button
                     this.classList.add('hidden');
@@ -216,11 +210,8 @@ function initAvatarSettings() {
                     // Update preview
                     avatarPreview.src = data.avatar_url;
 
-                    // Update main avatar
-                    const mainAvatar = document.getElementById('author-avatar');
-                    if (mainAvatar) {
-                        mainAvatar.src = data.avatar_url;
-                    }
+                    // Update all avatars on page
+                    updateAllAvatars(data.avatar_url);
 
                     // Update selected state
                     presetAvatars.forEach(a => a.classList.remove('selected'));
@@ -507,4 +498,24 @@ function showNotification(message, type = 'info') {
         notification.style.opacity = '0';
         setTimeout(() => notification.remove(), 300);
     }, 3000);
+}
+
+// Update all avatar images on the page
+function updateAllAvatars(avatarUrl) {
+    // Update main profile avatar
+    const mainAvatar = document.getElementById('author-avatar');
+    if (mainAvatar) {
+        mainAvatar.src = avatarUrl;
+    }
+
+    // Update header avatar
+    const headerAvatar = document.getElementById('header-user-avatar');
+    if (headerAvatar) {
+        headerAvatar.src = avatarUrl;
+    }
+
+    // Update any other avatars (e.g., in comments, activities)
+    document.querySelectorAll('[data-user-avatar]').forEach(img => {
+        img.src = avatarUrl;
+    });
 }

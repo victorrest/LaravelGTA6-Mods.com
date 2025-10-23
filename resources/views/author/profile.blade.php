@@ -166,7 +166,7 @@
     </div>
 
     <!-- Main Content -->
-    <div class="container mx-auto px-4 -mt-20 relative z-10">
+    <div class="container mx-auto px-4 mt-6 relative z-10">
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
             <!-- Left/Main Content Area -->
             <div class="lg:col-span-8 space-y-6">
@@ -206,7 +206,7 @@
             <aside class="lg:col-span-4">
                 <div class="sticky top-6 space-y-6">
                     <!-- Author Summary Card -->
-                    <div class="bg-white rounded-lg shadow-sm p-6 text-center -mt-24 lg:-mt-20">
+                    <div class="bg-white rounded-lg shadow-sm p-6 text-center -mt-20">
                         <!-- Avatar -->
                         <img src="{{ $author->getAvatarUrl(256) }}"
                              alt="{{ $author->name }}"
