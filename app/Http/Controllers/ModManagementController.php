@@ -192,18 +192,27 @@ class ModManagementController extends Controller
     private function storeHeroImage(ModStoreRequest|ModUpdateRequest $request, array &$filesForRollback): ?string
     {
         if ($token = $request->input('hero_image_token')) {
-            try {
-                $upload = $this->temporaryUploadService->moveToPublic($token, 'mods/hero-images');
-                $filesForRollback[] = $upload['path'];
+            $attempts = [
+                fn () => $this->temporaryUploadService->moveToPublic($token, 'mods/hero-images', 'hero_image'),
+                fn () => $this->temporaryUploadService->moveToPublic($token, 'mods/hero-images', 'gallery_image'),
+            ];
 
-                return $upload['path'] ?? null;
-            } catch (RuntimeException $exception) {
-                $request->merge(['hero_image_token' => null]);
+            foreach ($attempts as $attempt) {
+                try {
+                    $upload = $attempt();
+                    $filesForRollback[] = $upload['path'];
 
-                throw ValidationException::withMessages([
-                    'hero_image' => 'The hero image upload has expired. Please upload it again.',
-                ]);
+                    return $upload['path'] ?? null;
+                } catch (RuntimeException) {
+                    continue;
+                }
             }
+
+            $request->merge(['hero_image_token' => null]);
+
+            throw ValidationException::withMessages([
+                'hero_image' => 'The hero image upload has expired. Please upload it again.',
+            ]);
         }
 
         if (! $request->hasFile('hero_image')) {

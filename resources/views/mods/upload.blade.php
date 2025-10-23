@@ -420,7 +420,6 @@
             const MAX_SCREENSHOTS = 12;
 
             let pswpLightbox = null;
-            let heroUploadSequence = 0;
 
             const form = document.getElementById('mod-upload-form');
             const formSteps = [
@@ -460,6 +459,7 @@
             const dropzoneLabel = document.getElementById('dropzone-label');
             const imagePreviewContainer = document.getElementById('image-preview-container');
             const heroStatusLabel = document.getElementById('hero-upload-status');
+            heroStatusLabel.textContent = 'Select a featured screenshot to continue.';
 
             const heroTokenInput = document.getElementById('hero_image_token');
             const galleryTokenContainer = document.getElementById('gallery-token-container');
@@ -618,6 +618,30 @@
                 });
             };
 
+            const updateHeroSelection = () => {
+                const featuredItem = screenshotItems.find((item) => item.isFeatured);
+
+                if (!featuredItem) {
+                    heroTokenInput.value = '';
+                    heroStatusLabel.textContent = 'Select a featured screenshot to continue.';
+                    return;
+                }
+
+                if (featuredItem.uploading) {
+                    heroTokenInput.value = '';
+                    heroStatusLabel.textContent = 'Uploading featured screenshot…';
+                    return;
+                }
+
+                if (featuredItem.token) {
+                    heroTokenInput.value = featuredItem.token;
+                    heroStatusLabel.textContent = 'Featured screenshot ready.';
+                } else {
+                    heroTokenInput.value = '';
+                    heroStatusLabel.textContent = 'Preparing featured screenshot…';
+                }
+            };
+
             const renderScreenshotPreviews = () => {
                 imagePreviewContainer.innerHTML = '';
                 screenshotItems.forEach((item, index) => {
@@ -651,14 +675,14 @@
                         if (!screenshotItems.some((entry) => entry.isFeatured)) {
                             if (screenshotItems.length > 0) {
                                 screenshotItems[0].isFeatured = true;
-                                uploadFeaturedHero(screenshotItems[0]);
                             } else {
                                 heroTokenInput.value = '';
-                                heroStatusLabel.textContent = '';
+                                heroStatusLabel.textContent = 'Select a featured screenshot to continue.';
                             }
                         }
                         renderScreenshotPreviews();
                         syncGalleryTokens();
+                        updateHeroSelection();
                     });
 
                     const radioLabel = document.createElement('label');
@@ -669,13 +693,14 @@
                     radioInput.name = 'featured_image_choice';
                     radioInput.className = 'hidden peer';
                     radioInput.checked = item.isFeatured;
+                    radioInput.disabled = item.uploading;
                     radioInput.addEventListener('change', () => {
                         screenshotItems.forEach((entry, idx) => {
                             entry.isFeatured = idx === index;
                         });
-                        uploadFeaturedHero(item);
                         renderScreenshotPreviews();
                         syncGalleryTokens();
+                        updateHeroSelection();
                     });
 
                     const customRadio = document.createElement('span');
@@ -692,12 +717,21 @@
                     wrapper.appendChild(deleteBtn);
                     wrapper.appendChild(radioLabel);
 
+                    if (item.uploading) {
+                        const overlay = document.createElement('div');
+                        overlay.className = 'absolute inset-0 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center text-white text-xs font-semibold gap-2';
+                        overlay.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Uploading…</span>';
+                        wrapper.appendChild(overlay);
+                    }
+
                     if (item.isFeatured) {
                         wrapper.classList.add('ring-2', 'ring-pink-500', 'ring-offset-2', 'ring-offset-white');
                     }
 
                     imagePreviewContainer.appendChild(wrapper);
                 });
+
+                updateHeroSelection();
             };
 
             let draggedIndex = null;
@@ -754,6 +788,7 @@
                 screenshotItems.splice(targetIndex, 0, draggedItem);
                 renderScreenshotPreviews();
                 syncGalleryTokens();
+                updateHeroSelection();
             });
 
             const handleScreenshotFiles = (files) => {
@@ -779,6 +814,7 @@
 
                     screenshotItems.push(item);
                     renderScreenshotPreviews();
+                    updateHeroSelection();
 
                     beginUpload();
 
@@ -788,23 +824,18 @@
                             item.uploading = false;
                             syncGalleryTokens();
                             renderScreenshotPreviews();
-                            if (item.isFeatured) {
-                                uploadFeaturedHero(item);
-                            }
+                            updateHeroSelection();
                         })
                         .catch((error) => {
                             console.error(error);
                             alert('Screenshot upload failed. Please try again.');
                             screenshotItems = screenshotItems.filter((entry) => entry !== item);
                             renderScreenshotPreviews();
+                            updateHeroSelection();
                         })
                         .finally(() => {
                             finishUpload();
                         });
-
-                    if (item.isFeatured) {
-                        uploadFeaturedHero(item);
-                    }
                 });
             };
 
@@ -835,36 +866,6 @@
             dropzoneLabel.addEventListener('drop', (event) => {
                 handleScreenshotFiles(event.dataTransfer.files);
             });
-
-            const uploadFeaturedHero = (item) => {
-                if (!item || !item.file) {
-                    return;
-                }
-
-                heroStatusLabel.textContent = 'Uploading featured image…';
-                heroUploadSequence += 1;
-                const uploadId = heroUploadSequence;
-                heroTokenInput.value = '';
-                beginUpload();
-
-                uploadFileInChunks(item.file, 'hero_image')
-                    .then((result) => {
-                        if (uploadId === heroUploadSequence) {
-                            heroTokenInput.value = result.upload_token;
-                            heroStatusLabel.textContent = 'Featured image ready.';
-                        }
-                    })
-                    .catch((error) => {
-                        console.error(error);
-                        if (uploadId === heroUploadSequence) {
-                            heroStatusLabel.textContent = 'Featured upload failed. Try another image.';
-                            alert('Featured image upload failed. Please try again.');
-                        }
-                    })
-                    .finally(() => {
-                        finishUpload();
-                    });
-            };
 
             const uploadFileInChunks = async (file, category, onProgress = () => {}) => {
                 const totalChunks = Math.max(Math.ceil(file.size / chunkSize), 1);
@@ -1071,6 +1072,10 @@
 
                 if (!screenshotItems.length) {
                     errors.push('Please upload at least one screenshot.');
+                }
+
+                if (screenshotItems.length && !heroTokenInput.value) {
+                    errors.push('Please wait until the featured screenshot finishes uploading.');
                 }
 
                 if (activeUploads > 0) {
