@@ -41,6 +41,7 @@ class UserActivity extends Model
     public const TYPE_STATUS_UPDATE = 'status_update';
     public const TYPE_MOD_UPLOAD = 'mod_upload';
     public const TYPE_COMMENT = 'comment';
+    public const TYPE_FORUM_POST = 'forum_post';
     public const TYPE_LIKE = 'like';
     public const TYPE_FOLLOW = 'follow';
     public const TYPE_BOOKMARK = 'bookmark';

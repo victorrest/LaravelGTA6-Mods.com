@@ -6,6 +6,7 @@ use App\Http\Requests\ModStoreRequest;
 use App\Http\Requests\ModUpdateRequest;
 use App\Models\Mod;
 use App\Models\ModCategory;
+use App\Models\UserActivity;
 use App\Support\EditorJs;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
@@ -74,6 +75,20 @@ class ModManagementController extends Controller
             $this->storeGalleryImages($request, $mod, $filesForRollback);
 
             DB::commit();
+
+            // Log activity for mod upload
+            if ($status === Mod::STATUS_PUBLISHED) {
+                UserActivity::create([
+                    'user_id' => Auth::id(),
+                    'action_type' => UserActivity::TYPE_MOD_UPLOAD,
+                    'subject_type' => Mod::class,
+                    'subject_id' => $mod->id,
+                    'metadata' => [
+                        'mod_title' => $mod->title,
+                        'mod_version' => $mod->version,
+                    ],
+                ]);
+            }
         } catch (Throwable $exception) {
             DB::rollBack();
             $this->deleteFiles($filesForRollback);

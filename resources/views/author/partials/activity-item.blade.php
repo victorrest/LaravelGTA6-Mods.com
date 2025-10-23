@@ -24,6 +24,12 @@
                 $iconColor = 'text-green-600';
                 $actionText = 'commented on';
                 break;
+            case App\Models\UserActivity::TYPE_FORUM_POST:
+                $iconClass = 'fa-message';
+                $iconBg = 'bg-orange-100';
+                $iconColor = 'text-orange-600';
+                $actionText = 'started a forum thread';
+                break;
             case App\Models\UserActivity::TYPE_FOLLOW:
                 $iconClass = 'fa-user-check';
                 $iconBg = 'bg-indigo-100';
@@ -106,6 +112,31 @@
                     &ldquo;{{ Str::words($comment->content, 45) }}&rdquo;
                 </div>
             </div>
+            <p class="text-xs text-gray-500 mt-1.5">{{ $activity->created_at->diffForHumans() }}</p>
+
+        @elseif($activity->action_type === App\Models\UserActivity::TYPE_FORUM_POST && $activity->subject)
+            <!-- Forum Thread Activity -->
+            @php
+                $thread = $activity->subject;
+            @endphp
+            <p class="text-sm mb-2">
+                <strong class="font-semibold">{{ $activity->user->name }}</strong> {{ $actionText }}
+            </p>
+            <a href="{{ route('forum.show', $thread) }}" class="block p-3 rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 transition">
+                <div class="flex items-start justify-between gap-3">
+                    <div class="flex-1 min-w-0">
+                        <h4 class="font-semibold text-gray-800 line-clamp-2">{{ $thread->title }}</h4>
+                        @if($thread->flair)
+                            <span class="inline-block mt-1 px-2 py-0.5 text-xs font-semibold rounded bg-orange-100 text-orange-700">
+                                {{ ucfirst($thread->flair) }}
+                            </span>
+                        @endif
+                    </div>
+                    <div class="text-xs text-gray-500 flex-shrink-0">
+                        <i class="fas fa-comments mr-1"></i>{{ $thread->replies_count }}
+                    </div>
+                </div>
+            </a>
             <p class="text-xs text-gray-500 mt-1.5">{{ $activity->created_at->diffForHumans() }}</p>
 
         @elseif($activity->action_type === App\Models\UserActivity::TYPE_FOLLOW && $activity->subject)

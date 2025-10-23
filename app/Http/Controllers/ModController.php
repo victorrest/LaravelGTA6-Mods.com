@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Mod;
 use App\Models\ModCategory;
+use App\Models\ModComment;
+use App\Models\UserActivity;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -156,9 +158,22 @@ class ModController extends Controller
             'body' => ['required', 'string', 'min:5', 'max:1500'],
         ]);
 
-        $mod->comments()->create([
+        $comment = $mod->comments()->create([
             'user_id' => Auth::id(),
             'body' => $validated['body'],
+        ]);
+
+        // Log activity for comment
+        UserActivity::create([
+            'user_id' => Auth::id(),
+            'action_type' => UserActivity::TYPE_COMMENT,
+            'subject_type' => ModComment::class,
+            'subject_id' => $comment->id,
+            'metadata' => [
+                'mod_id' => $mod->id,
+                'mod_title' => $mod->title,
+                'comment_excerpt' => substr($validated['body'], 0, 100),
+            ],
         ]);
 
         return back()->with('status', 'Comment posted successfully.');
