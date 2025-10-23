@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->string('action_type'); // status_update, mod_upload, comment, like, follow, etc.
-            $table->morphs('subject'); // The thing being acted upon (Mod, Comment, User, etc.)
+            $table->nullableMorphs('subject'); // The thing being acted upon (Mod, Comment, User, etc.)
             $table->text('content')->nullable(); // For status updates
             $table->json('metadata')->nullable(); // Additional data
             $table->timestamps();
