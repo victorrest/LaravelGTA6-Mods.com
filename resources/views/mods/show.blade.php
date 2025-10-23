@@ -214,22 +214,24 @@
                         </button>
                     </form>
 
-                    @if (auth()->check() && auth()->id() === $mod->user_id)
-                        @php
-                            $isPinned = auth()->user()->pinned_mod_id === $mod->id;
-                        @endphp
-                        <button
-                            type="button"
-                            id="pin-mod-btn"
-                            data-pin-url="{{ route('profile.mod.pin', $mod) }}"
-                            data-unpin-url="{{ route('profile.mod.unpin') }}"
-                            data-is-pinned="{{ $isPinned ? '1' : '0' }}"
-                            class="w-full inline-flex items-center justify-center px-4 py-2 {{ $isPinned ? 'bg-purple-600 hover:bg-purple-700' : 'bg-gray-600 hover:bg-gray-700' }} text-white text-sm font-semibold rounded-lg shadow transition"
-                        >
-                            <i class="fas fa-thumbtack mr-2 {{ $isPinned ? '' : 'rotate-45' }}"></i>
-                            <span data-pin-text>{{ $isPinned ? 'Unpin from Profile' : 'Pin to Profile' }}</span>
-                        </button>
-                    @endif
+                    @auth
+                        @if (auth()->id() === $mod->user_id)
+                            @php
+                                $isPinned = auth()->user()->pinned_mod_id === $mod->id;
+                            @endphp
+                            <button
+                                type="button"
+                                id="pin-mod-btn"
+                                data-pin-url="{{ route('profile.mod.pin', $mod) }}"
+                                data-unpin-url="{{ route('profile.mod.unpin') }}"
+                                data-is-pinned="{{ $isPinned ? '1' : '0' }}"
+                                class="w-full inline-flex items-center justify-center px-4 py-2 {{ $isPinned ? 'bg-purple-600 hover:bg-purple-700' : 'bg-gray-600 hover:bg-gray-700' }} text-white text-sm font-semibold rounded-lg shadow transition"
+                            >
+                                <i class="fas fa-thumbtack mr-2 {{ $isPinned ? '' : 'rotate-45' }}"></i>
+                                <span data-pin-text>{{ $isPinned ? 'Unpin from Profile' : 'Pin to Profile' }}</span>
+                            </button>
+                        @endif
+                    @endauth
 
                     <div class="text-sm text-gray-500 space-y-1">
                         <p><strong>Verzió:</strong> {{ $metaDetails['version'] ?? '—' }}</p>
