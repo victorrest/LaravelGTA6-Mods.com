@@ -182,13 +182,12 @@
             <div class="lg:col-span-8 space-y-6">
                 <!-- Profile Tabs Navigation -->
                 <div class="bg-white rounded-lg shadow-sm">
-                    <div class="border-b border-gray-200 px-6">
-                        <nav class="flex -mb-px space-x-6" role="tablist">
-                            <!-- Visible Tabs Container -->
-                            <div id="visible-tabs" class="flex -mb-px space-x-6 flex-1 overflow-hidden">
+                    <div id="profile-tabs-container" class="border-b border-gray-200 px-6">
+                        <div class="flex items-center">
+                            <nav id="visible-tabs" class="flex -mb-px space-x-4 sm:space-x-6 overflow-hidden flex-1" role="tablist">
                                 @foreach($tabs as $tabKey => $tab)
                                     <button type="button"
-                                            class="profile-tab-btn py-4 px-2 font-semibold text-sm whitespace-nowrap {{ $activeTab === $tabKey ? 'active' : 'text-gray-600' }}"
+                                            class="profile-tab-btn py-3 px-2 sm:px-4 font-semibold text-sm whitespace-nowrap {{ $activeTab === $tabKey ? 'active' : 'text-gray-600' }}"
                                             data-tab="{{ $tabKey }}"
                                             data-tab-label="{{ $tab['label'] }}"
                                             data-tab-icon="{{ $tab['icon'] }}"
@@ -197,25 +196,16 @@
                                         <span>{{ $tab['label'] }}</span>
                                     </button>
                                 @endforeach
-                            </div>
-
-                            <!-- More Dropdown (Hidden by default) -->
-                            <div class="relative hidden" id="tabs-dropdown-container">
-                                <button type="button"
-                                        id="tabs-dropdown-btn"
-                                        class="profile-tab-btn py-4 px-2 font-semibold text-sm whitespace-nowrap text-gray-600 hover:text-pink-600"
-                                        onclick="toggleTabsDropdown()">
-                                    <i class="fas fa-ellipsis-h mr-1"></i>
-                                    <span>More</span>
+                            </nav>
+                            <div class="relative hidden -mb-px" id="more-tabs-container">
+                                <button type="button" id="more-tabs-btn" class="profile-tab-btn py-3 px-4 flex items-center font-semibold text-gray-600 hover:text-pink-600" onclick="toggleTabsDropdown(event)">
+                                    <i class="fas fa-ellipsis-h"></i>
                                 </button>
-
-                                <!-- Dropdown Menu -->
-                                <div id="tabs-dropdown-menu"
-                                     class="hidden absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50 min-w-[200px]">
+                                <div id="more-tabs-dropdown" class="hidden absolute right-0 top-full mt-1 w-48 bg-white rounded-md shadow-lg z-20 border py-1">
                                     <!-- Overflow tabs will be inserted here -->
                                 </div>
                             </div>
-                        </nav>
+                        </div>
                     </div>
 
                     <!-- Tab Content -->
@@ -458,103 +448,84 @@ function initProfileFunctionality() {
     }
 }
 
-// Responsive tabs with overflow dropdown
+// Responsive tabs with overflow dropdown (WordPress-style)
 function initResponsiveTabs() {
-    const visibleTabsContainer = document.getElementById('visible-tabs');
-    const dropdownContainer = document.getElementById('tabs-dropdown-container');
-    const dropdownMenu = document.getElementById('tabs-dropdown-menu');
+    const visibleTabsNav = document.getElementById('visible-tabs');
+    const moreTabsContainer = document.getElementById('more-tabs-container');
+    const moreTabsDropdown = document.getElementById('more-tabs-dropdown');
 
-    if (!visibleTabsContainer || !dropdownContainer || !dropdownMenu) return;
+    if (!visibleTabsNav || !moreTabsContainer || !moreTabsDropdown) return;
 
-    const allTabs = Array.from(visibleTabsContainer.querySelectorAll('.profile-tab-btn'));
-    const containerWidth = visibleTabsContainer.parentElement.offsetWidth;
-    const dropdownBtnWidth = 100; // Approximate width of "More" button
+    const allTabs = Array.from(visibleTabsNav.querySelectorAll('.profile-tab-btn'));
 
-    // Calculate available width (container width minus dropdown button width)
-    const availableWidth = containerWidth - dropdownBtnWidth - 50; // 50px for margins
+    // Reset: show all tabs, hide dropdown
+    allTabs.forEach(tab => tab.classList.remove('hidden'));
+    moreTabsContainer.classList.add('hidden');
+    moreTabsDropdown.innerHTML = '';
 
+    // Calculate space
+    const navWidth = visibleTabsNav.offsetWidth;
+    const moreButtonWidth = 80; // Width of More button
+    let availableWidth = navWidth - moreButtonWidth;
     let currentWidth = 0;
-    let visibleCount = 0;
+    let overflowIndex = allTabs.length;
 
-    // Determine how many tabs can fit
-    allTabs.forEach((tab, index) => {
-        const tabWidth = tab.offsetWidth + 24; // 24px for space-x-6 margin
-
-        if (currentWidth + tabWidth <= availableWidth) {
-            currentWidth += tabWidth;
-            visibleCount++;
+    // Find which tabs overflow
+    for (let i = 0; i < allTabs.length; i++) {
+        const tabWidth = allTabs[i].offsetWidth + (i > 0 ? 16 : 0); // Add margin
+        if (currentWidth + tabWidth > availableWidth) {
+            overflowIndex = i;
+            break;
         }
-    });
-
-    // Ensure minimum visible tabs based on screen size
-    const minVisible = window.innerWidth < 640 ? 2 : window.innerWidth < 1024 ? 3 : 4;
-    visibleCount = Math.min(Math.max(minVisible, visibleCount), allTabs.length);
-
-    // If all tabs fit, hide dropdown
-    if (visibleCount >= allTabs.length) {
-        dropdownContainer.classList.add('hidden');
-        dropdownMenu.innerHTML = '';
-
-        // Show all tabs
-        allTabs.forEach(tab => {
-            tab.classList.remove('hidden');
-        });
-        return;
+        currentWidth += tabWidth;
     }
 
-    // Show dropdown and move overflow tabs
-    dropdownContainer.classList.remove('hidden');
-    dropdownMenu.innerHTML = '';
+    // If we have overflow tabs
+    if (overflowIndex < allTabs.length) {
+        moreTabsContainer.classList.remove('hidden');
 
-    allTabs.forEach((tab, index) => {
-        if (index >= visibleCount) {
-            // Hide from main nav
-            tab.classList.add('hidden');
-
-            // Add to dropdown
+        for (let i = overflowIndex; i < allTabs.length; i++) {
+            const tab = allTabs[i];
             const tabKey = tab.dataset.tab;
             const tabLabel = tab.dataset.tabLabel;
             const tabIcon = tab.dataset.tabIcon;
             const isActive = tab.classList.contains('active');
 
+            // Hide original tab
+            tab.classList.add('hidden');
+
+            // Create dropdown item
             const dropdownItem = document.createElement('button');
             dropdownItem.type = 'button';
-            dropdownItem.className = `w-full text-left px-4 py-2 text-sm hover:bg-pink-50 transition ${isActive ? 'bg-pink-100 text-pink-600 font-semibold' : 'text-gray-700'}`;
+            dropdownItem.className = 'w-full text-left px-4 py-2 text-sm hover:bg-pink-50 transition flex items-center ' + (isActive ? 'bg-pink-100 text-pink-600 font-semibold' : 'text-gray-700');
             dropdownItem.innerHTML = `<i class="${tabIcon} mr-2"></i>${tabLabel}`;
-            dropdownItem.onclick = () => {
+            dropdownItem.onclick = function() {
                 switchTab(tabKey);
-                closeTabsDropdown();
+                moreTabsDropdown.classList.add('hidden');
             };
 
-            dropdownMenu.appendChild(dropdownItem);
-        } else {
-            // Show in main nav
-            tab.classList.remove('hidden');
+            moreTabsDropdown.appendChild(dropdownItem);
         }
-    });
-}
-
-function toggleTabsDropdown() {
-    const dropdownMenu = document.getElementById('tabs-dropdown-menu');
-    if (dropdownMenu) {
-        dropdownMenu.classList.toggle('hidden');
     }
 }
 
-function closeTabsDropdown() {
-    const dropdownMenu = document.getElementById('tabs-dropdown-menu');
-    if (dropdownMenu) {
-        dropdownMenu.classList.add('hidden');
+function toggleTabsDropdown(event) {
+    if (event) event.stopPropagation();
+    const dropdown = document.getElementById('more-tabs-dropdown');
+    if (dropdown) {
+        dropdown.classList.toggle('hidden');
     }
 }
 
 // Close dropdown when clicking outside
 document.addEventListener('click', function(event) {
-    const dropdownContainer = document.getElementById('tabs-dropdown-container');
-    const dropdownMenu = document.getElementById('tabs-dropdown-menu');
+    const moreContainer = document.getElementById('more-tabs-container');
+    const dropdown = document.getElementById('more-tabs-dropdown');
 
-    if (dropdownContainer && dropdownMenu && !dropdownContainer.contains(event.target)) {
-        dropdownMenu.classList.add('hidden');
+    if (dropdown && !dropdown.classList.contains('hidden')) {
+        if (!moreContainer || !moreContainer.contains(event.target)) {
+            dropdown.classList.add('hidden');
+        }
     }
 });
 </script>
