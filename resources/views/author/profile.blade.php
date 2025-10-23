@@ -14,13 +14,23 @@
         font-family: 'Sofia Sans Condensed', sans-serif;
     }
 
-    .header-background {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    /* Override default header background for author profile */
+    .gta6mods-author-profile .header-background {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        background-size: cover !important;
+        background-position: center !important;
+        background-repeat: no-repeat !important;
         @if($author->getBannerUrl())
-            background-image: url('{{ $author->getBannerUrl() }}');
-            background-size: cover;
-            background-position: center;
+            background-image: url('{{ $author->getBannerUrl() }}') !important;
         @endif
+    }
+
+    @media (min-width: 1280px) {
+        .gta6mods-author-profile .header-background {
+            @if($author->getBannerUrl())
+                background-position: center -200px !important;
+            @endif
+        }
     }
 
     .verification-badge {
@@ -206,7 +216,7 @@
             <aside class="lg:col-span-4">
                 <div class="sticky top-6 space-y-6">
                     <!-- Author Summary Card -->
-                    <div class="bg-white rounded-lg shadow-sm p-6 text-center mt-20">
+                    <div class="bg-white rounded-lg shadow-sm p-6 text-center">
                         <!-- Avatar -->
                         <img src="{{ $author->getAvatarUrl(256) }}"
                              alt="{{ $author->name }}"
