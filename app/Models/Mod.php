@@ -2,10 +2,6 @@
 
 namespace App\Models;
 
-use App\Models\ModCategory;
-use App\Models\ModComment;
-use App\Models\ModGalleryImage;
-use App\Models\User;
 use App\Support\EditorJs;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -50,6 +46,7 @@ class Mod extends Model
         'file_size',
         'rating',
         'likes',
+        'ratings_count',
         'downloads',
         'featured',
         'status',
@@ -86,6 +83,29 @@ class Mod extends Model
     public function galleryImages(): HasMany
     {
         return $this->hasMany(ModGalleryImage::class)->orderBy('position');
+    }
+
+    public function ratings(): HasMany
+    {
+        return $this->hasMany(ModRating::class);
+    }
+
+    public function updateRatingAggregate(): void
+    {
+        $aggregate = $this->ratings()
+            ->selectRaw('COALESCE(AVG(rating), 0) as avg_rating, COUNT(*) as rating_count')
+            ->first();
+
+        if ($aggregate) {
+            $this->forceFill([
+                'rating' => round((float) $aggregate->avg_rating, 2),
+                'ratings_count' => (int) $aggregate->rating_count,
+            ]);
+
+            static::withoutTimestamps(function () {
+                $this->save();
+            });
+        }
     }
 
     public function scopeFeatured(Builder $query): Builder
