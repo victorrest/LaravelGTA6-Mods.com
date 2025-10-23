@@ -486,11 +486,11 @@ function initResponsiveTabs() {
         }
     });
 
-    // Ensure at least 2 tabs are always visible on mobile, 3 on tablet, all on desktop
-    const minVisible = window.innerWidth < 640 ? 2 : window.innerWidth < 1024 ? 3 : allTabs.length;
-    visibleCount = Math.max(minVisible, visibleCount);
+    // Ensure minimum visible tabs based on screen size
+    const minVisible = window.innerWidth < 640 ? 2 : window.innerWidth < 1024 ? 3 : 4;
+    visibleCount = Math.min(Math.max(minVisible, visibleCount), allTabs.length);
 
-    // If all tabs fit or we're forcing all visible, hide dropdown
+    // If all tabs fit, hide dropdown
     if (visibleCount >= allTabs.length) {
         dropdownContainer.classList.add('hidden');
         dropdownMenu.innerHTML = '';
