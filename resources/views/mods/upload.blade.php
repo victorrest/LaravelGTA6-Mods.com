@@ -136,7 +136,8 @@
 
                 <input type="hidden" name="description" id="description" value="{{ old('description') }}">
                 <input type="hidden" name="file_size" id="file_size" value="{{ old('file_size') }}">
-                <input type="file" name="hero_image" id="hero_image_input" class="hidden" accept="image/png, image/jpeg, image/webp">
+                <input type="file" name="hero_image" id="hero_image_input" class="hidden" accept="image/png,image/jpeg,image/webp">
+                <input type="file" name="gallery_images[]" id="gallery_images_input" class="hidden" accept="image/png,image/jpeg,image/webp" multiple>
 
                 <div id="form-step-1">
                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -195,7 +196,7 @@
                                             <p class="mb-2 text-sm text-gray-500"><span class="font-semibold">Click to upload</span> or drag and drop</p>
                                             <p class="text-xs text-gray-500">JPG, PNG (MAX. 10MB)</p>
                                         </div>
-                                        <input id="screenshot-upload" name="gallery_images[]" type="file" class="hidden" multiple accept="image/png, image/jpeg, image/webp">
+                                        <input id="screenshot-upload" type="file" class="hidden" multiple accept="image/png, image/jpeg, image/webp">
                                     </label>
                                 </div>
                                 <p class="text-xs text-gray-500 mt-1">The first image is the default featured image. You can drag to reorder.</p>
@@ -263,7 +264,7 @@
                                             <p class="text-xs text-gray-500">Allowed: .zip, .rar, .7z, .oiv (MAX. 400MB)</p>
                                         </div>
                                         <div id="mod-file-preview" class="hidden items-center justify-center text-center p-4"></div>
-                                        <input id="mod_file_input" name="mod_file" type="file" class="hidden" accept=".zip,.rar,.7z,.oiv">
+                                            <input id="mod_file_input" name="mod_file" type="file" class="hidden" accept=".zip,.rar,.7z,.oiv">
                                     </label>
                                 </div>
                             </div>
@@ -410,8 +411,6 @@
 
             const MAX_SCREENSHOTS = 12;
 
-            let pswpLightbox = null;
-
             const form = document.getElementById('mod-upload-form');
             const formSteps = [
                 document.getElementById('form-step-1'),
@@ -439,15 +438,9 @@
             const descriptionTextarea = document.getElementById('description-textarea');
             const descriptionInput = document.getElementById('description');
 
-            const autoResizeTextarea = () => {
-                descriptionTextarea.style.height = 'auto';
-                descriptionTextarea.style.height = `${descriptionTextarea.scrollHeight}px`;
-            };
-            descriptionTextarea.addEventListener('input', autoResizeTextarea);
-            autoResizeTextarea();
-
-            const heroInput = document.getElementById('hero_image_input');
             const screenshotInput = document.getElementById('screenshot-upload');
+            const galleryInput = document.getElementById('gallery_images_input');
+            const heroInput = document.getElementById('hero_image_input');
             const dropzoneLabel = document.getElementById('dropzone-label');
             const imagePreviewContainer = document.getElementById('image-preview-container');
             const heroStatusLabel = document.getElementById('hero-upload-status');
@@ -482,9 +475,55 @@
             const previewSidebarTags = document.getElementById('preview-sidebar-tags');
             const previewSidebarSourceInfo = document.getElementById('preview-sidebar-source-info');
 
-            let currentStep = 0;
-            let screenshotItems = [];
             let usingUrlMode = Boolean(downloadUrlInput.value);
+            let pswpLightbox = null;
+            let screenshotItems = [];
+            let currentStep = 0;
+
+            const autoResizeTextarea = () => {
+                descriptionTextarea.style.height = 'auto';
+                descriptionTextarea.style.height = `${descriptionTextarea.scrollHeight}px`;
+            };
+            descriptionTextarea.addEventListener('input', autoResizeTextarea);
+            autoResizeTextarea();
+
+            const destroyLightbox = () => {
+                if (pswpLightbox) {
+                    pswpLightbox.destroy();
+                    pswpLightbox = null;
+                }
+            };
+
+            const initializeLightbox = () => {
+                destroyLightbox();
+                pswpLightbox = new PhotoSwipeLightbox({
+                    gallery: '#preview-gallery-container',
+                    children: 'a.gallery-item',
+                    pswpModule: () => import('https://unpkg.com/photoswipe@5/dist/photoswipe.esm.js'),
+                });
+                pswpLightbox.init();
+            };
+
+            const syncFileInputs = () => {
+                if (!window.DataTransfer) {
+                    return;
+                }
+
+                const galleryTransfer = new DataTransfer();
+                screenshotItems.forEach((item) => galleryTransfer.items.add(item.file));
+                galleryInput.files = galleryTransfer.files;
+
+                const featured = screenshotItems.find((item) => item.isFeatured);
+                if (featured) {
+                    const heroTransfer = new DataTransfer();
+                    heroTransfer.items.add(featured.file);
+                    heroInput.files = heroTransfer.files;
+                    heroStatusLabel.textContent = 'Featured image ready.';
+                } else {
+                    heroInput.value = '';
+                    heroStatusLabel.textContent = '';
+                }
+            };
 
             const setStep = (stepIndex) => {
                 currentStep = stepIndex;
@@ -498,127 +537,96 @@
             };
 
             const sanitizeAllowedHtml = (input) => {
-                const template = document.createElement('template');
-                template.innerHTML = input;
-                const allowed = new Set(['B', 'I', 'U', 'UL', 'OL', 'LI', 'BR']);
+                if (!input) {
+                    return '';
+                }
 
-                const process = (node) => {
-                    Array.from(node.children).forEach((child) => {
-                        if (!allowed.has(child.tagName)) {
-                            const fragment = document.createDocumentFragment();
-                            while (child.firstChild) {
-                                fragment.appendChild(child.firstChild);
-                            }
-                            child.replaceWith(fragment);
+                const allowedTags = ['b', 'i', 'u', 'ul', 'ol', 'li', 'br'];
+                const tempElement = document.createElement('div');
+                tempElement.innerHTML = input;
+
+                const traverse = (node) => {
+                    [...node.children].forEach((child) => {
+                        if (!allowedTags.includes(child.tagName.toLowerCase())) {
+                            child.replaceWith(child.textContent || '');
                         } else {
-                            process(child);
+                            traverse(child);
                         }
                     });
                 };
 
-                process(template.content);
-                return template.innerHTML;
+                traverse(tempElement);
+
+                return tempElement.innerHTML;
             };
 
             const buildDescriptionPayload = () => {
-                const rawText = descriptionTextarea.value.trim();
-                if (!rawText) {
-                    return { json: '', plainTextLength: 0, htmlPreview: '' };
-                }
-
-                const paragraphs = rawText.split(/\n{2,}/).map((paragraph) => paragraph.trim()).filter(Boolean);
-                const blocks = [];
-                const htmlPieces = [];
-
-                paragraphs.forEach((paragraph) => {
-                    const html = sanitizeAllowedHtml(paragraph.split('\n').map((line) => line.trim()).join('<br>'));
-                    if (!html) {
-                        return;
-                    }
-                    blocks.push({ type: 'paragraph', data: { text: html } });
-                    htmlPieces.push(`<p>${html}</p>`);
-                });
-
-                const jsonPayload = JSON.stringify({
-                    time: Date.now(),
-                    version: '2.28.2',
-                    blocks,
-                });
-
-                const plainTextLength = paragraphs.join(' ').replace(/<[^>]+>/g, '').length;
+                const rawValue = descriptionTextarea.value;
+                const sanitizedHtml = sanitizeAllowedHtml(rawValue.replace(/\n/g, '<br>'));
+                const plainText = rawValue.trim();
 
                 return {
-                    json: jsonPayload,
-                    plainTextLength,
-                    htmlPreview: htmlPieces.join(''),
+                    html: sanitizedHtml,
+                    plain: plainText,
+                    json: JSON.stringify({
+                        time: Date.now(),
+                        version: '2.27.0',
+                        blocks: [
+                            {
+                                type: 'paragraph',
+                                data: { text: sanitizedHtml || ' ' },
+                            },
+                        ],
+                    }),
                 };
             };
 
-            const displayErrors = (container, messages) => {
-                container.innerHTML = '';
-                if (!messages.length) {
+            const getAuthorsList = () => Array.from(authorsContainer.querySelectorAll('input[name="authors[]"]'))
+                .map((input) => input.value.trim())
+                .filter(Boolean);
+
+            const ensureFeaturedExists = () => {
+                if (!screenshotItems.length) {
+                    heroStatusLabel.textContent = '';
                     return;
                 }
 
-                const list = document.createElement('ul');
-                list.className = 'list-disc list-inside text-sm text-red-600 bg-red-100 p-4 rounded-lg space-y-1';
-                messages.forEach((message) => {
-                    const item = document.createElement('li');
-                    item.textContent = message;
-                    list.appendChild(item);
-                });
-
-                container.appendChild(list);
-            };
-
-            const syncScreenshotInputs = () => {
-                const galleryTransfer = new DataTransfer();
-                screenshotItems.forEach((item) => galleryTransfer.items.add(item.file));
-                screenshotInput.files = galleryTransfer.files;
-
-                const heroTransfer = new DataTransfer();
-                const featured = screenshotItems.find((item) => item.isFeatured);
-                if (featured) {
-                    heroTransfer.items.add(featured.file);
-                    heroStatusLabel.textContent = `Featured image: ${featured.file.name}`;
-                } else {
-                    heroStatusLabel.textContent = '';
+                if (!screenshotItems.some((item) => item.isFeatured)) {
+                    screenshotItems[0].isFeatured = true;
                 }
-                heroInput.files = heroTransfer.files;
             };
 
             const renderScreenshotPreviews = () => {
+                ensureFeaturedExists();
                 imagePreviewContainer.innerHTML = '';
+
                 screenshotItems.forEach((item, index) => {
                     const wrapper = document.createElement('div');
-                    wrapper.className = 'relative group aspect-video rounded-lg cursor-grab w-[calc(50%-0.5rem)] border border-gray-200 overflow-hidden';
+                    wrapper.className = 'relative group aspect-video rounded-lg cursor-grab w-[calc(50%-0.5rem)] bg-gray-100 overflow-hidden';
+                    wrapper.dataset.index = index;
                     wrapper.draggable = true;
-                    wrapper.dataset.index = String(index);
 
                     const img = document.createElement('img');
                     img.src = item.previewUrl;
-                    img.alt = item.file?.name ?? `Screenshot ${index + 1}`;
+                    img.alt = `Screenshot ${index + 1}`;
                     img.className = 'w-full h-full object-cover pointer-events-none';
 
-                    const numberBadge = document.createElement('span');
-                    numberBadge.className = 'absolute top-2 left-2 w-7 h-7 flex items-center justify-center bg-black/60 rounded-full text-white text-xs font-bold z-10 pointer-events-none';
-                    numberBadge.textContent = index + 1;
+                    const badge = document.createElement('span');
+                    badge.className = 'absolute top-2 left-2 w-7 h-7 flex items-center justify-center bg-black/60 rounded-full text-white text-xs font-bold z-10 pointer-events-none';
+                    badge.textContent = index + 1;
 
                     const deleteBtn = document.createElement('button');
                     deleteBtn.type = 'button';
                     deleteBtn.className = 'absolute top-2 right-2 w-7 h-7 flex items-center justify-center bg-black/60 rounded-full text-white hover:bg-red-500 transition-colors z-10';
                     deleteBtn.innerHTML = '<i class="fas fa-times text-sm"></i>';
                     deleteBtn.addEventListener('click', (event) => {
-                        event.stopPropagation();
+                        event.preventDefault();
                         const [removed] = screenshotItems.splice(index, 1);
-                        if (removed?.previewUrl) {
+                        if (removed) {
                             URL.revokeObjectURL(removed.previewUrl);
                         }
-                        if (!screenshotItems.some((entry) => entry.isFeatured) && screenshotItems.length > 0) {
-                            screenshotItems[0].isFeatured = true;
-                        }
                         renderScreenshotPreviews();
-                        syncScreenshotInputs();
+                        syncFileInputs();
                     });
 
                     const radioLabel = document.createElement('label');
@@ -626,69 +634,64 @@
 
                     const radioInput = document.createElement('input');
                     radioInput.type = 'radio';
-                    radioInput.name = 'featured_image_choice';
+                    radioInput.name = 'featured_screenshot';
                     radioInput.className = 'hidden peer';
                     radioInput.checked = item.isFeatured;
                     radioInput.addEventListener('change', () => {
-                        screenshotItems.forEach((entry, idx) => {
-                            entry.isFeatured = idx === index;
+                        screenshotItems.forEach((entry, entryIndex) => {
+                            entry.isFeatured = entryIndex === index;
                         });
-                        syncScreenshotInputs();
                         renderScreenshotPreviews();
+                        syncFileInputs();
                     });
 
-                    const customRadio = document.createElement('span');
-                    customRadio.className = 'w-4 h-4 rounded-full border-2 border-white flex-shrink-0 mr-1.5 peer-checked:bg-pink-500 peer-checked:border-pink-500 transition-colors duration-200';
-
-                    const labelText = document.createTextNode('Featured');
+                    const radioIndicator = document.createElement('span');
+                    radioIndicator.className = 'w-4 h-4 rounded-full border-2 border-white flex-shrink-0 mr-1.5 peer-checked:bg-pink-500 peer-checked:border-pink-500 transition-colors duration-200';
 
                     radioLabel.appendChild(radioInput);
-                    radioLabel.appendChild(customRadio);
-                    radioLabel.appendChild(labelText);
-
-                    wrapper.appendChild(img);
-                    wrapper.appendChild(numberBadge);
-                    wrapper.appendChild(deleteBtn);
-                    wrapper.appendChild(radioLabel);
+                    radioLabel.appendChild(radioIndicator);
+                    radioLabel.appendChild(document.createTextNode('Featured'));
 
                     if (item.isFeatured) {
                         wrapper.classList.add('ring-2', 'ring-pink-500', 'ring-offset-2', 'ring-offset-white');
                     }
 
-                imagePreviewContainer.appendChild(wrapper);
-            });
+                    wrapper.appendChild(img);
+                    wrapper.appendChild(badge);
+                    wrapper.appendChild(deleteBtn);
+                    wrapper.appendChild(radioLabel);
 
-            syncScreenshotInputs();
-        };
+                    imagePreviewContainer.appendChild(wrapper);
+                });
+
+                syncFileInputs();
+            };
 
             let draggedIndex = null;
 
             imagePreviewContainer.addEventListener('dragstart', (event) => {
-                const index = event.target.dataset.index;
-                if (typeof index === 'undefined') {
+                const target = event.target.closest('[draggable="true"]');
+                if (!target) {
                     return;
                 }
-                draggedIndex = Number(index);
+                draggedIndex = Number(target.dataset.index);
+                target.classList.add('opacity-50');
                 event.dataTransfer.effectAllowed = 'move';
-                setTimeout(() => {
-                    event.target.classList.add('dragging');
-                }, 0);
             });
 
             imagePreviewContainer.addEventListener('dragend', (event) => {
-                if (!event.target.classList.contains('dragging')) {
-                    return;
+                const target = event.target.closest('[draggable="true"]');
+                if (target) {
+                    target.classList.remove('opacity-50');
                 }
-                event.target.classList.remove('dragging');
                 draggedIndex = null;
-                imagePreviewContainer.querySelectorAll('.drag-over').forEach((element) => element.classList.remove('drag-over'));
             });
 
             imagePreviewContainer.addEventListener('dragover', (event) => {
                 event.preventDefault();
                 const target = event.target.closest('[draggable="true"]');
                 imagePreviewContainer.querySelectorAll('.drag-over').forEach((element) => element.classList.remove('drag-over'));
-                if (target && target.dataset.index !== undefined && Number(target.dataset.index) !== draggedIndex) {
+                if (target && Number(target.dataset.index) !== draggedIndex) {
                     target.classList.add('drag-over');
                 }
             });
@@ -768,38 +771,34 @@
             });
 
             const handleModFile = (files) => {
-                const file = files && files.length ? files[0] : null;
-
-                if (!file) {
-                    modFilePreview.classList.add('hidden');
-                    modFilePreview.classList.remove('flex');
-                    modDropzoneContent.classList.remove('hidden');
-                    modFileInput.value = '';
-                    fileSizeHiddenInput.value = '';
+                if (!files || !files.length) {
                     return;
                 }
 
+                const file = files[0];
+                const sizeMb = (file.size / 1024 / 1024).toFixed(2);
+
                 modDropzoneContent.classList.add('hidden');
                 modFilePreview.innerHTML = `
-                    <div class="flex flex-col items-center">
+                    <div class="flex flex-col items-center text-gray-700">
                         <i class="fas fa-check-circle text-green-500 text-4xl"></i>
                         <p class="font-semibold mt-2 break-all">${file.name}</p>
-                        <p class="text-sm text-gray-500">${(file.size / 1024 / 1024).toFixed(2)} MB</p>
-                        <button type="button" id="remove-mod-file-btn" class="mt-2 text-sm font-semibold text-red-600 hover:text-red-800 transition">Remove</button>
+                        <p class="text-sm text-gray-500">${sizeMb} MB</p>
+                        <button type="button" class="mt-2 text-sm font-semibold text-red-600 hover:text-red-800 transition" id="remove-mod-file-btn">Remove</button>
                     </div>
                 `;
                 modFilePreview.classList.remove('hidden');
                 modFilePreview.classList.add('flex');
 
-                fileSizeHiddenInput.value = (file.size / 1024 / 1024).toFixed(2);
+                fileSizeHiddenInput.value = sizeMb;
 
                 const removeBtn = modFilePreview.querySelector('#remove-mod-file-btn');
                 removeBtn.addEventListener('click', () => {
                     modFileInput.value = '';
                     fileSizeHiddenInput.value = '';
+                    modDropzoneContent.classList.remove('hidden');
                     modFilePreview.classList.add('hidden');
                     modFilePreview.classList.remove('flex');
-                    modDropzoneContent.classList.remove('hidden');
                 });
             };
 
@@ -833,12 +832,15 @@
                 if (useUrl) {
                     fileUploadView.classList.add('hidden');
                     urlView.classList.remove('hidden');
-                    handleModFile(null);
+                    modFileInput.value = '';
+                    fileSizeHiddenInput.value = '';
+                    modDropzoneContent.classList.remove('hidden');
+                    modFilePreview.classList.add('hidden');
+                    modFilePreview.classList.remove('flex');
                 } else {
                     urlView.classList.add('hidden');
                     fileUploadView.classList.remove('hidden');
                     downloadUrlInput.value = '';
-                    fileSizeHiddenInput.value = '';
                     fileSizeInput.value = '';
                 }
             };
@@ -854,11 +856,26 @@
                 }
             }
 
-            const getAuthorsList = () => {
-                return Array.from(authorsContainer.querySelectorAll('input[name="authors[]"]'))
-                    .map((input) => input.value.trim())
-                    .filter(Boolean);
+            const syncManualFileSize = () => {
+                if (!usingUrlMode) {
+                    return;
+                }
+
+                let sizeValue = Number(fileSizeInput.value);
+                if (!sizeValue || sizeValue <= 0) {
+                    fileSizeHiddenInput.value = '';
+                    return;
+                }
+
+                if (fileSizeUnit.value === 'GB') {
+                    sizeValue *= 1024;
+                }
+
+                fileSizeHiddenInput.value = sizeValue.toFixed(2);
             };
+
+            fileSizeInput.addEventListener('input', syncManualFileSize);
+            fileSizeUnit.addEventListener('change', syncManualFileSize);
 
             const validateStep1 = () => {
                 const errors = [];
@@ -872,154 +889,152 @@
                     errors.push('Please select a category.');
                 }
 
-                if (!descriptionPayload.json) {
+                if (!descriptionPayload.plain) {
                     errors.push('The description cannot be empty.');
-                } else if (descriptionPayload.plainTextLength < 20) {
-                    errors.push('Description must contain at least 20 characters of meaningful text.');
                 }
 
                 if (!screenshotItems.length) {
                     errors.push('Please upload at least one screenshot.');
                 }
 
-                if (errors.length === 0) {
-                    descriptionInput.value = descriptionPayload.json;
+                step1ErrorsContainer.innerHTML = '';
+                if (errors.length) {
+                    const list = document.createElement('ul');
+                    list.className = 'list-disc list-inside text-sm text-red-600 bg-red-100 p-4 rounded-lg';
+                    errors.forEach((message) => {
+                        const li = document.createElement('li');
+                        li.textContent = message;
+                        list.appendChild(li);
+                    });
+                    step1ErrorsContainer.appendChild(list);
+                    return false;
                 }
 
-                displayErrors(step1ErrorsContainer, errors);
-                return errors.length === 0;
-            };
+                descriptionInput.value = descriptionPayload.json;
 
-            const convertToMb = (value, unit) => {
-                const numeric = Number(value);
-                if (Number.isNaN(numeric) || numeric <= 0) {
-                    return '';
-                }
-                return unit === 'GB' ? (numeric * 1024).toFixed(2) : numeric.toFixed(2);
+                return true;
             };
 
             const validateStep2 = () => {
                 const errors = [];
 
-                if (usingUrlMode) {
-                    if (!downloadUrlInput.value.trim()) {
-                        errors.push('Please provide a valid download URL.');
-                    }
-                    const convertedSize = convertToMb(fileSizeInput.value, fileSizeUnit.value);
-                    if (!convertedSize) {
-                        errors.push('Please enter a valid file size.');
-                    } else {
-                        fileSizeHiddenInput.value = convertedSize;
-                    }
-                } else {
-                    if (!modFileInput.files.length) {
-                        errors.push('Please upload a mod archive file.');
-                    }
-                }
-
                 if (!versionInput.value.trim()) {
                     errors.push('The "Version" field is required.');
                 }
 
-                displayErrors(step2ErrorsContainer, errors);
-                return errors.length === 0;
-            };
+                if (usingUrlMode) {
+                    if (!downloadUrlInput.value.trim()) {
+                        errors.push('Please provide a valid download URL.');
+                    }
 
-            const destroyLightbox = () => {
-                if (pswpLightbox) {
-                    pswpLightbox.destroy();
-                    pswpLightbox = null;
+                    const sizeValue = Number(fileSizeInput.value);
+                    if (!sizeValue || sizeValue <= 0) {
+                        errors.push('Please enter a valid file size.');
+                    }
+                } else if (!modFileInput.files.length && !downloadUrlInput.value.trim()) {
+                    errors.push('Please upload a mod file or provide a download URL.');
                 }
-            };
 
-            const initializeLightbox = () => {
-                destroyLightbox();
-                pswpLightbox = new PhotoSwipeLightbox({
-                    gallery: '#preview-gallery-container',
-                    children: 'a.gallery-item',
-                    pswpModule: () => import('https://unpkg.com/photoswipe@5/dist/photoswipe.esm.js'),
-                });
-                pswpLightbox.init();
+                step2ErrorsContainer.innerHTML = '';
+                if (errors.length) {
+                    const list = document.createElement('ul');
+                    list.className = 'list-disc list-inside text-sm text-red-600 bg-red-100 p-4 rounded-lg';
+                    errors.forEach((message) => {
+                        const li = document.createElement('li');
+                        li.textContent = message;
+                        list.appendChild(li);
+                    });
+                    step2ErrorsContainer.appendChild(list);
+                    return false;
+                }
+
+                return true;
             };
 
             const populatePreview = () => {
-                const descriptionPayload = buildDescriptionPayload();
                 const authors = getAuthorsList();
-                const categoryText = categorySelect.options[categorySelect.selectedIndex]?.text ?? '';
-                const formattedDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+                const tags = tagsInput.value
+                    .split(',')
+                    .map((tag) => tag.trim())
+                    .filter(Boolean);
+                const descriptionPayload = buildDescriptionPayload();
 
                 previewHeader.innerHTML = `
-                    <div class="flex flex-col md:flex-row md:items-center md:space-x-3">
-                        <div class="flex items-center space-x-3">
-                            <h1 class="text-2xl md:text-4xl font-bold text-gray-900">${titleInput.value.trim()}</h1>
-                            <span class="text-xl md:text-2xl font-semibold text-gray-400">${versionInput.value.trim()}</span>
-                        </div>
-                        <div class="flex items-center text-sm text-gray-500 mt-1 md:mt-0">
-                            <span>by</span>
-                            <span class="font-semibold text-pink-600 ml-1">${authors.join(', ') || 'Unknown'}</span>
-                        </div>
+                    <div class="flex items-center space-x-3">
+                        <h1 class="text-2xl md:text-4xl font-bold text-gray-900">${titleInput.value.trim()}</h1>
+                        <span class="text-xl md:text-2xl font-semibold text-gray-400">${versionInput.value.trim()}</span>
+                    </div>
+                    <div class="flex items-center text-sm text-gray-500 mt-1">
+                        <span>by</span>
+                        <span class="font-semibold text-pink-600 ml-1">${authors.join(', ') || 'Unknown author'}</span>
                     </div>
                 `;
 
-                previewDescriptionContent.innerHTML = descriptionPayload.htmlPreview || '<p class="text-sm text-gray-500">No description provided.</p>';
+                previewDescriptionContent.innerHTML = descriptionPayload.html || '<p>No description provided.</p>';
 
-                previewSidebarAuthors.textContent = authors.join(', ') || 'Unknown';
-                previewSidebarVersion.textContent = versionInput.value.trim() || '—';
-                previewSidebarUpdated.textContent = formattedDate;
-                previewSidebarCategory.textContent = categoryText || '—';
+                previewSidebarAuthors.textContent = authors.join(', ') || 'Unknown author';
+                previewSidebarVersion.textContent = versionInput.value.trim() || '1.0';
+                previewSidebarUpdated.textContent = new Date().toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                });
+                previewSidebarCategory.textContent = categorySelect.options[categorySelect.selectedIndex]?.textContent || 'Uncategorised';
 
                 previewSidebarTags.innerHTML = '';
-                const tags = tagsInput.value.split(',').map((tag) => tag.trim()).filter(Boolean);
                 if (tags.length) {
                     tags.forEach((tag) => {
-                        const pill = document.createElement('span');
-                        pill.className = 'bg-gray-200 text-gray-700 text-xs font-semibold px-2.5 py-1 rounded-full';
-                        pill.textContent = tag;
-                        previewSidebarTags.appendChild(pill);
+                        const span = document.createElement('span');
+                        span.className = 'bg-gray-200 text-gray-700 text-xs font-semibold px-2.5 py-1 rounded-full';
+                        span.textContent = tag;
+                        previewSidebarTags.appendChild(span);
                     });
                 } else {
                     previewSidebarTags.textContent = 'No tags provided.';
                 }
 
                 previewSidebarSourceInfo.innerHTML = '';
-                if (usingUrlMode) {
-                    const sizeText = fileSizeHiddenInput.value ? `${Number(fileSizeHiddenInput.value).toFixed(2)} MB` : 'Unknown size';
+                if (usingUrlMode && downloadUrlInput.value.trim()) {
+                    const sizeValue = Number(fileSizeInput.value);
+                    const unit = fileSizeUnit.value || 'MB';
                     previewSidebarSourceInfo.innerHTML = `
-                        <p class="font-mono text-sm bg-gray-200 p-2 rounded break-words">${downloadUrlInput.value.trim()}</p>
-                        <p class="text-right text-sm text-gray-600 mt-1">Size: <strong>${sizeText}</strong></p>
+                        <p class="preview-value font-mono text-sm bg-gray-200 p-2 rounded break-words">${downloadUrlInput.value.trim()}</p>
+                        <p class="text-right text-sm text-gray-600 mt-1">Size: <strong>${sizeValue ? `${sizeValue} ${unit}` : 'Unknown'}</strong></p>
                     `;
-                } else if (modFileInput.files.length > 0) {
+                } else if (modFileInput.files.length) {
                     const file = modFileInput.files[0];
                     previewSidebarSourceInfo.innerHTML = `
-                        <p class="font-mono text-sm bg-gray-200 p-2 rounded break-words">${file.name}</p>
+                        <p class="preview-value font-mono text-sm bg-gray-200 p-2 rounded break-words">${file.name}</p>
                         <p class="text-right text-sm text-gray-600 mt-1">Size: <strong>${(file.size / 1024 / 1024).toFixed(2)} MB</strong></p>
                     `;
                 } else {
-                    previewSidebarSourceInfo.textContent = 'External link required or upload file';
+                    previewSidebarSourceInfo.textContent = 'No file selected yet.';
                 }
 
                 previewGalleryFeatured.innerHTML = '';
                 previewGalleryThumbnails.innerHTML = '';
                 previewLoadMoreContainer.innerHTML = '';
 
-                const featuredItem = screenshotItems.find((item) => item.isFeatured);
-                const otherItems = screenshotItems.filter((item) => !item.isFeatured);
-
-                if (featuredItem) {
-                    const featuredLink = document.createElement('a');
-                    featuredLink.href = featuredItem.previewUrl;
-                    featuredLink.dataset.pswpWidth = 1600;
-                    featuredLink.dataset.pswpHeight = 900;
-                    featuredLink.className = 'gallery-item block w-full h-full';
-                    const featuredImg = document.createElement('img');
-                    featuredImg.src = featuredItem.previewUrl;
-                    featuredImg.alt = 'Featured screenshot';
-                    featuredImg.className = 'w-full h-full object-cover';
-                    featuredLink.appendChild(featuredImg);
-                    previewGalleryFeatured.appendChild(featuredLink);
-                } else {
-                    previewGalleryFeatured.innerHTML = '<div class="w-full h-full flex items-center justify-center text-sm text-gray-500">Add a featured screenshot to populate this area.</div>';
+                if (!screenshotItems.length) {
+                    destroyLightbox();
+                    return;
                 }
+
+                const featuredItem = screenshotItems.find((item) => item.isFeatured) || screenshotItems[0];
+                const otherItems = screenshotItems.filter((item) => item !== featuredItem);
+
+                const featuredLink = document.createElement('a');
+                featuredLink.href = featuredItem.previewUrl;
+                featuredLink.dataset.pswpWidth = 1600;
+                featuredLink.dataset.pswpHeight = 900;
+                featuredLink.className = 'gallery-item block w-full h-full';
+
+                const featuredImg = document.createElement('img');
+                featuredImg.src = featuredItem.previewUrl;
+                featuredImg.alt = 'Featured Screenshot';
+                featuredImg.className = 'w-full h-full object-cover';
+                featuredLink.appendChild(featuredImg);
+                previewGalleryFeatured.appendChild(featuredLink);
 
                 otherItems.forEach((item, index) => {
                     const thumbLink = document.createElement('a');
@@ -1061,9 +1076,11 @@
 
             const handleFormSubmit = (event) => {
                 if (!descriptionInput.value) {
-                    const payload = buildDescriptionPayload();
-                    descriptionInput.value = payload.json;
+                    descriptionInput.value = buildDescriptionPayload().json;
                 }
+
+                syncManualFileSize();
+                syncFileInputs();
             };
 
             const addAuthorField = () => {

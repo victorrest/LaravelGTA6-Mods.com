@@ -33,8 +33,9 @@ class ModManagementController extends Controller
         $publishedAt = $status === Mod::STATUS_PUBLISHED ? now() : null;
 
         $downloadUrl = $data['download_url'] ?? null;
+        $expectsUploadedArchive = $request->hasFile('mod_file');
 
-        if (! $downloadUrl && ! $request->hasFile('mod_file')) {
+        if (! $downloadUrl && ! $expectsUploadedArchive) {
             throw ValidationException::withMessages([
                 'download_url' => 'Please provide a download URL or upload a mod file.',
             ]);
