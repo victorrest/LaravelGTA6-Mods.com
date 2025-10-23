@@ -54,7 +54,7 @@ class HomeController extends Controller
             return [
                 'title' => $mod->title,
                 'author' => $mod->author?->name,
-                'link' => route('mods.show', $mod),
+                'link' => route('mods.show', [$mod->primary_category, $mod]),
                 'image' => $mod->hero_image_url,
             ];
         })->values()->all();
@@ -63,7 +63,7 @@ class HomeController extends Controller
             return [
                 'title' => $mod->title,
                 'author' => $mod->author?->name,
-                'link' => route('mods.show', $mod),
+                'link' => route('mods.show', [$mod->primary_category, $mod]),
                 'image' => $mod->hero_image_url,
                 'rating' => $mod->ratings_count > 0 ? number_format((float) $mod->rating, 1) : null,
                 'rating_count' => $mod->ratings_count,
@@ -76,7 +76,7 @@ class HomeController extends Controller
             return [
                 'title' => $mod->title,
                 'author' => $mod->author?->name,
-                'link' => route('mods.show', $mod),
+                'link' => route('mods.show', [$mod->primary_category, $mod]),
                 'image' => $mod->hero_image_url,
                 'rating' => $mod->ratings_count > 0 ? number_format((float) $mod->rating, 1) : null,
                 'rating_count' => $mod->ratings_count,

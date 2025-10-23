@@ -35,9 +35,12 @@ class ModController extends Controller
         ]);
     }
 
-    public function show(Mod $mod)
+    public function show(ModCategory $category, Mod $mod)
     {
         abort_unless($mod->status === 'published', Response::HTTP_NOT_FOUND);
+
+        // Verify that the mod belongs to this category
+        abort_unless($mod->categories->contains($category), Response::HTTP_NOT_FOUND);
 
         $mod->loadMissing(['author', 'categories', 'galleryImages'])->loadCount('comments');
 
@@ -74,7 +77,7 @@ class ModController extends Controller
 
         $breadcrumbs[] = [
             'label' => $mod->title,
-            'url' => route('mods.show', $mod),
+            'url' => route('mods.show', [$category, $mod]),
         ];
 
         $ratingValue = $mod->ratings_count > 0 ? (float) $mod->rating : null;
@@ -116,9 +119,12 @@ class ModController extends Controller
         ]);
     }
 
-    public function rate(Request $request, Mod $mod): RedirectResponse
+    public function rate(Request $request, ModCategory $category, Mod $mod): RedirectResponse
     {
         abort_unless($mod->status === Mod::STATUS_PUBLISHED, Response::HTTP_NOT_FOUND);
+
+        // Verify that the mod belongs to this category
+        abort_unless($mod->categories->contains($category), Response::HTTP_NOT_FOUND);
 
         $data = $request->validate([
             'rating' => ['required', 'integer', 'min:1', 'max:5'],
@@ -141,8 +147,11 @@ class ModController extends Controller
         return back()->with('status', 'Thanks for rating this mod!');
     }
 
-    public function comment(Request $request, Mod $mod): RedirectResponse
+    public function comment(Request $request, ModCategory $category, Mod $mod): RedirectResponse
     {
+        // Verify that the mod belongs to this category
+        abort_unless($mod->categories->contains($category), Response::HTTP_NOT_FOUND);
+
         $validated = $request->validate([
             'body' => ['required', 'string', 'min:5', 'max:1500'],
         ]);

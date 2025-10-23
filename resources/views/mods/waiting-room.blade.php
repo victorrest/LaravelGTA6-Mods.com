@@ -85,7 +85,7 @@
 
             <aside class="space-y-6">
                 <div class="card overflow-hidden">
-                    <a href="{{ route('mods.show', $mod) }}" class="block group">
+                    <a href="{{ route('mods.show', [$mod->primary_category, $mod]) }}" class="block group">
                         <img src="{{ $heroImage }}" alt="{{ $mod->title }}" class="w-full h-40 object-cover group-hover:scale-[1.02] transition-transform duration-300">
                         <div class="p-4 space-y-1">
                             <h3 class="text-lg font-semibold text-gray-900 group-hover:text-pink-600 transition">{{ $mod->title }}</h3>
@@ -102,7 +102,7 @@
                     <ul class="space-y-3">
                         @forelse ($authorMods as $authorMod)
                             <li>
-                                <a href="{{ route('mods.show', $authorMod) }}" class="flex items-center gap-3 group">
+                                <a href="{{ route('mods.show', [$authorMod->primary_category, $authorMod]) }}" class="flex items-center gap-3 group">
                                     <img src="{{ $authorMod->hero_image_url }}" alt="{{ $authorMod->title }}" class="w-16 h-16 object-cover rounded-lg">
                                     <div>
                                         <p class="text-sm font-semibold text-gray-900 group-hover:text-pink-600 transition">{{ $authorMod->title }}</p>
