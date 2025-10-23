@@ -15,7 +15,7 @@ class AuthorProfileController extends Controller
      */
     public function show(Request $request, $username)
     {
-        $author = User::where('name', $username)->firstOrFail();
+        $author = User::with(['pinnedMod.categories'])->where('name', $username)->firstOrFail();
         $isOwner = Auth::check() && Auth::id() === $author->id;
 
         // Available tabs
