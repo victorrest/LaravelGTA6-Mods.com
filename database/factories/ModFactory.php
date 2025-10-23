@@ -25,6 +25,7 @@ class ModFactory extends Factory
 
         return [
             'user_id' => User::factory(),
+            'authors' => [fake()->name()],
             'title' => $title,
             'slug' => Str::slug($title) . '-' . fake()->unique()->numberBetween(100, 999),
             'excerpt' => fake()->paragraph(),
@@ -32,6 +33,8 @@ class ModFactory extends Factory
             'version' => 'v' . fake()->randomFloat(1, 0.1, 2.5),
             'hero_image_path' => 'https://placehold.co/1280x720/ec4899/1f2937?text=GTA6+Mod',
             'download_url' => fake()->url(),
+            'tag_list' => collect(fake()->words(3))->unique()->values()->toArray(),
+            'video_permission' => fake()->randomElement(['deny', 'self_moderate', 'allow']),
             'file_size' => fake()->randomFloat(2, 5, 2500),
             'rating' => $ratingValue,
             'ratings_count' => $ratingsCount,
