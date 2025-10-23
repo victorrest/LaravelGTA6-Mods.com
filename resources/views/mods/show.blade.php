@@ -70,7 +70,7 @@
                         Közösségi értékelés · {{ number_format($ratingCount) }} értékelés
                     </p>
 
-                    @auth
+                    @if (auth()->check())
                         <form method="POST" action="{{ route('mods.rate', [$primaryCategory, $mod]) }}" class="space-y-2" data-rating-form data-rating-initial="{{ $userRating ?? 0 }}">
                             @csrf
                             <input type="hidden" name="rating" value="{{ $userRating ?? '' }}" data-rating-input>
@@ -91,7 +91,7 @@
                         </form>
                     @else
                         <p class="text-xs text-gray-400">A saját értékelésed leadásához <a href="{{ route('login') }}" class="text-pink-600 hover:text-pink-700 font-medium">jelentkezz be</a>.</p>
-                    @endauth
+                    @endif
                 </div>
             </div>
         </div>
@@ -214,17 +214,15 @@
                         </button>
                     </form>
 
-                    @auth
-                        @if(auth()->id() === $mod->user_id)
-                            @php
-                                $isPinned = auth()->user()->pinned_mod_id === $mod->id;
-                            @endphp
-                            <button onclick="togglePinMod({{ $mod->id }}, {{ $isPinned ? 'true' : 'false' }})" id="pin-mod-btn" class="w-full inline-flex items-center justify-center px-4 py-2 {{ $isPinned ? 'bg-purple-600 hover:bg-purple-700' : 'bg-gray-600 hover:bg-gray-700' }} text-white text-sm font-semibold rounded-lg shadow transition">
-                                <i class="fas fa-thumbtack mr-2 {{ $isPinned ? '' : 'rotate-45' }}"></i>
-                                <span id="pin-mod-text">{{ $isPinned ? 'Unpin from Profile' : 'Pin to Profile' }}</span>
-                            </button>
-                        @endif
-                    @endauth
+                    @if (auth()->check() && auth()->id() === $mod->user_id)
+                        @php
+                            $isPinned = auth()->user()->pinned_mod_id === $mod->id;
+                        @endphp
+                        <button onclick="togglePinMod({{ $mod->id }}, {{ $isPinned ? 'true' : 'false' }})" id="pin-mod-btn" class="w-full inline-flex items-center justify-center px-4 py-2 {{ $isPinned ? 'bg-purple-600 hover:bg-purple-700' : 'bg-gray-600 hover:bg-gray-700' }} text-white text-sm font-semibold rounded-lg shadow transition">
+                            <i class="fas fa-thumbtack mr-2 {{ $isPinned ? '' : 'rotate-45' }}"></i>
+                            <span id="pin-mod-text">{{ $isPinned ? 'Unpin from Profile' : 'Pin to Profile' }}</span>
+                        </button>
+                    @endif
 
                     <div class="text-sm text-gray-500 space-y-1">
                         <p><strong>Verzió:</strong> {{ $metaDetails['version'] ?? '—' }}</p>
