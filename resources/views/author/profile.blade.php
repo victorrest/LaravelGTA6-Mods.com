@@ -206,7 +206,7 @@
             <aside class="lg:col-span-4">
                 <div class="sticky top-6 space-y-6">
                     <!-- Author Summary Card -->
-                    <div class="bg-white rounded-lg shadow-sm p-6 text-center -mt-20">
+                    <div class="bg-white rounded-lg shadow-sm p-6 text-center mt-20">
                         <!-- Avatar -->
                         <img src="{{ $author->getAvatarUrl(256) }}"
                              alt="{{ $author->name }}"
