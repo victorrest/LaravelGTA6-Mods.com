@@ -416,7 +416,7 @@
 
             const chunkEndpoint = @json(route('mods.uploads.chunk'));
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
-            const chunkSize = 1024 * 1024; // 1 MB chunks for faster uploads with fewer round-trips
+            const chunkSize = 512 * 1024;
             const MAX_SCREENSHOTS = 12;
 
             let pswpLightbox = null;
@@ -878,39 +878,42 @@
 
                     const formData = new FormData();
                     formData.append('chunk', chunk, file.name);
+                    formData.append('original_name', file.name);
+                    formData.append('mime_type', file.type || 'application/octet-stream');
                     formData.append('chunk_index', index);
                     formData.append('total_chunks', totalChunks);
                     formData.append('upload_token', uploadToken);
                     formData.append('upload_category', category);
-                    formData.append('original_name', file.name);
-                    if (file.type) {
-                        formData.append('mime_type', file.type);
-                    }
 
                     const response = await fetch(chunkEndpoint, {
                         method: 'POST',
                         headers: {
                             'X-CSRF-TOKEN': csrfToken,
-                            'Accept': 'application/json',
                             'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json',
                         },
                         body: formData,
                     });
 
-                    const rawPayload = await response.text();
-
-                    const payloadPreview = rawPayload.length > 2000 ? `${rawPayload.slice(0, 2000)}…` : rawPayload;
-
                     if (!response.ok) {
-                        throw new Error(`Chunk upload failed (${response.status}). ${payloadPreview}`);
+                        const errorBody = await response.text();
+                        throw new Error(errorBody || 'Chunk upload failed.');
                     }
 
+                    const payloadText = await response.text();
+                    let data;
                     try {
-                        responseData = JSON.parse(rawPayload);
-                    } catch (error) {
-                        throw new Error(`Invalid response received from the server. ${payloadPreview}`);
+                        data = payloadText ? JSON.parse(payloadText) : null;
+                    } catch (parseError) {
+                        console.error('Failed to parse upload response:', payloadText);
+                        throw new Error('Upload failed due to an unexpected server response.');
                     }
 
+                    if (!data) {
+                        throw new Error('Upload failed due to an empty server response.');
+                    }
+
+                    responseData = data;
                     onProgress({ index: index + 1, total: totalChunks });
                 }
 
@@ -937,13 +940,33 @@
                 modFilePreview.classList.add('flex');
 
                 beginUpload();
+                const sizeLabel = modFilePreview.querySelector('p.text-sm');
+
                 uploadFileInChunks(file, 'mod_archive', ({ index, total }) => {
                     const progress = Math.round((index / total) * 100);
-                    modFilePreview.querySelector('p.text-sm').textContent = `${(file.size / 1024 / 1024).toFixed(2)} MB • ${progress}%`;
+                    if (sizeLabel) {
+                        sizeLabel.textContent = `${(file.size / 1024 / 1024).toFixed(2)} MB • ${progress}%`;
+                    }
                 })
                     .then((result) => {
                         modFileTokenInput.value = result.upload_token;
-                        fileSizeHiddenInput.value = result.size_mb;
+
+                        const sizeBytes = Number(result.size_bytes ?? 0);
+                        let sizeMb = Number(result.size_mb ?? 0);
+
+                        if (!sizeMb && sizeBytes) {
+                            sizeMb = sizeBytes / 1048576;
+                        }
+
+                        if (!sizeMb) {
+                            sizeMb = file.size / 1024 / 1024;
+                        }
+
+                        fileSizeHiddenInput.value = sizeMb ? sizeMb.toFixed(2) : '';
+
+                        if (sizeLabel) {
+                            sizeLabel.textContent = `${(file.size / 1024 / 1024).toFixed(2)} MB • 100%`;
+                        }
                     })
                     .catch((error) => {
                         console.error(error);
