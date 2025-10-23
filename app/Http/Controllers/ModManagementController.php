@@ -193,7 +193,7 @@ class ModManagementController extends Controller
     {
         if ($token = $request->input('hero_image_token')) {
             try {
-                $upload = $this->temporaryUploadService->moveToPublic($token, 'mods/hero-images', 'hero_image');
+                $upload = $this->temporaryUploadService->moveToPublic($token, 'mods/hero-images');
                 $filesForRollback[] = $upload['path'];
 
                 return $upload['path'] ?? null;
