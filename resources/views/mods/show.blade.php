@@ -214,17 +214,17 @@
                         </button>
                     </form>
 
-                    @auth
-                        @if(auth()->id() === $mod->user_id)
-                            @php
-                                $isPinned = auth()->user()->pinned_mod_id === $mod->id;
-                            @endphp
-                            <button onclick="togglePinMod({{ $mod->id }}, {{ $isPinned ? 'true' : 'false' }})" id="pin-mod-btn" class="w-full inline-flex items-center justify-center px-4 py-2 {{ $isPinned ? 'bg-purple-600 hover:bg-purple-700' : 'bg-gray-600 hover:bg-gray-700' }} text-white text-sm font-semibold rounded-lg shadow transition">
-                                <i class="fas fa-thumbtack mr-2 {{ $isPinned ? '' : 'rotate-45' }}"></i>
-                                <span id="pin-mod-text">{{ $isPinned ? 'Unpin from Profile' : 'Pin to Profile' }}</span>
-                            </button>
-                        @endif
-                    @endauth
+                    @php
+                        $canManageMod = auth()->check() && auth()->id() === $mod->user_id;
+                        $isPinned = $canManageMod ? auth()->user()->pinned_mod_id === $mod->id : false;
+                    @endphp
+
+                    @if ($canManageMod)
+                        <button onclick="togglePinMod({{ $mod->id }}, {{ json_encode($isPinned) }})" id="pin-mod-btn" class="w-full inline-flex items-center justify-center px-4 py-2 {{ $isPinned ? 'bg-purple-600 hover:bg-purple-700' : 'bg-gray-600 hover:bg-gray-700' }} text-white text-sm font-semibold rounded-lg shadow transition">
+                            <i class="fas fa-thumbtack mr-2 {{ $isPinned ? '' : 'rotate-45' }}"></i>
+                            <span id="pin-mod-text">{{ $isPinned ? 'Unpin from Profile' : 'Pin to Profile' }}</span>
+                        </button>
+                    @endif
 
                     <div class="text-sm text-gray-500 space-y-1">
                         <p><strong>Verzió:</strong> {{ $metaDetails['version'] ?? '—' }}</p>
