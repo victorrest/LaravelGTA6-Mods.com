@@ -1,9 +1,158 @@
 @extends('layouts.app', ['title' => 'Upload Mod'])
 
-@php($previewPlaceholder = 'https://placehold.co/800x450/0f172a/ffffff?text=GTA6+Mods')
+@php
+    $navigationItems = collect(config('gta6.navigation'));
+    $categoriesBySlug = $categories->keyBy('slug');
+    $selectedCategoryId = collect(old('category_ids', []))->first();
+    $initialTags = collect(old('tag_list', []))->implode(', ');
+    $initialAuthors = collect(old('authors', auth()->user() ? [auth()->user()->name] : []))->filter()->values()->all();
+    $plainDescription = \App\Support\EditorJs::toPlainText(old('description'));
+    $rulesUrl = \Illuminate\Support\Facades\Route::has('docs.upload-rules') ? route('docs.upload-rules') : '#';
+@endphp
+
+@push('styles')
+    <style>
+        body {
+            background-color: #f3f4f6;
+        }
+
+        .logo-font {
+            font-family: 'Oswald', sans-serif;
+            font-weight: 600;
+            color: #ffffff;
+            font-size: 2.2rem;
+            line-height: 1;
+        }
+
+        .header-background {
+            background-image: url('https://topiku.hu/wp-content/themes/backgroundkep.webp');
+            background-size: cover;
+            background-position: center -120px;
+        }
+
+        .header-top-bar {
+            background-color: #ec4899e0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .header-nav-bar {
+            background-color: rgba(39, 17, 28, 0.59);
+            backdrop-filter: blur(3px);
+            -webkit-backdrop-filter: blur(3px);
+        }
+
+        .btn-action {
+            background-color: #ec4899;
+            color: #ffffff;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 14px 0 rgba(236, 72, 153, 0.3);
+        }
+
+        .btn-action:hover {
+            background-color: #db2777;
+        }
+
+        .btn-secondary {
+            background-color: #e5e7eb;
+            color: #374151;
+            transition: background-color 0.3s ease;
+        }
+
+        .btn-secondary:hover {
+            background-color: #d1d5db;
+        }
+
+        .card {
+            background-color: white;
+            border-radius: 0.75rem;
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            overflow: hidden;
+        }
+
+        .form-input,
+        .form-select,
+        .form-textarea,
+        .form-url {
+            width: 100%;
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            padding: 0.75rem 1rem;
+            transition: all 0.2s ease-in-out;
+        }
+
+        .form-input:focus,
+        .form-select:focus,
+        .form-textarea:focus,
+        .form-url:focus {
+            outline: none;
+            border-color: #ec4899;
+            box-shadow: 0 0 0 2px #fbcfe8;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .info-box {
+            background-color: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+            padding: 1rem;
+        }
+
+        .dragging {
+            opacity: 0.5;
+        }
+
+        .drag-over {
+            border: 2px dashed #ec4899 !important;
+        }
+
+        .category-active {
+            opacity: 1 !important;
+            transform: scale(1.05);
+            text-shadow: 0 0 8px rgba(255, 255, 255, 0.7);
+        }
+
+        .category-dimmed {
+            opacity: 0.45 !important;
+        }
+
+        .file-input-wrapper {
+            background-color: #f9fafb;
+            border: 1px dashed #d1d5db;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        .preview-label {
+            font-weight: 600;
+            color: #4b5563;
+        }
+
+        .preview-value {
+            color: #1f2937;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: rgba(148, 163, 184, 0.6);
+            border-radius: 9999px;
+        }
+    </style>
+@endpush
 
 @section('content')
-    <section id="mod-upload-root" class="space-y-8">
+    <section id="mod-upload-app" class="space-y-6">
         <h2 id="main-title" class="text-3xl font-bold text-gray-900">Upload a new file</h2>
 
         <div id="preview-mode-banner" class="hidden bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded-md" role="alert">
@@ -18,6 +167,8 @@
 
                 <input type="hidden" name="hero_image_token" id="hero_image_token" value="{{ old('hero_image_token') }}">
                 <input type="hidden" name="mod_file_token" id="mod_file_token" value="{{ old('mod_file_token') }}">
+                <input type="hidden" name="description" id="description" value="{{ old('description') }}">
+                <input type="hidden" name="category_ids[]" id="selected-category" value="{{ $selectedCategoryId }}">
 
                 <div id="gallery-token-container">
                     @foreach (old('gallery_image_tokens', []) as $token)
@@ -25,41 +176,41 @@
                     @endforeach
                 </div>
 
-                <section id="form-step-1" data-step="1" class="space-y-8">
+                <div id="form-step-1">
                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         <div class="lg:col-span-2 space-y-6">
                             <div>
-                                <label class="form-label" for="title">File Name</label>
-                                <input id="title" name="title" type="text" value="{{ old('title') }}" class="form-input" required>
+                                <label for="file-name" class="form-label">File Name</label>
+                                <input type="text" id="file-name" name="title" class="form-input" value="{{ old('title') }}" required>
                             </div>
 
                             <div>
-                                <span class="form-label">Categories</span>
-                                <p class="text-xs text-gray-500 mb-3">Select every category that applies to your upload.</p>
-                                <div id="category-grid" class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
-                                    @foreach ($categories as $category)
-                                        <label class="group rounded-xl border border-gray-200 hover:border-pink-400 transition cursor-pointer bg-white/70 category-tile" data-category-id="{{ $category->id }}">
-                                            <input type="checkbox" name="category_ids[]" value="{{ $category->id }}" class="sr-only category-checkbox" @checked(collect(old('category_ids'))->contains($category->id))>
-                                            <div class="flex flex-col items-center justify-center gap-2 py-4 px-3">
-                                                <i class="{{ $category->icon ?? 'fa-solid fa-star' }} text-2xl text-gray-500 group-[.active]:text-pink-500 transition"></i>
-                                                <span class="text-xs font-semibold uppercase tracking-wide text-gray-600 text-center group-[.active]:text-gray-900">{{ $category->name }}</span>
-                                            </div>
-                                        </label>
+                                <label class="form-label">Author(s)</label>
+                                <div id="authors-container" class="space-y-2" data-initial="@json($initialAuthors)"></div>
+                                <button type="button" id="add-author-btn" class="mt-2 text-sm font-semibold text-pink-600 hover:text-pink-800 transition">+ Add Author</button>
+                            </div>
+
+                            <div>
+                                <label for="category" class="form-label">Category</label>
+                                <select id="category" class="form-select">
+                                    <option value="">Select a category...</option>
+                                    @foreach ($navigationItems as $item)
+                                        @php($category = $categoriesBySlug->get($item['slug']))
+                                        @continue(! $category)
+                                        <option value="{{ $category->id }}" data-slug="{{ $item['slug'] }}" @selected($selectedCategoryId === $category->id)>{{ $item['label'] }}</option>
                                     @endforeach
-                                </div>
+                                </select>
                             </div>
 
                             <div>
-                                <label class="form-label" for="description">Description</label>
-                                <x-editorjs
-                                    name="description"
-                                    id="description"
-                                    :value="old('description')"
-                                    :plain-text="\App\Support\EditorJs::toPlainText(old('description'))"
-                                    placeholder="Provide information and installation instructions..."
-                                    required
-                                />
-                                <p class="text-xs text-gray-500 mt-1">Include features, issues, installation steps and credits. Minimum 20 characters.</p>
+                                <label for="tags" class="form-label">Tags</label>
+                                <input type="text" id="tags" name="tags" class="form-input" value="{{ $initialTags }}" placeholder="e.g. car, addon, tuning, classic">
+                            </div>
+
+                            <div>
+                                <label for="description_plain" class="form-label">Description</label>
+                                <textarea id="description_plain" name="description_plain" rows="10" class="form-textarea resize-none overflow-hidden" placeholder="Provide information and installation instructions...">{{ $plainDescription }}</textarea>
+                                <p class="text-xs text-gray-500 mt-1">Allowed HTML tags: &lt;b&gt;, &lt;i&gt;, &lt;u&gt;, &lt;ul&gt;, &lt;li&gt;, &lt;ol&gt;, &lt;br&gt;</p>
                             </div>
                         </div>
 
@@ -67,152 +218,162 @@
                             <div>
                                 <label class="form-label">Add screenshots</label>
                                 <div class="flex items-center justify-center w-full">
-                                    <label id="screenshot-dropzone" class="flex flex-col items-center justify-center w-full h-36 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition">
-                                        <div class="flex flex-col items-center justify-center pt-5 pb-6 text-center px-3">
-                                            <i class="fa-solid fa-cloud-arrow-up text-4xl text-gray-400"></i>
-                                            <p class="mt-2 text-sm text-gray-600"><span class="font-semibold">Click to upload</span> or drag and drop</p>
-                                            <p class="text-xs text-gray-500">JPG, PNG, WebP (max 10 MB each)</p>
+                                    <label id="dropzone-label" for="screenshot-upload" class="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                                        <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                                            <i class="fas fa-cloud-upload-alt text-4xl text-gray-400"></i>
+                                            <p class="mb-2 text-sm text-gray-500"><span class="font-semibold">Click to upload</span> or drag and drop</p>
+                                            <p class="text-xs text-gray-500">JPG, PNG (MAX. 10MB)</p>
                                         </div>
-                                        <input type="file" id="screenshot-input" class="hidden" multiple accept="image/*">
+                                        <input id="screenshot-upload" type="file" class="hidden" multiple accept="image/png, image/jpeg">
                                     </label>
                                 </div>
-                                <p class="text-xs text-gray-500 mt-1">Mark one screenshot as featured to become the hero image. Drag to reorder.</p>
-                                <div id="screenshot-previews" class="mt-4 flex flex-wrap gap-4"></div>
-                                <p id="screenshot-helper" class="text-xs text-red-600 hidden">Upload at least one screenshot.</p>
+                                <p class="text-xs text-gray-500 mt-1">The first image is the default featured image. You can drag to reorder.</p>
+                                <div id="image-preview-container" class="mt-4 flex flex-wrap gap-4"></div>
                             </div>
 
                             <div>
                                 <h3 class="form-label">File Settings</h3>
-                                <div class="info-box space-y-3 text-sm">
-                                    <p class="font-semibold text-gray-800">Download source</p>
-                                    <p class="text-gray-600">You can upload the archive directly or provide a trusted external link in the next step.</p>
+                                <div class="info-box space-y-3">
+                                    <h4 class="font-semibold text-gray-800">Video Upload Permissions</h4>
+                                    @php($selectedPermission = old('video_permission', 'self_moderate'))
+                                    <div class="flex items-center">
+                                        <input id="video-deny" name="video_permission" type="radio" value="deny" class="focus:ring-pink-500 h-4 w-4 text-pink-600 border-gray-300" @checked($selectedPermission === 'deny')>
+                                        <label for="video-deny" class="ml-3 block text-sm font-medium text-gray-700">Deny</label>
+                                    </div>
+                                    <div class="flex items-center">
+                                        <input id="video-moderate" name="video_permission" type="radio" value="self_moderate" class="focus:ring-pink-500 h-4 w-4 text-pink-600 border-gray-300" @checked($selectedPermission === 'self_moderate')>
+                                        <label for="video-moderate" class="ml-3 block text-sm font-medium text-gray-700">Self Moderate</label>
+                                    </div>
+                                    <div class="flex items-center">
+                                        <input id="video-allow" name="video_permission" type="radio" value="allow" class="focus:ring-pink-500 h-4 w-4 text-pink-600 border-gray-300" @checked($selectedPermission === 'allow')>
+                                        <label for="video-allow" class="ml-3 block text-sm font-medium text-gray-700">Allow</label>
+                                    </div>
                                 </div>
                             </div>
 
-                            <div class="info-box text-xs space-y-2">
-                                <p class="font-semibold text-gray-800">Quality checklist</p>
-                                <ul class="list-disc list-inside text-gray-600 space-y-1">
-                                    <li>Use an in-game or representative hero screenshot.</li>
-                                    <li>Summarise features, bugs and credits in the description.</li>
-                                    <li>Include clear installation steps for users.</li>
+                            <div class="info-box text-sm">
+                                <p class="font-semibold mb-2 text-gray-800">Please ensure you upload an in-game image or representative art of your mod.</p>
+                                <p class="mb-2">The description must include:</p>
+                                <ul class="list-disc list-inside space-y-1 text-xs text-gray-600">
+                                    <li>Mod description</li>
+                                    <li>Bugs and features</li>
+                                    <li>Summary of installation instructions</li>
+                                    <li>Credits and permission notices</li>
                                 </ul>
+                                <p class="mt-2">Failing to provide the necessary details will result in your mod being rejected.</p>
                             </div>
 
-                            <div class="flex items-center justify-end gap-3">
-                                <button type="button" class="btn-secondary font-bold py-2 px-6 rounded-lg transition" id="cancel-step-1">Cancel</button>
+                            <div id="step-1-errors"></div>
+
+                            <div class="mt-6 flex items-center justify-end space-x-3">
+                                <a href="{{ route('mods.my') }}" class="btn-secondary font-bold py-2 px-6 rounded-lg transition text-center">Cancel</a>
                                 <button type="button" id="continue-btn" class="btn-action font-bold py-2 px-6 rounded-lg transition">Continue</button>
                             </div>
                         </div>
                     </div>
-                </section>
+                </div>
 
-                <section id="form-step-2" data-step="2" class="hidden space-y-8">
+                <div id="form-step-2" class="hidden">
+                    <h3 class="text-2xl font-bold text-gray-800 mb-4">Upload Your File</h3>
                     <div id="step-2-errors"></div>
                     <div class="space-y-6">
-                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                            <div>
+                        <div>
+                            <div id="file-upload-view" @class(['hidden' => old('download_url')])>
                                 <div class="flex justify-between items-center mb-2">
-                                    <label class="form-label mb-0">Mod file</label>
-                                    <button type="button" id="switch-to-url" class="text-sm font-semibold text-pink-600 hover:text-pink-800 transition">Or provide a download link</button>
+                                    <label class="form-label !mb-0">Mod File</label>
+                                    <button type="button" id="show-url-view-btn" class="text-sm font-semibold text-pink-600 hover:text-pink-800 transition">Or provide a download link</button>
                                 </div>
-                                <div id="mod-file-wrapper" class="block">
-                                    <label id="mod-dropzone" class="flex flex-col items-center justify-center w-full h-52 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition text-center">
-                                        <div id="mod-dropzone-content" class="px-6">
-                                            <i class="fa-solid fa-file-zipper text-4xl text-gray-400"></i>
-                                            <p class="mt-3 text-gray-600"><span class="font-semibold">Click to upload</span> or drag archive here</p>
-                                            <p class="text-xs text-gray-500">ZIP, RAR, 7Z, OIV · Max 200 MB</p>
-                                            <p id="mod-file-label" class="text-xs text-pink-600 mt-2"></p>
-                                        </div>
-                                        <input type="file" id="mod_file" name="mod_file" class="hidden" accept=".zip,.rar,.7z,.oiv">
-                                    </label>
-                                </div>
-                                <div id="mod-url-wrapper" class="hidden space-y-4">
-                                    <div>
-                                        <label class="form-label" for="download_url">Download URL</label>
-                                        <input id="download_url" name="download_url" type="url" value="{{ old('download_url') }}" class="form-input" placeholder="https://">
-                                        <p class="text-xs text-gray-500 mt-1">Provide a direct, trusted download link if you are not uploading the archive.</p>
+                                <div id="mod-file-upload-container">
+                                    <div class="flex items-center justify-center w-full">
+                                        <label id="mod-dropzone-label" for="mod-file-input" class="flex flex-col items-center justify-center w-full h-48 lg:h-64 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                                            <div id="mod-dropzone-content" class="flex flex-col items-center justify-center pt-5 pb-6 text-center">
+                                                <i class="fas fa-file-archive text-5xl text-gray-400"></i>
+                                                <p class="my-2 text-gray-500"><span class="font-semibold">Click to upload</span> or drag and drop</p>
+                                                <p class="text-xs text-gray-500">Allowed: .zip, .rar, .7z, .oiv (MAX. 400MB)</p>
+                                            </div>
+                                            <div id="mod-file-preview" class="hidden items-center justify-center text-center p-4"></div>
+                                            <input id="mod-file-input" type="file" class="hidden" accept=".zip,.rar,.7z,.oiv">
+                                        </label>
                                     </div>
-                                    <div>
-                                        <label class="form-label" for="file_size">File size</label>
-                                        <input id="file_size" name="file_size" type="number" step="0.01" min="0" value="{{ old('file_size') }}" class="form-input" placeholder="850">
-                                        <p class="text-xs text-gray-500 mt-1">Show users how large the download is. Automatically filled when uploading.</p>
-                                    </div>
-                                    <button type="button" id="switch-to-file" class="text-sm font-semibold text-pink-600 hover:text-pink-800 transition">Or upload a file instead</button>
                                 </div>
                             </div>
-                            <div class="space-y-5">
-                                <div>
-                                    <label class="form-label" for="version">Version</label>
-                                    <input id="version" name="version" type="text" value="{{ old('version', '1.0.0') }}" class="form-input" required>
+
+                            <div id="url-view" @class(['hidden' => !old('download_url')])>
+                                <div class="flex justify-between items-center mb-2">
+                                    <label class="form-label !mb-0" for="mod-url-input">Download URL</label>
+                                    <button type="button" id="show-file-view-btn" class="text-sm font-semibold text-pink-600 hover:text-pink-800 transition">Or upload a file</button>
                                 </div>
-                                <div class="info-box text-sm text-gray-600 space-y-2">
-                                    <p class="font-semibold text-gray-800">Submission tips</p>
-                                    <p>Ensure your archive mirrors the GTA 6 directory layout and includes a README or instructions.</p>
-                                    <p>External downloads should be reliable mirrors such as Google Drive, Dropbox or Mega.</p>
+                                <div class="space-y-4">
+                                    <div>
+                                        <input type="url" id="mod-url-input" name="download_url" class="form-url" value="{{ old('download_url') }}" placeholder="e.g. https://drive.google.com/file/d/...">
+                                        <p class="text-xs text-gray-500 mt-2">Provide a direct download link from a trusted source (e.g., Google Drive, Mega, Dropbox).</p>
+                                    </div>
+                                    <div>
+                                        <label for="file-size-input" class="form-label text-sm">File Size</label>
+                                        <div class="flex items-center gap-2">
+                                            <input type="number" min="0" id="file-size-input" class="form-input" name="file_size" value="{{ old('file_size') }}" placeholder="e.g. 850">
+                                            <select id="file-size-unit" class="form-select !w-auto">
+                                                <option value="MB" selected>MB</option>
+                                                <option value="GB">GB</option>
+                                            </select>
+                                        </div>
+                                        <p class="text-xs text-gray-500 mt-2">Please specify the file size to inform users about the download.</p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                    <div class="flex items-center justify-between">
-                        <button type="button" id="back-btn" class="btn-secondary font-bold py-2 px-6 rounded-lg transition">Back</button>
-                        <div class="flex items-center gap-3">
+
+                        <div>
+                            <label for="version" class="form-label">Version</label>
+                            <input type="text" id="version" name="version" class="form-input" value="{{ old('version', '1.0.0') }}" placeholder="e.g. 1.0.0">
+                        </div>
+
+                        <div class="pt-2 flex items-center justify-between">
+                            <button type="button" id="back-btn" class="btn-secondary font-bold py-2 px-6 rounded-lg transition">Back</button>
                             <button type="button" id="preview-btn" class="btn-action font-bold py-2 px-6 rounded-lg transition">Preview</button>
                         </div>
+                        <p class="text-xs text-gray-500">Please follow the <a href="{{ $rulesUrl }}" class="text-pink-600 hover:underline">upload rules</a> or your file will be removed.</p>
                     </div>
-                </section>
+                </div>
 
-                <section id="form-step-3" data-step="3" class="hidden space-y-8">
-                    <div class="space-y-2" id="preview-header">
-                        <div class="flex flex-wrap items-baseline gap-3">
-                            <h1 class="text-2xl md:text-4xl font-bold text-gray-900" id="preview-title">Your GTA 6 mod title</h1>
-                            <span class="text-xl font-semibold text-gray-400" id="preview-version">v1.0.0</span>
-                        </div>
-                        <div class="flex items-center text-sm text-gray-500 gap-2">
-                            <span>by</span>
-                            <span class="font-semibold text-pink-600" id="preview-author">{{ auth()->user()->name }}</span>
-                        </div>
-                    </div>
-
+                <div id="form-step-3" class="hidden">
+                    <div id="preview-header" class="mb-6"></div>
                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         <div class="lg:col-span-2 space-y-6">
                             <div>
                                 <div id="preview-gallery-container" class="pswp-gallery">
-                                    <div id="preview-featured" class="aspect-video bg-gray-200 rounded-lg overflow-hidden flex items-center justify-center">
-                                        <img src="{{ $previewPlaceholder }}" alt="Preview placeholder" class="w-full h-full object-cover hidden" id="preview-featured-image">
-                                        <p class="text-sm text-gray-500" id="preview-featured-empty">Upload screenshots to populate this gallery.</p>
-                                    </div>
-                                    <div id="preview-thumbnails" class="grid grid-cols-5 gap-2 mt-3"></div>
+                                    <div class="aspect-video bg-gray-200 rounded-lg overflow-hidden mb-4 shadow-inner"></div>
+                                    <div id="preview-gallery-thumbnails" class="grid grid-cols-5 gap-2"></div>
                                 </div>
-                                <div id="preview-load-more" class="mt-4"></div>
+                                <div id="preview-load-more-container" class="mt-4"></div>
                             </div>
 
                             <div class="info-box">
-                                <h3 class="text-lg font-bold text-gray-900 mb-3 border-b border-gray-200 pb-3">Description</h3>
-                                <div id="preview-description" class="prose prose-sm max-w-none text-gray-800"></div>
+                                <h3 class="text-lg font-bold text-gray-900 mb-3 border-b pb-3">Description</h3>
+                                <div id="preview-description-content" class="prose prose-sm max-w-none text-gray-800"></div>
                             </div>
                         </div>
 
-                        <div class="lg:col-span-1 space-y-6 self-start">
+                        <div class="lg:col-span-1 space-y-6 self-start lg:sticky lg:top-6">
                             <div class="info-box p-4 space-y-4">
                                 <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                                     <span class="preview-label">Author:</span>
-                                    <span class="preview-value font-semibold text-right truncate" id="preview-sidebar-author">{{ auth()->user()->name }}</span>
+                                    <span id="preview-sidebar-authors" class="preview-value font-semibold text-right truncate"></span>
 
                                     <span class="preview-label">Version:</span>
-                                    <span class="preview-value font-semibold text-right" id="preview-sidebar-version">1.0.0</span>
+                                    <span id="preview-sidebar-version" class="preview-value font-semibold text-right"></span>
 
                                     <span class="preview-label">Last Updated:</span>
-                                    <span class="preview-value text-right" id="preview-sidebar-updated">—</span>
+                                    <span id="preview-sidebar-updated" class="preview-value text-right"></span>
 
-                                    <span class="preview-label">Categories:</span>
-                                    <span class="preview-value text-right" id="preview-sidebar-categories">—</span>
+                                    <span class="preview-label">Category:</span>
+                                    <a href="#" id="preview-sidebar-category" class="preview-value text-pink-600 hover:underline text-right"></a>
                                 </div>
                                 <div class="border-t pt-4">
-                                    <span class="preview-label">Download:</span>
-                                    <div id="preview-sidebar-download" class="preview-value text-sm text-right mt-2"></div>
+                                    <span class="preview-label">Tags:</span>
+                                    <div id="preview-sidebar-tags" class="flex flex-wrap gap-2 mt-2"></div>
                                 </div>
                             </div>
-
                             <div class="info-box p-4">
                                 <div class="grid grid-cols-3 gap-2 text-sm text-center">
                                     <div>
@@ -229,114 +390,140 @@
                                     </div>
                                 </div>
                             </div>
+                            <div class="info-box p-4">
+                                <p class="preview-label">Mod Source:</p>
+                                <div id="preview-sidebar-source-info" class="mt-1"></div>
+                            </div>
 
                             <div class="space-y-3">
                                 <button type="submit" class="w-full btn-action font-bold py-3 px-6 rounded-lg transition text-lg flex items-center justify-center gap-2">
-                                    <i class="fa-solid fa-check-circle"></i>
-                                    Submit file
+                                    <i class="fas fa-check-circle"></i> Submit File
                                 </button>
-                                <button type="button" id="back-to-step-2" class="w-full btn-secondary font-bold py-2 px-6 rounded-lg transition">Back to edit</button>
+                                <button type="button" id="back-to-step-2-btn" class="w-full btn-secondary font-bold py-2 px-6 rounded-lg transition">Back to Edit</button>
                             </div>
                         </div>
                     </div>
-                </section>
+                </div>
             </form>
         </div>
 
         <div id="upload-rules" class="card">
             <div class="p-4 bg-gray-50 border-b border-gray-200">
-                <h3 class="text-lg font-bold text-gray-900">Upload rules</h3>
+                <h3 class="text-lg font-bold text-gray-900">Upload Rules</h3>
             </div>
-            <div class="p-6 text-sm text-gray-600 space-y-3">
-                <p class="font-semibold">Do not upload any of the following items – breaking these rules will cause your file to be deleted without notice:</p>
+            <div class="p-6 text-sm text-gray-600 space-y-2">
+                <p class="font-semibold">DO NOT upload any of the following items - breaking these rules will cause your file to be deleted without notice:</p>
                 <ul class="list-disc list-inside space-y-2">
-                    <li>Files other than .zip, .rar, .7z or .oiv archives.</li>
-                    <li>Archives without an actual mod or that bundle content from other authors without permission.</li>
-                    <li>Original GTA game files or any files usable for cheating online.</li>
-                    <li>Files containing malware, cracks or copyrighted media.</li>
-                    <li>Content that is pornographic, hateful or politically inflammatory.</li>
-                    <li>Uploads missing clear installation instructions (tools excluded).</li>
+                    <li>Any files besides .zip, .rar, .7z and .oiv archives.</li>
+                    <li>Archives that do not contain a mod, or are part of other mods or mod packs.</li>
+                    <li>Any archive containing only original game files.</li>
+                    <li>Any file that can be used for cheating online.</li>
+                    <li>Any file containing or giving access to pirated or otherwise copyrighted content.</li>
+                    <li>Files containing malware or any .EXE file with a positive anti-virus result.</li>
+                    <li>Any file containing nude or semi-nude pornographic images.</li>
+                    <li>Any file containing a political or ideology theme that may cause debates.</li>
+                    <li>Files that do not contain simple installation instructions, with an exception for tools.</li>
                 </ul>
-                <p>Review the full <a href="#" class="text-pink-600 hover:underline font-semibold">rules and regulations</a> before submitting.</p>
+                <p>For a full list of our rules and regulations please see: <a href="{{ $rulesUrl }}" class="text-pink-600 hover:underline font-semibold">Rules and Regulations</a>.</p>
             </div>
         </div>
     </section>
 @endsection
-
-@push('styles')
-    <link rel="stylesheet" href="https://unpkg.com/photoswipe@5/dist/photoswipe.css">
-@endpush
 
 @push('scripts')
     <script type="module">
         import PhotoSwipeLightbox from 'https://unpkg.com/photoswipe@5/dist/photoswipe-lightbox.esm.js';
 
         document.addEventListener('DOMContentLoaded', () => {
-            const form = document.getElementById('mod-upload-form');
-            const step1 = document.getElementById('form-step-1');
-            const step2 = document.getElementById('form-step-2');
-            const step3 = document.getElementById('form-step-3');
+            const categorySelect = document.getElementById('category');
+            const selectedCategoryInput = document.getElementById('selected-category');
+            const headerNavLinks = Array.from(document.querySelectorAll('.header-nav-bar nav a'));
+
+            headerNavLinks.forEach((link) => {
+                if (link.dataset.slug) {
+                    return;
+                }
+
+                try {
+                    const parsed = new URL(link.href, window.location.origin);
+                    const slugParam = parsed.searchParams.get('category');
+                    if (slugParam) {
+                        link.dataset.slug = slugParam;
+                        return;
+                    }
+                } catch (error) {
+                    // ignore parsing failures for relative links
+                }
+
+                link.dataset.slug = link.textContent.trim().toLowerCase();
+            });
+
+            const authorsContainer = document.getElementById('authors-container');
+            const addAuthorBtn = document.getElementById('add-author-btn');
+            const initialAuthors = JSON.parse(authorsContainer.dataset.initial || '[]');
+
+            const descriptionPlain = document.getElementById('description_plain');
+            const descriptionInput = document.getElementById('description');
+
+            const screenshotInput = document.getElementById('screenshot-upload');
+            const dropzoneLabel = document.getElementById('dropzone-label');
+            const imagePreviewContainer = document.getElementById('image-preview-container');
+            const heroTokenInput = document.getElementById('hero_image_token');
+
+            const galleryTokenContainer = document.getElementById('gallery-token-container');
+
+            const continueBtn = document.getElementById('continue-btn');
+            const backBtn = document.getElementById('back-btn');
+            const previewBtn = document.getElementById('preview-btn');
+            const backToStep2Btn = document.getElementById('back-to-step-2-btn');
+
+            const formStep1 = document.getElementById('form-step-1');
+            const formStep2 = document.getElementById('form-step-2');
+            const formStep3 = document.getElementById('form-step-3');
+            const step1ErrorsContainer = document.getElementById('step-1-errors');
+            const step2ErrorsContainer = document.getElementById('step-2-errors');
             const previewBanner = document.getElementById('preview-mode-banner');
             const formCard = document.getElementById('form-card');
             const mainTitle = document.getElementById('main-title');
             const uploadRules = document.getElementById('upload-rules');
 
-            const continueBtn = document.getElementById('continue-btn');
-            const backBtn = document.getElementById('back-btn');
-            const previewBtn = document.getElementById('preview-btn');
-            const backToStep2Btn = document.getElementById('back-to-step-2');
-            const cancelStep1Btn = document.getElementById('cancel-step-1');
-
-            const step2Errors = document.getElementById('step-2-errors');
-            const screenshotHelper = document.getElementById('screenshot-helper');
-
-            const categoryTiles = document.querySelectorAll('.category-tile');
-            const titleInput = document.getElementById('title');
-            const versionInput = document.getElementById('version');
-            const downloadInput = document.getElementById('download_url');
-            const fileSizeInput = document.getElementById('file_size');
-            const descriptionInput = document.getElementById('description');
-            let descriptionPlainText = descriptionInput?.dataset.initialPlain || '';
-
-            const screenshotDropzone = document.getElementById('screenshot-dropzone');
-            const screenshotInput = document.getElementById('screenshot-input');
-            const screenshotPreviews = document.getElementById('screenshot-previews');
-
-            const heroTokenInput = document.getElementById('hero_image_token');
-            const modFileTokenInput = document.getElementById('mod_file_token');
-            const galleryTokenContainer = document.getElementById('gallery-token-container');
-
-            const modFileInput = document.getElementById('mod_file');
-            const modDropzone = document.getElementById('mod-dropzone');
+            const fileUploadView = document.getElementById('file-upload-view');
+            const urlView = document.getElementById('url-view');
+            const showUrlViewBtn = document.getElementById('show-url-view-btn');
+            const showFileViewBtn = document.getElementById('show-file-view-btn');
+            const modFileInput = document.getElementById('mod-file-input');
+            const modDropzoneLabel = document.getElementById('mod-dropzone-label');
             const modDropzoneContent = document.getElementById('mod-dropzone-content');
-            const modFileLabel = document.getElementById('mod-file-label');
-            const modFileWrapper = document.getElementById('mod-file-wrapper');
-            const modUrlWrapper = document.getElementById('mod-url-wrapper');
-            const switchToUrlBtn = document.getElementById('switch-to-url');
-            const switchToFileBtn = document.getElementById('switch-to-file');
+            const modFilePreview = document.getElementById('mod-file-preview');
+            const modFileTokenInput = document.getElementById('mod_file_token');
+            const modUrlInput = document.getElementById('mod-url-input');
+            const fileSizeInput = document.getElementById('file-size-input');
+            const fileSizeUnit = document.getElementById('file-size-unit');
+            const versionInput = document.getElementById('version');
+            const fileNameInput = document.getElementById('file-name');
+            const tagsInput = document.getElementById('tags');
 
-            const previewTitle = document.getElementById('preview-title');
-            const previewVersion = document.getElementById('preview-version');
-            const previewAuthor = document.getElementById('preview-author');
-            const previewDescription = document.getElementById('preview-description');
-            const previewSidebarAuthor = document.getElementById('preview-sidebar-author');
+            const previewHeader = document.getElementById('preview-header');
+            const previewDescriptionContent = document.getElementById('preview-description-content');
+            const previewSidebarAuthors = document.getElementById('preview-sidebar-authors');
             const previewSidebarVersion = document.getElementById('preview-sidebar-version');
             const previewSidebarUpdated = document.getElementById('preview-sidebar-updated');
-            const previewSidebarCategories = document.getElementById('preview-sidebar-categories');
-            const previewSidebarDownload = document.getElementById('preview-sidebar-download');
-            const previewFeatured = document.getElementById('preview-featured');
-            const previewFeaturedImage = document.getElementById('preview-featured-image');
-            const previewFeaturedEmpty = document.getElementById('preview-featured-empty');
-            const previewThumbnails = document.getElementById('preview-thumbnails');
-            const previewLoadMore = document.getElementById('preview-load-more');
+            const previewSidebarCategory = document.getElementById('preview-sidebar-category');
+            const previewSidebarTags = document.getElementById('preview-sidebar-tags');
+            const previewSidebarSourceInfo = document.getElementById('preview-sidebar-source-info');
+            const previewGalleryContainer = document.getElementById('preview-gallery-container');
+            const previewGalleryFeatured = previewGalleryContainer.querySelector('.aspect-video');
+            const previewGalleryThumbnails = document.getElementById('preview-gallery-thumbnails');
+            const previewLoadMoreContainer = document.getElementById('preview-load-more-container');
+
+            let pswpLightbox = null;
 
             const chunkEndpoint = @json(route('mods.uploads.chunk'));
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
             const chunkSize = 512 * 1024;
             const MAX_GALLERY_ITEMS = 12;
 
-            let galleryUploads = [];
-            let pswpInstance = null;
+            let galleryItems = [];
             let activeUploads = 0;
 
             const beginUpload = () => {
@@ -347,61 +534,154 @@
                 activeUploads = Math.max(0, activeUploads - 1);
             };
 
-            form.addEventListener('submit', (event) => {
-                if (activeUploads > 0) {
-                    event.preventDefault();
-                    alert('Please wait for all uploads to finish before submitting.');
+            const parseFileSize = () => {
+                const rawValue = parseFloat(fileSizeInput.value);
+                if (Number.isNaN(rawValue) || rawValue <= 0) {
+                    return null;
                 }
+
+                const unit = fileSizeUnit.value;
+                const sizeInMb = unit === 'GB' ? rawValue * 1024 : rawValue;
+
+                return {
+                    raw: rawValue,
+                    unit,
+                    mb: sizeInMb,
+                };
+            };
+
+            const ensureFileSizeConverted = () => {
+                const parsed = parseFileSize();
+                if (!parsed) {
+                    return;
+                }
+
+                fileSizeInput.value = parsed.mb.toFixed(2);
+                fileSizeUnit.value = 'MB';
+            };
+
+            const ensureDescriptionSync = () => {
+                const value = descriptionPlain.value || '';
+                const trimmed = value.trim();
+
+                if (!trimmed) {
+                    descriptionInput.value = '';
+                    return;
+                }
+
+                const paragraphs = trimmed
+                    .replace(/\r/g, '')
+                    .split(/\n{2,}/)
+                    .map((paragraph) => {
+                        const sanitized = paragraph
+                            .replace(/<(?!\/?(b|i|u|ul|ol|li|br)\b)[^>]*>/gi, '')
+                            .replace(/\n/g, '<br>')
+                            .trim();
+
+                        if (!sanitized) {
+                            return null;
+                        }
+
+                        return {
+                            type: 'paragraph',
+                            data: {
+                                text: sanitized,
+                            },
+                        };
+                    })
+                    .filter(Boolean);
+
+                const payload = {
+                    time: Date.now(),
+                    blocks: paragraphs,
+                    version: '2.28.2',
+                };
+
+                descriptionInput.value = JSON.stringify(payload);
+            };
+
+            descriptionPlain.addEventListener('input', () => {
+                descriptionPlain.style.height = 'auto';
+                descriptionPlain.style.height = `${descriptionPlain.scrollHeight}px`;
+                ensureDescriptionSync();
+            });
+            descriptionPlain.dispatchEvent(new Event('input'));
+
+            const createAuthorInput = (value = '') => {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'flex items-center space-x-2';
+
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.name = 'authors[]';
+                input.className = 'form-input';
+                input.placeholder = 'Enter author name';
+                input.value = value;
+
+                wrapper.appendChild(input);
+
+                if (authorsContainer.children.length > 0 || value) {
+                    const removeBtn = document.createElement('button');
+                    removeBtn.type = 'button';
+                    removeBtn.className = 'text-gray-400 hover:text-red-500 transition-colors';
+                    removeBtn.innerHTML = '<i class="fas fa-times-circle"></i>';
+                    removeBtn.addEventListener('click', () => {
+                        wrapper.remove();
+                    });
+                    wrapper.appendChild(removeBtn);
+                }
+
+                authorsContainer.appendChild(wrapper);
+            };
+
+            if (!initialAuthors.length) {
+                createAuthorInput('');
+            } else {
+                initialAuthors.forEach((name, index) => {
+                    createAuthorInput(name);
+                    if (index === 0 && !name) {
+                        authorsContainer.firstElementChild?.querySelector('input')?.focus();
+                    }
+                });
+            }
+
+            addAuthorBtn.addEventListener('click', () => createAuthorInput(''));
+
+            const updateCategorySelection = (categoryId) => {
+                selectedCategoryInput.value = categoryId || '';
+
+                headerNavLinks.forEach((link) => {
+                    const slug = link.dataset.category || link.dataset.slug;
+                    const isActive = slug && categorySelect.selectedOptions[0]?.dataset.slug === slug;
+                    link.classList.toggle('category-active', isActive);
+                    link.classList.toggle('category-dimmed', Boolean(categoryId) && !isActive);
+                });
+            };
+
+            categorySelect.addEventListener('change', () => {
+                const selectedOption = categorySelect.selectedOptions[0];
+                const value = selectedOption ? selectedOption.value : '';
+                updateCategorySelection(value);
             });
 
-            const uploadFileInChunks = async (file, category, onProgress = () => {}) => {
-                const totalChunks = Math.max(Math.ceil(file.size / chunkSize), 1);
-                const uploadToken = crypto.randomUUID();
-                let result = null;
-
-                for (let index = 0; index < totalChunks; index++) {
-                    const start = index * chunkSize;
-                    const end = Math.min(start + chunkSize, file.size);
-                    const chunk = file.slice(start, end);
-                    const formData = new FormData();
-                    formData.append('chunk', chunk, file.name);
-                    formData.append('upload_token', uploadToken);
-                    formData.append('chunk_index', index);
-                    formData.append('total_chunks', totalChunks);
-                    formData.append('original_name', file.name);
-                    formData.append('mime_type', file.type || 'application/octet-stream');
-                    formData.append('upload_category', category);
-
-                    const response = await fetch(chunkEndpoint, {
-                        method: 'POST',
-                        headers: {
-                            'X-CSRF-TOKEN': csrfToken,
-                            'X-Requested-With': 'XMLHttpRequest',
-                            'Accept': 'application/json',
-                        },
-                        credentials: 'same-origin',
-                        body: formData,
-                    });
-
-                    if (!response.ok) {
-                        const error = await response.text();
-                        throw new Error(error || 'Upload failed.');
-                    }
-
-                    const payload = await response.json();
-                    onProgress({ index: index + 1, total: totalChunks, payload });
-
-                    if (payload.status === 'completed') {
-                        result = payload;
-                    }
+            headerNavLinks.forEach((link) => {
+                const slug = link.dataset.category || link.dataset.slug;
+                if (!slug) {
+                    return;
                 }
 
-                if (!result) {
-                    throw new Error('Upload did not complete.');
-                }
+                link.addEventListener('click', (event) => {
+                    event.preventDefault();
 
-                return result;
-            };
+                    const option = Array.from(categorySelect.options).find((opt) => opt.dataset.slug === slug);
+                    if (option) {
+                        categorySelect.value = option.value;
+                        updateCategorySelection(option.value);
+                    }
+                });
+            });
+
+            updateCategorySelection(categorySelect.value);
 
             const addGalleryToken = (token) => {
                 const input = document.createElement('input');
@@ -419,355 +699,404 @@
                 }
             };
 
-            const syncCategoryTiles = () => {
-                const selectedTiles = [];
-                categoryTiles.forEach((tile) => {
-                    const checkbox = tile.querySelector('.category-checkbox');
-                    if (checkbox.checked) {
-                        tile.classList.add('category-active');
-                        tile.classList.remove('opacity-50');
-                        tile.classList.add('border-pink-400', 'shadow-sm', 'bg-white');
-                        tile.classList.add('active');
-                        selectedTiles.push(tile.dataset.categoryId);
-                    } else {
-                        tile.classList.remove('category-active', 'border-pink-400', 'shadow-sm', 'bg-white', 'active');
-                        tile.classList.add('opacity-50');
+            const syncGalleryTokenOrder = () => {
+                const inputs = new Map(
+                    Array.from(galleryTokenContainer.querySelectorAll('input[name="gallery_image_tokens[]"]')).map((input) => [
+                        input.dataset.token,
+                        input,
+                    ]),
+                );
+
+                galleryItems.forEach((item) => {
+                    if (!item.galleryToken) {
+                        return;
+                    }
+
+                    const existing = inputs.get(item.galleryToken);
+                    if (existing) {
+                        galleryTokenContainer.appendChild(existing);
                     }
                 });
-                return selectedTiles;
             };
 
-            categoryTiles.forEach((tile) => {
-                tile.addEventListener('click', () => {
-                    const checkbox = tile.querySelector('.category-checkbox');
-                    checkbox.checked = !checkbox.checked;
-                    syncCategoryTiles();
-                });
-            });
+            const uploadFileInChunks = async (file, category, onProgress = () => {}) => {
+                const totalChunks = Math.max(Math.ceil(file.size / chunkSize), 1);
+                const uploadToken = crypto.randomUUID();
+                let result = null;
 
-            syncCategoryTiles();
+                for (let index = 0; index < totalChunks; index += 1) {
+                    const start = index * chunkSize;
+                    const end = Math.min(start + chunkSize, file.size);
+                    const chunk = file.slice(start, end);
+                    const formData = new FormData();
+                    formData.append('chunk', chunk, file.name);
+                    formData.append('upload_token', uploadToken);
+                    formData.append('chunk_index', index);
+                    formData.append('total_chunks', totalChunks);
+                    formData.append('original_name', file.name);
+                    formData.append('mime_type', file.type || 'application/octet-stream');
+                    formData.append('upload_category', category);
 
-            const renderGallery = () => {
-                screenshotPreviews.innerHTML = '';
+                    const response = await fetch(chunkEndpoint, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': csrfToken,
+                            'X-Requested-With': 'XMLHttpRequest',
+                            Accept: 'application/json',
+                        },
+                        credentials: 'same-origin',
+                        body: formData,
+                    });
 
-                if (!galleryUploads.length) {
-                    screenshotHelper.classList.remove('hidden');
-                    previewFeaturedImage.classList.add('hidden');
-                    previewFeaturedEmpty.classList.remove('hidden');
-                    previewThumbnails.innerHTML = '';
-                    previewLoadMore.innerHTML = '';
-                    return;
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        throw new Error(errorText || 'Upload failed');
+                    }
+
+                    const payload = await response.json();
+                    onProgress({ index: index + 1, total: totalChunks, payload });
+
+                    if (payload.status === 'completed') {
+                        result = payload;
+                    }
                 }
 
-                screenshotHelper.classList.add('hidden');
+                if (!result) {
+                    throw new Error('Upload did not complete.');
+                }
 
-                galleryUploads.forEach((item, index) => {
+                return result;
+            };
+
+            const renderScreenshotPreviews = () => {
+                imagePreviewContainer.innerHTML = '';
+
+                galleryItems.forEach((item, index) => {
                     const wrapper = document.createElement('div');
-                    wrapper.className = 'relative group aspect-video w-[calc(50%-0.5rem)] min-w-[140px] max-w-[240px] flex-1 border rounded-lg overflow-hidden bg-gray-100 shadow-sm';
+                    wrapper.className = 'relative group aspect-video rounded-lg cursor-grab w-[calc(50%-0.5rem)]';
                     wrapper.draggable = true;
                     wrapper.dataset.index = index;
 
-                    if (item.preview) {
-                        const img = document.createElement('img');
-                        img.src = item.preview;
-                        img.alt = 'Screenshot preview';
-                        img.className = 'w-full h-full object-cover pointer-events-none';
-                        wrapper.appendChild(img);
-                    } else {
-                        wrapper.innerHTML = '<div class="flex items-center justify-center w-full h-full text-xs text-gray-500">Processing…</div>';
-                    }
+                    const img = document.createElement('img');
+                    img.src = item.previewUrl;
+                    img.alt = item.file.name;
+                    img.className = 'w-full h-full object-cover rounded-md pointer-events-none';
+                    wrapper.appendChild(img);
 
                     const numberBadge = document.createElement('span');
-                    numberBadge.className = 'absolute top-2 left-2 w-7 h-7 flex items-center justify-center bg-black/60 rounded-full text-white text-xs font-bold';
+                    numberBadge.className = 'absolute top-2 left-2 w-7 h-7 flex items-center justify-center bg-black/60 rounded-full text-white text-xs font-bold z-10 pointer-events-none';
                     numberBadge.textContent = index + 1;
                     wrapper.appendChild(numberBadge);
 
                     const deleteBtn = document.createElement('button');
                     deleteBtn.type = 'button';
-                    deleteBtn.className = 'absolute top-2 right-2 w-7 h-7 flex items-center justify-center bg-black/60 rounded-full text-white hover:bg-red-500 transition';
-                    deleteBtn.innerHTML = '<i class="fa-solid fa-xmark text-sm"></i>';
+                    deleteBtn.className = 'absolute top-2 right-2 w-7 h-7 flex items-center justify-center bg-black/60 rounded-full text-white hover:bg-red-500 transition-colors z-10';
+                    deleteBtn.innerHTML = '<i class="fas fa-times text-sm"></i>';
                     deleteBtn.addEventListener('click', (event) => {
-                        event.preventDefault();
-                        const [removed] = galleryUploads.splice(index, 1);
-                        if (removed?.token) {
-                            removeGalleryToken(removed.token);
+                        event.stopPropagation();
+                        const [removed] = galleryItems.splice(index, 1);
+                        if (removed?.galleryToken) {
+                            removeGalleryToken(removed.galleryToken);
                         }
-                        if (removed?.heroToken && heroTokenInput.value === removed.heroToken) {
+                        if (heroTokenInput.value === removed?.heroToken) {
                             heroTokenInput.value = '';
                         }
-                        renderGallery();
+                        URL.revokeObjectURL(removed.previewUrl);
+                        if (removed?.isFeatured && galleryItems.length) {
+                            galleryItems.forEach((entry, entryIndex) => {
+                                entry.isFeatured = entryIndex === 0;
+                            });
+
+                            const nextFeatured = galleryItems[0];
+                            if (nextFeatured.heroToken) {
+                                heroTokenInput.value = nextFeatured.heroToken;
+                            } else {
+                                setFeaturedHero(nextFeatured).catch((error) => {
+                                    console.error(error);
+                                    alert('Unable to set featured image.');
+                                    renderScreenshotPreviews();
+                                });
+                            }
+                        }
+
+                        renderScreenshotPreviews();
                     });
                     wrapper.appendChild(deleteBtn);
 
-                    const featuredLabel = document.createElement('button');
-                    featuredLabel.type = 'button';
-                    featuredLabel.className = 'absolute bottom-2 right-2 flex items-center gap-2 bg-black/60 text-white text-xs rounded-full px-3 py-1 transition hover:bg-black/80';
-                    featuredLabel.innerHTML = `<span class="inline-flex h-3 w-3 rounded-full border border-white ${item.isHero ? 'bg-pink-500 border-pink-500' : ''}"></span> Featured`;
-                    featuredLabel.addEventListener('click', (event) => {
-                        event.preventDefault();
-                        setHeroFromGallery(index);
+                    const radioLabel = document.createElement('label');
+                    radioLabel.className = 'absolute bottom-2 right-2 flex items-center p-1.5 bg-black/60 rounded-full cursor-pointer text-white text-xs backdrop-blur-sm transition-all';
+
+                    const radioInput = document.createElement('input');
+                    radioInput.type = 'radio';
+                    radioInput.name = 'featured_image';
+                    radioInput.className = 'hidden peer';
+                    radioInput.checked = item.isFeatured;
+                    radioInput.addEventListener('change', () => {
+                        galleryItems.forEach((entry) => {
+                            entry.isFeatured = entry === item;
+                        });
+                        setFeaturedHero(item).catch((error) => {
+                            console.error(error);
+                            alert('Unable to set featured image.');
+                        });
+                        renderScreenshotPreviews();
                     });
-                    wrapper.appendChild(featuredLabel);
 
-                    if (item.isHero) {
-                        wrapper.classList.add('ring-2', 'ring-pink-500');
+                    const customRadio = document.createElement('span');
+                    customRadio.className = 'w-4 h-4 rounded-full border-2 border-white flex-shrink-0 mr-1.5 peer-checked:bg-pink-500 peer-checked:border-pink-500 transition-colors duration-200';
+
+                    radioLabel.appendChild(radioInput);
+                    radioLabel.appendChild(customRadio);
+                    radioLabel.appendChild(document.createTextNode('Featured'));
+                    wrapper.appendChild(radioLabel);
+
+                    if (item.isFeatured) {
+                        wrapper.classList.add('ring-2', 'ring-pink-500', 'ring-offset-2', 'ring-offset-white');
                     }
 
-                    screenshotPreviews.appendChild(wrapper);
+                    imagePreviewContainer.appendChild(wrapper);
                 });
 
-                refreshPreviewGallery();
+                syncGalleryTokenOrder();
             };
 
-            const handleDragSorting = () => {
-                let draggedIndex = null;
+            let draggedIndex = null;
 
-                screenshotPreviews.addEventListener('dragstart', (event) => {
-                    const target = event.target.closest('[draggable="true"]');
-                    if (!target) return;
-                    draggedIndex = Number(target.dataset.index);
-                    target.classList.add('opacity-70');
-                });
+            imagePreviewContainer.addEventListener('dragstart', (event) => {
+                const target = event.target.closest('[draggable="true"]');
+                if (!target) {
+                    return;
+                }
+                draggedIndex = Number(target.dataset.index);
+                setTimeout(() => target.classList.add('dragging'), 0);
+            });
 
-                screenshotPreviews.addEventListener('dragend', (event) => {
-                    const target = event.target.closest('[draggable="true"]');
-                    if (!target) return;
-                    target.classList.remove('opacity-70');
-                });
+            imagePreviewContainer.addEventListener('dragend', (event) => {
+                const target = event.target.closest('[draggable="true"]');
+                if (target) {
+                    target.classList.remove('dragging');
+                }
+                document.querySelectorAll('.drag-over').forEach((element) => element.classList.remove('drag-over'));
+                draggedIndex = null;
+            });
 
-                screenshotPreviews.addEventListener('dragover', (event) => {
-                    event.preventDefault();
-                    const target = event.target.closest('[draggable="true"]');
-                    if (!target || draggedIndex === null) return;
-                    const targetIndex = Number(target.dataset.index);
-                    if (targetIndex === draggedIndex) return;
-                    const [removed] = galleryUploads.splice(draggedIndex, 1);
-                    galleryUploads.splice(targetIndex, 0, removed);
-                    draggedIndex = targetIndex;
-                    renderGallery();
-                });
+            imagePreviewContainer.addEventListener('dragover', (event) => {
+                event.preventDefault();
+                const target = event.target.closest('[draggable="true"]');
+                document.querySelectorAll('.drag-over').forEach((element) => element.classList.remove('drag-over'));
+                if (target) {
+                    target.classList.add('drag-over');
+                }
+            });
+
+            imagePreviewContainer.addEventListener('drop', (event) => {
+                event.preventDefault();
+                document.querySelectorAll('.drag-over').forEach((element) => element.classList.remove('drag-over'));
+                const target = event.target.closest('[draggable="true"]');
+                if (!target || draggedIndex === null) {
+                    return;
+                }
+
+                const targetIndex = Number(target.dataset.index);
+                const [moved] = galleryItems.splice(draggedIndex, 1);
+                galleryItems.splice(targetIndex, 0, moved);
+                renderScreenshotPreviews();
+            });
+
+            const setFeaturedHero = async (item) => {
+                if (item.heroToken) {
+                    heroTokenInput.value = item.heroToken;
+                    return;
+                }
+
+                beginUpload();
+                try {
+                    const result = await uploadFileInChunks(item.file, 'hero_image');
+                    item.heroToken = result.upload_token;
+                    heroTokenInput.value = result.upload_token;
+                } catch (error) {
+                    heroTokenInput.value = '';
+                    item.isFeatured = false;
+                    throw error;
+                } finally {
+                    finishUpload();
+                }
             };
 
-            handleDragSorting();
+            const handleScreenshotFiles = (files) => {
+                const imageFiles = Array.from(files).filter((file) => file.type.startsWith('image/'));
+                if (!imageFiles.length) {
+                    return;
+                }
 
-            const addScreenshotFiles = (files) => {
-                const images = Array.from(files).filter((file) => file.type.startsWith('image/'));
-                if (!images.length) return;
+                const slotsAvailable = MAX_GALLERY_ITEMS - galleryItems.length;
+                const filesToAdd = imageFiles.slice(0, Math.max(slotsAvailable, 0));
 
-                for (const file of images) {
-                    if (galleryUploads.length >= MAX_GALLERY_ITEMS) {
-                        alert('You can upload up to 12 screenshots.');
-                        break;
-                    }
-
-                    const item = { file, preview: null, token: null, heroToken: null, uploading: true, isHero: false };
-                    galleryUploads.push(item);
-                    beginUpload();
-
-                    const reader = new FileReader();
-                    reader.onload = (event) => {
-                        item.preview = event.target?.result;
-                        renderGallery();
+                filesToAdd.forEach((file) => {
+                    const previewUrl = URL.createObjectURL(file);
+                    const item = {
+                        file,
+                        previewUrl,
+                        galleryToken: null,
+                        heroToken: null,
+                        isFeatured: galleryItems.length === 0,
                     };
-                    reader.readAsDataURL(file);
+                    galleryItems.push(item);
+                    beginUpload();
 
                     uploadFileInChunks(file, 'gallery_image')
                         .then((result) => {
-                            item.token = result.upload_token;
-                            item.uploading = false;
+                            item.galleryToken = result.upload_token;
                             addGalleryToken(result.upload_token);
-                            renderGallery();
-                            if (!heroTokenInput.value) {
-                                setHeroFromGallery(galleryUploads.indexOf(item));
+                            if (item.isFeatured && !heroTokenInput.value) {
+                                return setFeaturedHero(item);
                             }
+                            return null;
                         })
                         .catch((error) => {
                             console.error(error);
-                            galleryUploads = galleryUploads.filter((entry) => entry !== item);
-                            renderGallery();
                             alert('Screenshot upload failed. Please try again.');
+                            const index = galleryItems.indexOf(item);
+                            if (index !== -1) {
+                                galleryItems.splice(index, 1);
+                            }
+                            if (item.galleryToken) {
+                                removeGalleryToken(item.galleryToken);
+                            }
+                            URL.revokeObjectURL(previewUrl);
                         })
-                        .finally(() => finishUpload());
-                }
+                        .finally(() => {
+                            finishUpload();
+                            renderScreenshotPreviews();
+                        });
+                });
+
+                renderScreenshotPreviews();
             };
 
             screenshotInput.addEventListener('change', (event) => {
-                addScreenshotFiles(event.target.files);
+                handleScreenshotFiles(event.target.files);
                 screenshotInput.value = '';
             });
 
-            const handleDrop = (zone, callback) => {
-                zone.addEventListener('dragover', (event) => {
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach((evt) => {
+                dropzoneLabel.addEventListener(evt, (event) => {
                     event.preventDefault();
-                    zone.classList.add('border-pink-400', 'bg-pink-50');
+                    event.stopPropagation();
                 });
+            });
 
-                zone.addEventListener('dragleave', () => {
-                    zone.classList.remove('border-pink-400', 'bg-pink-50');
-                });
+            ['dragenter', 'dragover'].forEach((evt) => {
+                dropzoneLabel.addEventListener(evt, () => dropzoneLabel.classList.add('bg-pink-50', 'border-pink-400'));
+            });
 
-                zone.addEventListener('drop', (event) => {
-                    event.preventDefault();
-                    zone.classList.remove('border-pink-400', 'bg-pink-50');
-                    callback(event.dataTransfer.files);
-                });
+            ['dragleave', 'drop'].forEach((evt) => {
+                dropzoneLabel.addEventListener(evt, () => dropzoneLabel.classList.remove('bg-pink-50', 'border-pink-400'));
+            });
+
+            dropzoneLabel.addEventListener('drop', (event) => {
+                handleScreenshotFiles(event.dataTransfer.files);
+            });
+
+            const showStep = (stepNumber) => {
+                formStep1.classList.toggle('hidden', stepNumber !== 1);
+                formStep2.classList.toggle('hidden', stepNumber !== 2);
+                formStep3.classList.toggle('hidden', stepNumber !== 3);
             };
 
-            handleDrop(screenshotDropzone, addScreenshotFiles);
+            continueBtn.addEventListener('click', () => {
+                step1ErrorsContainer.innerHTML = '';
+                const errors = [];
 
-            const setHeroFromGallery = (index) => {
-                const item = galleryUploads[index];
-                if (!item) return;
-
-                galleryUploads.forEach((entry) => (entry.isHero = false));
-                item.isHero = true;
-                renderGallery();
-
-                const applyHeroToken = (token) => {
-                    heroTokenInput.value = token;
-                    previewFeaturedImage.src = item.preview || previewFeaturedImage.src;
-                    previewFeaturedImage.classList.remove('hidden');
-                    previewFeaturedEmpty.classList.add('hidden');
-                    refreshPreviewGallery();
-                };
-
-                if (item.heroToken) {
-                    applyHeroToken(item.heroToken);
-                    return;
+                if (!fileNameInput.value.trim()) {
+                    errors.push('The "File Name" field is required.');
                 }
 
-                if (!item.file) {
-                    alert('Please re-upload this screenshot to set it as featured.');
-                    return;
+                if (!selectedCategoryInput.value) {
+                    errors.push('Please select a category.');
                 }
 
-                beginUpload();
-                uploadFileInChunks(item.file, 'hero_image')
-                    .then((result) => {
-                        item.heroToken = result.upload_token;
-                        applyHeroToken(result.upload_token);
-                    })
-                    .catch((error) => {
-                        console.error(error);
-                        alert('Failed to set hero image. Please try again.');
-                    })
-                    .finally(() => finishUpload());
-            };
-
-            const refreshPreviewGallery = () => {
-                previewThumbnails.innerHTML = '';
-                previewLoadMore.innerHTML = '';
-
-                const ready = galleryUploads.filter((item) => item.preview);
-                if (!ready.length) {
-                    previewFeaturedImage.classList.add('hidden');
-                    previewFeaturedEmpty.classList.remove('hidden');
-                    destroyLightbox();
-                    return;
+                ensureDescriptionSync();
+                if (!descriptionInput.value) {
+                    errors.push('The description cannot be empty.');
                 }
 
-                const heroItem = galleryUploads.find((item) => item.isHero) || ready[0];
-                if (heroItem) {
-                    previewFeaturedImage.src = heroItem.preview;
-                    previewFeaturedImage.classList.remove('hidden');
-                    previewFeaturedEmpty.classList.add('hidden');
+                if (!galleryItems.length) {
+                    errors.push('Please upload at least one screenshot.');
                 }
 
-                const others = ready.filter((item) => item !== heroItem);
-
-                others.forEach((item, index) => {
-                    const link = document.createElement('a');
-                    link.href = item.preview;
-                    link.dataset.pswpWidth = 1600;
-                    link.dataset.pswpHeight = 900;
-                    link.className = `gallery-item block aspect-video overflow-hidden rounded-lg ${index >= 4 ? 'hidden extra-thumbnail' : ''}`;
-
-                    const img = document.createElement('img');
-                    img.src = item.preview;
-                    img.alt = 'Screenshot thumbnail';
-                    img.className = 'w-full h-full object-cover';
-                    link.appendChild(img);
-                    previewThumbnails.appendChild(link);
-                });
-
-                if (others.length > 4) {
-                    const remaining = others.length - 4;
-                    const loadMoreBtn = document.createElement('button');
-                    loadMoreBtn.type = 'button';
-                    loadMoreBtn.className = 'w-full py-2 px-4 rounded-lg border-2 border-pink-500 text-pink-600 font-semibold hover:bg-pink-50 transition';
-                    loadMoreBtn.innerHTML = `<i class="fa-solid fa-images mr-2"></i>Load more images (${remaining} more)`;
-                    loadMoreBtn.addEventListener('click', () => {
-                        previewThumbnails.querySelectorAll('.extra-thumbnail').forEach((el) => el.classList.remove('hidden'));
-                        loadMoreBtn.remove();
+                if (errors.length) {
+                    const list = document.createElement('ul');
+                    list.className = 'list-disc list-inside text-sm text-red-600 bg-red-100 p-4 rounded-lg';
+                    errors.forEach((message) => {
+                        const item = document.createElement('li');
+                        item.textContent = message;
+                        list.appendChild(item);
                     });
-                    previewLoadMore.appendChild(loadMoreBtn);
+                    step1ErrorsContainer.appendChild(list);
+                    return;
                 }
 
-                initLightbox();
-            };
+                showStep(2);
+            });
 
-            const initLightbox = () => {
-                destroyLightbox();
-                pswpInstance = new PhotoSwipeLightbox({
-                    gallery: '#preview-gallery-container',
-                    children: 'a.gallery-item',
-                    pswpModule: () => import('https://unpkg.com/photoswipe@5/dist/photoswipe.esm.js'),
-                });
-                pswpInstance.init();
-            };
+            backBtn.addEventListener('click', () => showStep(1));
 
-            const destroyLightbox = () => {
-                if (pswpInstance) {
-                    pswpInstance.destroy();
-                    pswpInstance = null;
+            const formatFileSize = (bytes) => {
+                if (!bytes) {
+                    return '0 MB';
                 }
-            };
-
-            const setUrlMode = (enabled) => {
-                if (enabled) {
-                    modFileWrapper.classList.add('hidden');
-                    modUrlWrapper.classList.remove('hidden');
-                    modFileInput.value = '';
-                    modFileLabel.textContent = '';
-                    modDropzoneContent.classList.remove('hidden');
-                    modFileTokenInput.value = '';
-                } else {
-                    modFileWrapper.classList.remove('hidden');
-                    modUrlWrapper.classList.add('hidden');
-                    downloadInput.value = '';
-                    fileSizeInput.value = '';
+                const mb = bytes / (1024 * 1024);
+                if (mb >= 1024) {
+                    return `${(mb / 1024).toFixed(2)} GB`;
                 }
-                updateDownloadPreview();
+                return `${mb.toFixed(2)} MB`;
             };
-
-            switchToUrlBtn.addEventListener('click', () => setUrlMode(true));
-            switchToFileBtn.addEventListener('click', () => setUrlMode(false));
 
             const handleModFileSelection = (file) => {
-                if (!file) return;
+                if (!file) {
+                    return;
+                }
+
+                modDropzoneContent.classList.add('hidden');
+                modFilePreview.classList.remove('hidden');
+                modFilePreview.classList.add('flex');
+
+                modFilePreview.innerHTML = `
+                    <div class="flex flex-col items-center">
+                        <i class="fas fa-check-circle text-green-500 text-4xl"></i>
+                        <p class="font-semibold mt-2 break-all">${file.name}</p>
+                        <p class="text-sm text-gray-500">${formatFileSize(file.size)}</p>
+                        <button type="button" id="remove-mod-file-btn" class="mt-2 text-sm font-semibold text-red-600 hover:text-red-800 transition">Remove</button>
+                    </div>
+                `;
+
+                const removeBtn = modFilePreview.querySelector('#remove-mod-file-btn');
+                removeBtn.addEventListener('click', () => {
+                    modFileInput.value = '';
+                    modFilePreview.classList.add('hidden');
+                    modFilePreview.classList.remove('flex');
+                    modDropzoneContent.classList.remove('hidden');
+                    modFileTokenInput.value = '';
+                });
 
                 beginUpload();
-                modDropzoneContent.classList.add('hidden');
-                modFileLabel.textContent = 'Uploading…';
-
-                uploadFileInChunks(file, 'mod_file', ({ index, total }) => {
+                uploadFileInChunks(file, 'mod_archive', ({ index, total }) => {
                     const percent = Math.round((index / total) * 100);
-                    modFileLabel.textContent = `Uploading… ${percent}%`;
+                    modFilePreview.querySelector('p.text-sm').textContent = `${formatFileSize(file.size)} · ${percent}%`;
                 })
                     .then((result) => {
                         modFileTokenInput.value = result.upload_token;
-                        modFileLabel.textContent = `${file.name} · ${result.size_mb.toFixed(2)} MB`;
-                        if (!fileSizeInput.value) {
-                            fileSizeInput.value = result.size_mb.toFixed(2);
-                        }
-                        updateDownloadPreview();
+                        fileSizeInput.value = result.size_mb.toFixed(2);
+                        fileSizeUnit.value = 'MB';
                     })
                     .catch((error) => {
                         console.error(error);
-                        modFileTokenInput.value = '';
-                        modFileLabel.textContent = 'Upload failed. Please try again.';
                         alert('Mod archive upload failed. Please try again.');
-                        updateDownloadPreview();
+                        modFileTokenInput.value = '';
+                        modFilePreview.classList.add('hidden');
+                        modFilePreview.classList.remove('flex');
+                        modDropzoneContent.classList.remove('hidden');
                     })
                     .finally(() => {
                         finishUpload();
@@ -775,183 +1104,293 @@
                     });
             };
 
-            modFileInput.addEventListener('change', () => {
-                if (modFileInput.files?.[0]) {
-                    handleModFileSelection(modFileInput.files[0]);
+            modFileInput.addEventListener('change', (event) => {
+                const [file] = event.target.files;
+                if (file) {
+                    handleModFileSelection(file);
                 }
             });
 
-            handleDrop(modDropzone, (files) => {
-                if (files?.[0]) {
-                    handleModFileSelection(files[0]);
-                }
-            });
-
-            const updatePreviewBasics = () => {
-                const title = titleInput.value.trim() || 'Your GTA 6 mod title';
-                previewTitle.textContent = title;
-                previewSidebarUpdated.textContent = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-
-                const version = versionInput.value.trim() || '1.0.0';
-                previewVersion.textContent = version.startsWith('v') ? version : `v${version}`;
-                previewSidebarVersion.textContent = version;
-
-                const selectedCategories = Array.from(document.querySelectorAll('.category-checkbox:checked'))
-                    .map((input) => input.closest('.category-tile')?.querySelector('span')?.textContent?.trim())
-                    .filter(Boolean);
-                previewSidebarCategories.textContent = selectedCategories.length ? selectedCategories.join(', ') : '—';
-            };
-
-            titleInput.addEventListener('input', updatePreviewBasics);
-            versionInput.addEventListener('input', updatePreviewBasics);
-            categoryTiles.forEach((tile) => tile.addEventListener('click', updatePreviewBasics));
-
-            const updateDescriptionPreview = (plainText = '') => {
-                descriptionPlainText = plainText || '';
-                if (plainText) {
-                    previewDescription.innerHTML = plainText.replace(/\n/g, '<br>');
-                } else {
-                    previewDescription.textContent = 'Add description content to populate this area.';
-                }
-            };
-
-            if (descriptionInput) {
-                updateDescriptionPreview(descriptionInput.dataset.initialPlain || '');
-                descriptionInput.addEventListener('editorjs:change', (event) => {
-                    updateDescriptionPreview(event.detail?.plainText || '');
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach((evt) => {
+                modDropzoneLabel.addEventListener(evt, (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
                 });
-            }
+            });
 
-            const updateDownloadPreview = () => {
-                if (modUrlWrapper.classList.contains('hidden')) {
-                    if (modFileTokenInput.value) {
-                        previewSidebarDownload.textContent = 'Direct download hosted on GTA6-Mods.com';
-                    } else {
-                        previewSidebarDownload.textContent = 'Upload an archive or provide a link';
-                    }
-                } else {
-                    const url = downloadInput.value.trim();
-                    previewSidebarDownload.textContent = url ? url : 'Provide a direct download URL.';
-                }
+            ['dragenter', 'dragover'].forEach((evt) => {
+                modDropzoneLabel.addEventListener(evt, () => modDropzoneLabel.classList.add('bg-pink-50', 'border-pink-400'));
+            });
+
+            ['dragleave', 'drop'].forEach((evt) => {
+                modDropzoneLabel.addEventListener(evt, () => modDropzoneLabel.classList.remove('bg-pink-50', 'border-pink-400'));
+            });
+
+            modDropzoneLabel.addEventListener('drop', (event) => {
+                handleModFileSelection(event.dataTransfer.files[0]);
+            });
+
+            showUrlViewBtn.addEventListener('click', () => {
+                fileUploadView.classList.add('hidden');
+                urlView.classList.remove('hidden');
+                modFileTokenInput.value = '';
+            });
+
+            showFileViewBtn.addEventListener('click', () => {
+                urlView.classList.add('hidden');
+                fileUploadView.classList.remove('hidden');
+                modUrlInput.value = '';
+                fileSizeInput.value = '';
+            });
+
+            const sanitizeHtml = (html) => {
+                const div = document.createElement('div');
+                div.textContent = html;
+                return div.innerHTML;
             };
 
-            downloadInput.addEventListener('input', updateDownloadPreview);
-            updateDownloadPreview();
-            updatePreviewBasics();
+            const populatePreview = () => {
+                ensureDescriptionSync();
 
-            const validateStepOne = () => {
-                const errors = [];
-                if (!titleInput.value.trim()) {
-                    errors.push('Please provide a file name.');
-                }
-                const selectedCategories = syncCategoryTiles();
-                if (!selectedCategories.length) {
-                    errors.push('Select at least one category.');
-                }
-                if (!galleryUploads.length) {
-                    errors.push('Upload at least one screenshot.');
-                }
-                if (!descriptionPlainText.trim()) {
-                    errors.push('Please add a description.');
+                const title = fileNameInput.value.trim();
+                const version = versionInput.value.trim();
+                const authors = Array.from(authorsContainer.querySelectorAll('input[name="authors[]"]'))
+                    .map((input) => input.value.trim())
+                    .filter(Boolean);
+                const tags = tagsInput.value
+                    .split(',')
+                    .map((tag) => tag.trim())
+                    .filter(Boolean);
+
+                const selectedOption = categorySelect.selectedOptions[0];
+                const categoryLabel = selectedOption ? selectedOption.textContent.trim() : 'Uncategorised';
+
+                previewHeader.innerHTML = `
+                    <div class="flex items-center flex-wrap gap-3">
+                        <h1 class="text-2xl md:text-4xl font-bold text-gray-900">${sanitizeHtml(title || 'Untitled mod')}</h1>
+                        <span class="text-xl md:text-2xl font-semibold text-gray-400">${sanitizeHtml(version || '1.0.0')}</span>
+                    </div>
+                    <div class="flex items-center text-sm text-gray-500 mt-1">
+                        <span>by</span>
+                        <span class="font-semibold text-pink-600 ml-1">${sanitizeHtml(authors.join(', ') || 'Unknown author')}</span>
+                    </div>
+                `;
+
+                const descriptionValue = descriptionInput.value ? JSON.parse(descriptionInput.value) : null;
+                if (descriptionValue?.blocks?.length) {
+                    const content = descriptionValue.blocks
+                        .map((block) => block.data?.text || '')
+                        .join('<br><br>');
+                    previewDescriptionContent.innerHTML = content;
+                } else {
+                    previewDescriptionContent.innerHTML = '<p class="text-gray-500">No description provided.</p>';
                 }
 
-                if (errors.length) {
-                    alert(errors.join('\n'));
-                    return false;
+                previewSidebarAuthors.textContent = authors.join(', ') || 'Unknown author';
+                previewSidebarVersion.textContent = version || '1.0.0';
+                previewSidebarUpdated.textContent = new Date().toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                });
+                previewSidebarCategory.textContent = categoryLabel;
+
+                previewSidebarTags.innerHTML = '';
+                if (tags.length) {
+                    tags.forEach((tag) => {
+                        const element = document.createElement('span');
+                        element.className = 'bg-gray-200 text-gray-700 text-xs font-semibold px-2.5 py-1 rounded-full';
+                        element.textContent = tag;
+                        previewSidebarTags.appendChild(element);
+                    });
+                } else {
+                    previewSidebarTags.textContent = 'No tags provided.';
                 }
-                return true;
+
+                previewSidebarSourceInfo.innerHTML = '';
+                if (!urlView.classList.contains('hidden')) {
+                    const url = modUrlInput.value.trim();
+                    const sizeInfo = parseFileSize();
+                    const displayLabel = sizeInfo ? `${sizeInfo.raw} ${sizeInfo.unit}` : 'Unknown';
+                    previewSidebarSourceInfo.innerHTML = `
+                        <p class="preview-value font-mono text-sm bg-gray-200 p-2 rounded break-words">${sanitizeHtml(url)}</p>
+                        <p class="text-right text-sm text-gray-600 mt-1">Size: <strong>${sanitizeHtml(displayLabel)}</strong></p>
+                    `;
+                } else if (modFileTokenInput.value) {
+                    const sizeInfo = parseFileSize();
+                    const displayLabel = sizeInfo ? `${sizeInfo.mb.toFixed(2)} MB` : (fileSizeInput.value ? `${fileSizeInput.value} MB` : 'Unknown');
+                    previewSidebarSourceInfo.innerHTML = `
+                        <p class="preview-value font-mono text-sm bg-gray-200 p-2 rounded break-words">Uploaded archive</p>
+                        <p class="text-right text-sm text-gray-600 mt-1">Size: <strong>${sanitizeHtml(displayLabel)}</strong></p>
+                    `;
+                } else {
+                    previewSidebarSourceInfo.innerHTML = '<p class="text-sm text-gray-500">No download source provided yet.</p>';
+                }
+
+                if (pswpLightbox) {
+                    pswpLightbox.destroy();
+                    pswpLightbox = null;
+                }
+
+                previewGalleryFeatured.innerHTML = '';
+                previewGalleryThumbnails.innerHTML = '';
+                previewLoadMoreContainer.innerHTML = '';
+
+                if (!galleryItems.length) {
+                    previewGalleryFeatured.innerHTML = '<div class="w-full h-full flex items-center justify-center text-gray-500">No screenshots available</div>';
+                    return;
+                }
+
+                const loadImageDimensions = (item) => new Promise((resolve, reject) => {
+                    const image = new Image();
+                    image.onload = () => resolve({
+                        width: image.naturalWidth,
+                        height: image.naturalHeight,
+                        url: item.previewUrl,
+                        item,
+                    });
+                    image.onerror = reject;
+                    image.src = item.previewUrl;
+                });
+
+                const sortedItems = [...galleryItems];
+                const featuredItem = sortedItems.find((entry) => entry.isFeatured) || sortedItems[0];
+                const otherItems = sortedItems.filter((entry) => entry !== featuredItem);
+
+                Promise.all(sortedItems.map(loadImageDimensions))
+                    .then((details) => {
+                        const featuredDetails = details.find((detail) => detail.item === featuredItem);
+                        if (featuredDetails) {
+                            const link = document.createElement('a');
+                            link.href = featuredDetails.url;
+                            link.dataset.pswpWidth = featuredDetails.width;
+                            link.dataset.pswpHeight = featuredDetails.height;
+                            link.className = 'gallery-item block w-full h-full';
+
+                            const img = document.createElement('img');
+                            img.src = featuredDetails.url;
+                            img.alt = 'Featured screenshot';
+                            img.className = 'w-full h-full object-cover';
+                            link.appendChild(img);
+                            previewGalleryFeatured.appendChild(link);
+                        }
+
+                        otherItems.forEach((entry, index) => {
+                            const detail = details.find((item) => item.item === entry);
+                            if (!detail) {
+                                return;
+                            }
+
+                            const thumbLink = document.createElement('a');
+                            thumbLink.href = detail.url;
+                            thumbLink.dataset.pswpWidth = detail.width;
+                            thumbLink.dataset.pswpHeight = detail.height;
+                            thumbLink.className = 'gallery-item relative aspect-video block';
+
+                            if (index >= 4) {
+                                thumbLink.classList.add('hidden', 'extra-thumbnail');
+                            }
+
+                            const thumbImage = document.createElement('img');
+                            thumbImage.src = detail.url;
+                            thumbImage.className = 'w-full h-full object-cover rounded-lg';
+                            thumbLink.appendChild(thumbImage);
+                            previewGalleryThumbnails.appendChild(thumbLink);
+                        });
+
+                        const hiddenThumbs = previewGalleryThumbnails.querySelectorAll('.extra-thumbnail');
+                        if (hiddenThumbs.length) {
+                            const loadMoreBtn = document.createElement('button');
+                            loadMoreBtn.type = 'button';
+                            loadMoreBtn.className = 'w-full py-2 px-4 rounded-lg border-2 border-pink-500 text-pink-600 font-semibold hover:bg-pink-50 transition duration-300 ease-in-out';
+                            loadMoreBtn.innerHTML = `<i class="fas fa-images mr-2"></i>Load more images (${hiddenThumbs.length} more)`;
+                            loadMoreBtn.addEventListener('click', () => {
+                                hiddenThumbs.forEach((element) => element.classList.remove('hidden'));
+                                loadMoreBtn.remove();
+                            });
+                            previewLoadMoreContainer.appendChild(loadMoreBtn);
+                        }
+
+                        pswpLightbox = new PhotoSwipeLightbox({
+                            gallery: '#preview-gallery-container',
+                            children: 'a.gallery-item',
+                            pswpModule: () => import('https://unpkg.com/photoswipe@5/dist/photoswipe.esm.js'),
+                        });
+                        pswpLightbox.init();
+                    })
+                    .catch((error) => {
+                        console.error('Error preparing gallery preview', error);
+                    });
             };
 
-            const validateStepTwo = () => {
-                step2Errors.innerHTML = '';
+            previewBtn.addEventListener('click', () => {
+                step2ErrorsContainer.innerHTML = '';
                 const errors = [];
 
-                const usingFileMode = !modFileWrapper.classList.contains('hidden');
-                if (usingFileMode) {
-                    if (!modFileTokenInput.value) {
-                        errors.push('Upload a mod archive or switch to an external URL.');
+                const urlMode = !urlView.classList.contains('hidden');
+
+                if (urlMode) {
+                    if (!modUrlInput.value.trim()) {
+                        errors.push('Please provide a valid download URL.');
                     }
-                } else {
-                    if (!downloadInput.value.trim()) {
-                        errors.push('Provide a valid download URL.');
+
+                    if (!parseFileSize()) {
+                        errors.push('Please enter a valid file size.');
                     }
-                    if (!fileSizeInput.value || Number(fileSizeInput.value) <= 0) {
-                        errors.push('Specify the file size for the external download.');
-                    }
+                } else if (!modFileTokenInput.value) {
+                    errors.push('Please upload a mod archive.');
                 }
 
                 if (!versionInput.value.trim()) {
-                    errors.push('Enter a version number.');
+                    errors.push('The "Version" field is required.');
                 }
 
                 if (errors.length) {
                     const list = document.createElement('ul');
                     list.className = 'list-disc list-inside text-sm text-red-600 bg-red-100 p-4 rounded-lg';
-                    errors.forEach((error) => {
+                    errors.forEach((message) => {
                         const item = document.createElement('li');
-                        item.textContent = error;
+                        item.textContent = message;
                         list.appendChild(item);
                     });
-                    step2Errors.appendChild(list);
-                    return false;
-                }
-
-                return true;
-            };
-
-            const showStep = (stepNumber) => {
-                [step1, step2, step3].forEach((section, index) => {
-                    if (!section) return;
-                    section.classList.toggle('hidden', index !== stepNumber - 1);
-                });
-            };
-
-            continueBtn.addEventListener('click', () => {
-                if (!validateStepOne()) {
+                    step2ErrorsContainer.appendChild(list);
                     return;
                 }
-                showStep(2);
-            });
 
-            backBtn.addEventListener('click', () => showStep(1));
-
-            previewBtn.addEventListener('click', () => {
-                if (!validateStepTwo()) {
-                    return;
-                }
-                previewSidebarUpdated.textContent = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-                formCard.classList.remove('card', 'p-6', 'md:p-8');
+                populatePreview();
+                showStep(3);
                 previewBanner.classList.remove('hidden');
+                formCard.classList.remove('card', 'p-6', 'md:p-8');
                 mainTitle.classList.add('hidden');
                 uploadRules.classList.add('hidden');
-                showStep(3);
             });
 
             backToStep2Btn.addEventListener('click', () => {
+                showStep(2);
                 previewBanner.classList.add('hidden');
+                formCard.classList.add('card', 'p-6', 'md:p-8');
                 mainTitle.classList.remove('hidden');
                 uploadRules.classList.remove('hidden');
-                formCard.classList.add('card', 'p-6', 'md:p-8');
-                showStep(2);
             });
 
-            cancelStep1Btn.addEventListener('click', () => {
-                window.location.href = '{{ route('mods.index') }}';
+            const form = document.getElementById('mod-upload-form');
+            form.addEventListener('submit', (event) => {
+                if (activeUploads > 0) {
+                    event.preventDefault();
+                    alert('Please wait for all uploads to finish before submitting.');
+                    return;
+                }
+
+                if (!heroTokenInput.value && galleryItems.length) {
+                    event.preventDefault();
+                    alert('Please select a featured screenshot.');
+                    return;
+                }
+
+                ensureFileSizeConverted();
             });
 
             showStep(1);
-            refreshPreviewGallery();
-
-            if (downloadInput.value.trim()) {
-                setUrlMode(true);
-            }
-
-            updateDescriptionPreview(descriptionPlainText);
-
-            if (modFileTokenInput.value && modFileWrapper.classList.contains('hidden') === false) {
-                modDropzoneContent.classList.add('hidden');
-                modFileLabel.textContent = 'Archive ready for submission.';
-            }
         });
     </script>
 @endpush

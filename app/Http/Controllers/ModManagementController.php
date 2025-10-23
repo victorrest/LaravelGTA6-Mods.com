@@ -63,6 +63,7 @@ class ModManagementController extends Controller
 
             $mod = Mod::create([
                 'user_id' => Auth::id(),
+                'authors' => $data['authors'],
                 'title' => $data['title'],
                 'slug' => $this->generateUniqueSlug($data['title']),
                 'excerpt' => Str::limit($plainDescription, 200),
@@ -72,6 +73,8 @@ class ModManagementController extends Controller
                 'file_path' => $modFile['path'] ?? null,
                 'file_size' => $data['file_size'] ?? ($modFile['size'] ?? null),
                 'hero_image_path' => $heroImagePath,
+                'tag_list' => $data['tag_list'] ?? [],
+                'video_permission' => $data['video_permission'],
                 'status' => $status,
                 'published_at' => $publishedAt,
             ]);
@@ -127,8 +130,11 @@ class ModManagementController extends Controller
                 'excerpt' => Str::limit($plainDescription, 200),
                 'description' => $data['description'],
                 'version' => $data['version'],
+                'authors' => $data['authors'],
                 'download_url' => $data['download_url'] ?? $mod->download_url,
                 'file_size' => $data['file_size'] ?? $mod->file_size,
+                'tag_list' => $data['tag_list'] ?? $mod->tag_list,
+                'video_permission' => $data['video_permission'],
             ]);
 
             if ($imagePath = $this->storeHeroImage($request, $filesForRollback)) {
