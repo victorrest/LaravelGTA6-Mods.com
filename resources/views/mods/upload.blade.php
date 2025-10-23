@@ -416,7 +416,7 @@
 
             const chunkEndpoint = @json(route('mods.uploads.chunk'));
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
-            const chunkSize = 512 * 1024;
+            const chunkSize = 1024 * 1024; // 1 MB chunks for faster uploads with fewer round-trips
             const MAX_SCREENSHOTS = 12;
 
             let pswpLightbox = null;
@@ -877,26 +877,40 @@
                     const chunk = file.slice(start, end);
 
                     const formData = new FormData();
-                    formData.append('file', chunk, file.name);
+                    formData.append('chunk', chunk, file.name);
                     formData.append('chunk_index', index);
                     formData.append('total_chunks', totalChunks);
                     formData.append('upload_token', uploadToken);
                     formData.append('upload_category', category);
+                    formData.append('original_name', file.name);
+                    if (file.type) {
+                        formData.append('mime_type', file.type);
+                    }
 
                     const response = await fetch(chunkEndpoint, {
                         method: 'POST',
                         headers: {
                             'X-CSRF-TOKEN': csrfToken,
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
                         },
                         body: formData,
                     });
 
+                    const rawPayload = await response.text();
+
+                    const payloadPreview = rawPayload.length > 2000 ? `${rawPayload.slice(0, 2000)}…` : rawPayload;
+
                     if (!response.ok) {
-                        throw new Error('Chunk upload failed.');
+                        throw new Error(`Chunk upload failed (${response.status}). ${payloadPreview}`);
                     }
 
-                    const data = await response.json();
-                    responseData = data;
+                    try {
+                        responseData = JSON.parse(rawPayload);
+                    } catch (error) {
+                        throw new Error(`Invalid response received from the server. ${payloadPreview}`);
+                    }
+
                     onProgress({ index: index + 1, total: totalChunks });
                 }
 
@@ -929,7 +943,7 @@
                 })
                     .then((result) => {
                         modFileTokenInput.value = result.upload_token;
-                        fileSizeHiddenInput.value = result.size;
+                        fileSizeHiddenInput.value = result.size_mb;
                     })
                     .catch((error) => {
                         console.error(error);
