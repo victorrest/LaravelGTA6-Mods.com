@@ -6,7 +6,6 @@ use App\Http\Requests\ModStoreRequest;
 use App\Http\Requests\ModUpdateRequest;
 use App\Models\Mod;
 use App\Models\ModCategory;
-use App\Services\TemporaryUploadService;
 use App\Support\EditorJs;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
@@ -14,15 +13,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
-use RuntimeException;
 use Throwable;
 
 class ModManagementController extends Controller
 {
-    public function __construct(private TemporaryUploadService $temporaryUploadService)
-    {
-    }
-
     public function create()
     {
         return view('mods.upload', [
@@ -39,7 +33,7 @@ class ModManagementController extends Controller
         $publishedAt = $status === Mod::STATUS_PUBLISHED ? now() : null;
 
         $downloadUrl = $data['download_url'] ?? null;
-        $expectsUploadedArchive = $request->filled('mod_file_token') || $request->hasFile('mod_file');
+        $expectsUploadedArchive = $request->hasFile('mod_file');
 
         if (! $downloadUrl && ! $expectsUploadedArchive) {
             throw ValidationException::withMessages([
@@ -191,21 +185,6 @@ class ModManagementController extends Controller
 
     private function storeHeroImage(ModStoreRequest|ModUpdateRequest $request, array &$filesForRollback): ?string
     {
-        if ($token = $request->input('hero_image_token')) {
-            try {
-                $upload = $this->temporaryUploadService->moveToPublic($token, 'mods/hero-images', 'hero_image');
-                $filesForRollback[] = $upload['path'];
-
-                return $upload['path'] ?? null;
-            } catch (RuntimeException $exception) {
-                $request->merge(['hero_image_token' => null]);
-
-                throw ValidationException::withMessages([
-                    'hero_image' => 'The hero image upload has expired. Please upload it again.',
-                ]);
-            }
-        }
-
         if (! $request->hasFile('hero_image')) {
             return null;
         }
@@ -218,19 +197,6 @@ class ModManagementController extends Controller
 
     private function storeModFile(ModStoreRequest|ModUpdateRequest $request, array &$filesForRollback): ?array
     {
-        if ($token = $request->input('mod_file_token')) {
-            try {
-                $upload = $this->temporaryUploadService->moveToPublic($token, 'mods/files', 'mod_archive');
-                $filesForRollback[] = $upload['path'];
-
-                return $upload;
-            } catch (RuntimeException $exception) {
-                throw ValidationException::withMessages([
-                    'mod_file' => 'Your mod archive upload has expired. Please upload the file again.',
-                ]);
-            }
-        }
-
         if (! $request->hasFile('mod_file')) {
             return null;
         }
@@ -249,27 +215,6 @@ class ModManagementController extends Controller
     private function storeGalleryImages(ModStoreRequest|ModUpdateRequest $request, Mod $mod, array &$filesForRollback): void
     {
         $position = (int) $mod->galleryImages()->max('position');
-
-        $galleryTokens = collect($request->input('gallery_image_tokens', []))
-            ->filter()
-            ->values();
-
-        foreach ($galleryTokens as $token) {
-            try {
-                $upload = $this->temporaryUploadService->moveToPublic($token, 'mods/gallery', 'gallery_image');
-            } catch (RuntimeException $exception) {
-                throw ValidationException::withMessages([
-                    'gallery_images' => 'One or more screenshot uploads have expired. Please upload them again.',
-                ]);
-            }
-
-            $filesForRollback[] = $upload['path'];
-
-            $mod->galleryImages()->create([
-                'path' => $upload['path'],
-                'position' => ++$position,
-            ]);
-        }
 
         $galleryImages = $request->file('gallery_images', []);
 
