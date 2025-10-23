@@ -234,6 +234,45 @@ class ProfileSettingsController extends Controller
     }
 
     /**
+     * Pin a mod to profile
+     */
+    public function pinMod($modId)
+    {
+        $user = Auth::user();
+        $mod = \App\Models\Mod::findOrFail($modId);
+
+        // Check if user owns the mod
+        if ($mod->user_id !== $user->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You can only pin your own mods',
+            ], 403);
+        }
+
+        $user->update(['pinned_mod_id' => $mod->id]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Mod pinned successfully',
+        ]);
+    }
+
+    /**
+     * Unpin mod from profile
+     */
+    public function unpinMod()
+    {
+        $user = Auth::user();
+
+        $user->update(['pinned_mod_id' => null]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Mod unpinned successfully',
+        ]);
+    }
+
+    /**
      * Normalize social media URL
      */
     private function normalizeUrl(string $platform, string $url): string

@@ -29,6 +29,51 @@
         </div>
     @endif
 
+    <!-- Pinned Mod Section -->
+    @if($pinnedMod)
+        <div class="mb-8">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                    <i class="fas fa-thumbtack text-pink-600"></i>
+                    Pinned Mod
+                </h3>
+                @if($isOwner)
+                    <button class="text-sm text-gray-500 hover:text-pink-600 transition" onclick="unpinMod()">
+                        <i class="fas fa-times mr-1"></i>Unpin
+                    </button>
+                @endif
+            </div>
+
+            <a href="{{ route('mods.show', [$pinnedMod->primary_category, $pinnedMod]) }}" class="block bg-gradient-to-r from-pink-50 to-purple-50 rounded-lg p-4 border-2 border-pink-200 hover:border-pink-300 transition group">
+                <div class="flex gap-4">
+                    @if($pinnedMod->thumbnail_url)
+                        <img src="{{ $pinnedMod->thumbnail_url }}" alt="{{ $pinnedMod->title }}" class="w-32 h-20 object-cover rounded-md flex-shrink-0 group-hover:shadow-md transition">
+                    @endif
+                    <div class="flex-1 min-w-0">
+                        <h4 class="font-bold text-gray-900 text-lg mb-1 group-hover:text-pink-600 transition">{{ $pinnedMod->title }}</h4>
+                        <p class="text-sm text-gray-600 line-clamp-2 mb-2">{{ $pinnedMod->description }}</p>
+                        <div class="flex items-center gap-4 text-sm">
+                            <span class="text-gray-600">
+                                <i class="fas fa-download mr-1 text-pink-600"></i>
+                                <strong>{{ number_format($pinnedMod->downloads) }}</strong> downloads
+                            </span>
+                            @if($pinnedMod->average_rating)
+                                <span class="text-gray-600">
+                                    <i class="fas fa-star mr-1 text-yellow-500"></i>
+                                    <strong>{{ number_format($pinnedMod->average_rating, 1) }}</strong> rating
+                                </span>
+                            @endif
+                            <span class="text-gray-500">
+                                <i class="fas fa-clock mr-1"></i>
+                                {{ $pinnedMod->updated_at->diffForHumans() }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+    @endif
+
     <!-- Recent Activity Header -->
     <h3 class="text-lg font-bold text-gray-800 mb-4 pt-4 border-t">Recent activity</h3>
 
@@ -59,6 +104,36 @@
 
 @push('scripts')
 <script>
+// Unpin mod function
+async function unpinMod() {
+    if (!confirm('Are you sure you want to unpin this mod from your profile?')) {
+        return;
+    }
+
+    try {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+
+        const response = await fetch('/profile/pin-mod', {
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json'
+            }
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            location.reload();
+        } else {
+            alert(data.message || 'Failed to unpin mod');
+        }
+    } catch (error) {
+        console.error('Error unpinning mod:', error);
+        alert('Failed to unpin mod. Please try again.');
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     const statusTextarea = document.getElementById('status-update-textarea');
     const statusActions = document.getElementById('status-update-actions');
