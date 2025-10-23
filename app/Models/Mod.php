@@ -35,7 +35,6 @@ class Mod extends Model
 
     protected $fillable = [
         'user_id',
-        'authors',
         'title',
         'slug',
         'excerpt',
@@ -43,8 +42,6 @@ class Mod extends Model
         'version',
         'hero_image_path',
         'download_url',
-        'tag_list',
-        'video_permission',
         'file_path',
         'file_size',
         'rating',
@@ -61,8 +58,6 @@ class Mod extends Model
         'published_at' => 'datetime',
         'file_size' => 'decimal:2',
         'rating' => 'decimal:2',
-        'authors' => 'array',
-        'tag_list' => 'array',
     ];
 
     public function statusLabel(): string
