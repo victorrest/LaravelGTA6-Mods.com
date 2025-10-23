@@ -217,7 +217,8 @@
                     @auth
                         @if (auth()->id() === $mod->user_id)
                             @php
-                                $isPinned = auth()->user()->pinned_mod_id === $mod->id;
+                                $pinnedModId = auth()->user()->pinned_mod_id;
+                                $isPinned = (int) $pinnedModId === (int) $mod->id;
                             @endphp
                             <button
                                 type="button"

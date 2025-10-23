@@ -38,11 +38,7 @@
                     Pinned Mod
                 </h3>
                 @if($isOwner)
-                    <button
-                        class="text-sm text-gray-500 hover:text-pink-600 transition"
-                        data-unpin-url="{{ route('profile.mod.unpin') }}"
-                        onclick="unpinMod(this)"
-                    >
+                    <button class="text-sm text-gray-500 hover:text-pink-600 transition" onclick="unpinMod()">
                         <i class="fas fa-times mr-1"></i>Unpin
                     </button>
                 @endif
@@ -109,39 +105,32 @@
 @push('scripts')
 <script>
 // Unpin mod function
-async function unpinMod(button) {
+async function unpinMod() {
     if (!confirm('Are you sure you want to unpin this mod from your profile?')) {
         return;
     }
 
     try {
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
-        const targetUrl = button?.dataset?.unpinUrl;
 
-        if (!targetUrl) {
-            throw new Error('Unpin endpoint is not available.');
-        }
-
-        const response = await fetch(targetUrl, {
+        const response = await fetch('/profile/pin-mod', {
             method: 'DELETE',
             headers: {
                 'X-CSRF-TOKEN': csrfToken,
-                'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            credentials: 'same-origin'
+                'Accept': 'application/json'
+            }
         });
 
-        const data = await response.json().catch(() => ({}));
+        const data = await response.json();
 
-        if (!response.ok || !data.success) {
-            throw new Error(data.message || 'Failed to unpin mod');
+        if (response.ok && data.success) {
+            location.reload();
+        } else {
+            alert(data.message || 'Failed to unpin mod');
         }
-
-        location.reload();
     } catch (error) {
         console.error('Error unpinning mod:', error);
-        alert(error.message || 'Failed to unpin mod. Please try again.');
+        alert('Failed to unpin mod. Please try again.');
     }
 }
 

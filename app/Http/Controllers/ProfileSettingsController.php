@@ -260,7 +260,6 @@ class ProfileSettingsController extends Controller
             'success' => true,
             'message' => $message,
             'pinned' => true,
-            'pinned_mod_id' => $user->pinned_mod_id,
         ]);
     }
 
@@ -282,7 +281,6 @@ class ProfileSettingsController extends Controller
             'success' => true,
             'message' => $message,
             'pinned' => false,
-            'pinned_mod_id' => $user->pinned_mod_id,
         ]);
     }
 
