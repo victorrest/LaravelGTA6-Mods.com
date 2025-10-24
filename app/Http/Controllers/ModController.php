@@ -307,12 +307,17 @@ class ModController extends Controller
             'parent_id' => ['nullable', 'integer', Rule::exists('mod_comments', 'id')->where('mod_id', $mod->id)],
         ]);
 
-        $comment = $mod->comments()->create([
+        $attributes = [
             'user_id' => Auth::id(),
             'parent_id' => $validated['parent_id'] ?? null,
             'body' => $validated['body'],
-            'status' => ModComment::STATUS_APPROVED,
-        ]);
+        ];
+
+        if (ModComment::statusColumnIsAvailable()) {
+            $attributes['status'] = ModComment::STATUS_APPROVED;
+        }
+
+        $comment = $mod->comments()->create($attributes);
 
         // Log activity for comment
         UserActivity::create([
