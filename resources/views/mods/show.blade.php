@@ -173,6 +173,7 @@
                 :modTitle="$mod->title"
                 :modId="$mod->id"
                 :canManageVideos="$canManageMod"
+                :userLoggedIn="$userLoggedIn"
             />
 
             {{-- Stats Bar --}}
