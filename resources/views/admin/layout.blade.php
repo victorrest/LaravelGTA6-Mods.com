@@ -3,11 +3,13 @@
 @php($navigation = [
     ['label' => 'Vezérlőpult', 'icon' => 'fa-gauge', 'route' => 'admin.dashboard', 'match' => 'admin.dashboard'],
     ['label' => 'Modok', 'icon' => 'fa-rocket', 'route' => 'admin.mods.index', 'match' => 'admin.mods.*'],
+    ['label' => 'Videók', 'icon' => 'fa-video', 'route' => 'admin.videos.index', 'match' => 'admin.videos.*'],
     ['label' => 'Kategóriák', 'icon' => 'fa-layer-group', 'route' => 'admin.categories.index', 'match' => 'admin.categories.*'],
     ['label' => 'Hírek', 'icon' => 'fa-newspaper', 'route' => 'admin.news.index', 'match' => 'admin.news.*'],
     ['label' => 'Felhasználók', 'icon' => 'fa-users', 'route' => 'admin.users.index', 'match' => 'admin.users.*'],
     ['label' => 'Fórum', 'icon' => 'fa-comments', 'route' => 'admin.forum.index', 'match' => 'admin.forum.*'],
     ['label' => 'Hozzászólások', 'icon' => 'fa-message', 'route' => 'admin.comments.index', 'match' => 'admin.comments.*'],
+    ['label' => 'Beállítások', 'icon' => 'fa-gear', 'route' => 'admin.settings.index', 'match' => 'admin.settings.*'],
 ])
 
 @section('content')
