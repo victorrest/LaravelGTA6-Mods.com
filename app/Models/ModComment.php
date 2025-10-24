@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Facades\Schema;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class ModComment extends Model
 {
@@ -17,13 +17,9 @@ class ModComment extends Model
         'user_id',
         'parent_id',
         'body',
-        'status',
     ];
 
-    public const STATUS_APPROVED = 'approved';
-    public const STATUS_PENDING = 'pending';
-
-    protected static ?bool $statusColumnExists = null;
+    protected $withCount = ['likes'];
 
     public function mod(): BelongsTo
     {
@@ -37,29 +33,25 @@ class ModComment extends Model
 
     public function parent(): BelongsTo
     {
-        return $this->belongsTo(self::class, 'parent_id');
+        return $this->belongsTo(ModComment::class, 'parent_id');
     }
 
     public function replies(): HasMany
     {
-        return $this->hasMany(self::class, 'parent_id')->orderBy('created_at');
+        return $this->hasMany(ModComment::class, 'parent_id')->with('author', 'replies')->withCount('likes');
     }
 
-    public function scopeApproved($query)
+    public function likes(): BelongsToMany
     {
-        if (! self::statusColumnIsAvailable()) {
-            return $query;
-        }
-
-        return $query->where('status', self::STATUS_APPROVED);
+        return $this->belongsToMany(User::class, 'mod_comment_likes', 'mod_comment_id', 'user_id')->withTimestamps();
     }
 
-    public static function statusColumnIsAvailable(): bool
+    public function isLikedBy(?User $user): bool
     {
-        if (self::$statusColumnExists === null) {
-            self::$statusColumnExists = Schema::hasColumn((new self())->getTable(), 'status');
+        if (!$user) {
+            return false;
         }
 
-        return self::$statusColumnExists;
+        return $this->likes()->where('user_id', $user->id)->exists();
     }
 }

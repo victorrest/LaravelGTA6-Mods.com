@@ -14,9 +14,8 @@ class ModVersionController extends Controller
     /**
      * Submit a new version for an existing mod
      */
-    public function store(Request $request, $modId)
+    public function store(Request $request, Mod $mod)
     {
-        $mod = Mod::findOrFail($modId);
 
         // Check permissions
         if (!Auth::check() || (Auth::id() !== $mod->user_id && !Auth::user()->is_admin)) {
@@ -78,9 +77,9 @@ class ModVersionController extends Controller
     /**
      * Show version submission form
      */
-    public function create($modId)
+    public function create(Mod $mod)
     {
-        $mod = Mod::with('categories')->findOrFail($modId);
+        $mod->load('categories');
 
         // Check permissions
         if (!Auth::check() || (Auth::id() !== $mod->user_id && !Auth::user()->is_admin)) {

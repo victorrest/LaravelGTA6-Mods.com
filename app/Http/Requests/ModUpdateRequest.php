@@ -30,16 +30,15 @@ class ModUpdateRequest extends FormRequest
             'version' => ['required', 'string', 'max:50'],
             'category_ids' => ['required', 'array', 'min:1'],
             'category_ids.*' => ['integer', 'exists:mod_categories,id'],
-            'download_url' => ['nullable', 'url'],
+            'download_url' => ['nullable', 'url', 'required_without:mod_file'],
             'description' => ['required', 'json'],
             'hero_image' => ['nullable', 'image', 'max:4096'],
             'gallery_images' => ['nullable', 'array', 'max:12'],
             'gallery_images.*' => ['image', 'max:8192'],
             'remove_gallery_image_ids' => ['nullable', 'array'],
             'remove_gallery_image_ids.*' => ['integer', 'exists:mod_gallery_images,id'],
-            'mod_file' => ['nullable', 'file', 'max:204800'],
+            'mod_file' => ['nullable', 'file', 'max:204800', 'required_without:download_url'],
             'file_size' => ['nullable', 'numeric', 'min:0'],
-            'changelog' => ['nullable', 'string', 'max:2000'],
         ];
     }
 

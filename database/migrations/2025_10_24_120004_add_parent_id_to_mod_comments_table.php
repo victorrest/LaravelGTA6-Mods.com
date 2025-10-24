@@ -12,9 +12,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('mod_comments', function (Blueprint $table) {
-            $table->foreignId('parent_id')->nullable()->after('user_id')->constrained('mod_comments')->cascadeOnDelete();
-            $table->unsignedSmallInteger('likes_count')->default(0)->after('body');
-            $table->string('status', 32)->default('approved')->after('likes_count');
+            $table->foreignId('parent_id')->nullable()->after('mod_id')->constrained('mod_comments')->onDelete('cascade');
+            $table->index('parent_id');
         });
     }
 
@@ -24,8 +23,8 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('mod_comments', function (Blueprint $table) {
-            $table->dropConstrainedForeignId('parent_id');
-            $table->dropColumn(['likes_count', 'status']);
+            $table->dropForeign(['parent_id']);
+            $table->dropColumn('parent_id');
         });
     }
 };

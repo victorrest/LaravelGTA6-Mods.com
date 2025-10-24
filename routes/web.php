@@ -15,7 +15,6 @@ use App\Http\Controllers\ModVersionController;
 use App\Http\Controllers\ForumController;
 use App\Http\Controllers\InstallController;
 use App\Http\Controllers\HomeController;
-use App\Http\Controllers\ModCommentController;
 use App\Http\Controllers\ModController;
 use App\Http\Controllers\ModDownloadController;
 use App\Http\Controllers\ModManagementController;
@@ -25,6 +24,7 @@ use App\Http\Controllers\ProfileSettingsController;
 use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\BookmarkController;
 use App\Http\Controllers\LikeController;
+use App\Http\Controllers\CommentLikeController;
 use App\Http\Controllers\FollowController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\VideoController;
@@ -146,17 +146,22 @@ Route::prefix('api')->name('api.')->group(function () {
     Route::get('/author/{userId}/activities', [ActivityController::class, 'getUserActivities'])->name('author.activities');
     Route::get('/author/{userId}/followers', [FollowController::class, 'followers'])->name('author.followers');
     Route::get('/author/{userId}/following', [FollowController::class, 'following'])->name('author.following');
-    Route::get('/mods/{mod}/comments', [ModCommentController::class, 'index'])->name('mods.comments.index');
 
-    // Public endpoints that still perform auth checks in their controllers.
+    // Public check endpoints (no auth required - they check internally)
     Route::get('/likes/{modId}/check', [LikeController::class, 'check'])->name('likes.check');
     Route::get('/bookmarks/{modId}/check', [BookmarkController::class, 'check'])->name('bookmarks.check');
-    Route::post('/likes/{modId}/toggle', [LikeController::class, 'toggle'])->name('likes.toggle');
-    Route::post('/bookmarks/{modId}/toggle', [BookmarkController::class, 'toggle'])->name('bookmarks.toggle');
+    Route::get('/comments/{commentId}/like/check', [CommentLikeController::class, 'check'])->name('comments.like.check');
 
     Route::middleware('auth')->group(function () {
-        // Likes
+        // Likes (auth required)
+        Route::post('/likes/{modId}/toggle', [LikeController::class, 'toggle'])->name('likes.toggle');
+
+        // Bookmarks (auth required)
         Route::get('/bookmarks', [BookmarkController::class, 'index'])->name('bookmarks.index');
+        Route::post('/bookmarks/{modId}/toggle', [BookmarkController::class, 'toggle'])->name('bookmarks.toggle');
+
+        // Comment Likes (auth required)
+        Route::post('/comments/{commentId}/like/toggle', [CommentLikeController::class, 'toggle'])->name('comments.like.toggle');
 
         // Follow
         Route::post('/follow/{userId}/toggle', [FollowController::class, 'toggle'])->name('follow.toggle');
