@@ -19,6 +19,7 @@
         initReplyButtons();
         initCancelReplyButtons();
         initCollapseThreads();
+        initCommentSubmission();
     }
 
     /**
@@ -28,9 +29,8 @@
         // Main comment editor
         const mainEditor = document.getElementById('main-comment-editor');
         const mainTextarea = document.getElementById('main-comment-textarea');
-        const mainForm = document.getElementById('main-comment-form');
 
-        if (mainEditor && mainTextarea && mainForm) {
+        if (mainEditor && mainTextarea) {
             // Show/hide action bar on focus/blur
             mainEditor.addEventListener('focus', function() {
                 const actionsBar = this.closest('.comment-box-container').querySelector('.comment-actions-bar');
@@ -49,16 +49,6 @@
                     this.classList.add('is-empty');
                 } else {
                     this.classList.remove('is-empty');
-                }
-            });
-
-            // Handle form submission
-            mainForm.addEventListener('submit', function(e) {
-                const text = mainTextarea.value.trim();
-                if (text.length < 5) {
-                    e.preventDefault();
-                    alert('Comment must be at least 5 characters long.');
-                    return false;
                 }
             });
         }
@@ -81,6 +71,106 @@
                 } else {
                     editor.classList.remove('is-empty');
                 }
+            }
+        });
+    }
+
+    /**
+     * Initialize comment submission (AJAX - no page reload)
+     */
+    function initCommentSubmission() {
+        // Main comment form
+        const mainForm = document.getElementById('main-comment-form');
+        if (mainForm) {
+            mainForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+
+                const mainTextarea = document.getElementById('main-comment-textarea');
+                const mainEditor = document.getElementById('main-comment-editor');
+                const text = mainTextarea.value.trim();
+
+                if (text.length < 5) {
+                    alert('Comment must be at least 5 characters long.');
+                    return;
+                }
+
+                const submitBtn = mainForm.querySelector('button[type="submit"]');
+                const originalText = submitBtn.innerHTML;
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i>Posting...';
+
+                try {
+                    const formData = new FormData(mainForm);
+                    const response = await fetch(mainForm.action, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    });
+
+                    if (response.ok) {
+                        // Reload page to show new comment
+                        window.location.reload();
+                    } else {
+                        const data = await response.json();
+                        alert(data.message || 'Failed to post comment');
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = originalText;
+                    }
+                } catch (error) {
+                    console.error('Error posting comment:', error);
+                    alert('Network error occurred');
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+                }
+            });
+        }
+
+        // Reply forms (delegated)
+        document.addEventListener('submit', async function(e) {
+            const form = e.target.closest('.reply-form-container form');
+            if (!form) return;
+
+            e.preventDefault();
+
+            const textarea = form.querySelector('textarea[name="body"]');
+            const text = textarea.value.trim();
+
+            if (text.length < 5) {
+                alert('Reply must be at least 5 characters long.');
+                return;
+            }
+
+            const submitBtn = form.querySelector('.post-reply-btn');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i>Posting...';
+
+            try {
+                const formData = new FormData(form);
+                const response = await fetch(form.action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+
+                if (response.ok) {
+                    // Reload page to show new reply
+                    window.location.reload();
+                } else {
+                    const data = await response.json();
+                    alert(data.message || 'Failed to post reply');
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+                }
+            } catch (error) {
+                console.error('Error posting reply:', error);
+                alert('Network error occurred');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
             }
         });
     }

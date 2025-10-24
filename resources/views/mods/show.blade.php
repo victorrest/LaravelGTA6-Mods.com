@@ -28,9 +28,6 @@
         $galleryImages = $galleryImages ?? [];
     @endphp
 
-    {{-- Hidden mod ID for JavaScript --}}
-    <div data-mod-id="{{ $mod->id }}" style="display: none;"></div>
-
     {{-- Success notices --}}
     @if(session('success'))
         <div class="mb-4 rounded-lg border border-green-200 bg-green-50 p-4 text-green-900 flex items-start gap-3">
@@ -105,7 +102,7 @@
 
         {{-- Right: Download and Action Buttons --}}
         <div class="flex flex-col items-center md:items-end">
-            <div class="flex items-center space-x-2 w-full lg:w-auto">
+            <div class="flex items-center space-x-2 w-full lg:w-auto" data-mod-id="{{ $mod->id }}">
                 {{-- Download Button --}}
                 <form method="POST" action="{{ route('mods.download', [$primaryCategory, $mod]) }}" class="w-full md:w-auto">
                     @csrf
@@ -117,7 +114,7 @@
 
                 {{-- Like Button --}}
                 <button type="button" class="mod-hero-icon-button mod-like-button {{ $isLiked ? 'is-active' : 'is-inactive' }} w-11 h-11 hover:bg-gray-200 hover:text-pink-600 transition flex-shrink-0"
-                        data-like-button="true" aria-pressed="{{ $isLiked ? 'true' : 'false' }}"
+                        data-like-button="true" data-post-id="{{ $mod->id }}" aria-pressed="{{ $isLiked ? 'true' : 'false' }}"
                         @if(!$userLoggedIn) disabled title="Jelentkezz be a kedveléshez" @endif>
                     <span class="sr-only">Kedvelés</span>
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5"></path></svg>
@@ -125,7 +122,7 @@
 
                 {{-- Bookmark Button --}}
                 <button type="button" class="mod-hero-icon-button mod-bookmark-button {{ $isBookmarked ? 'is-active' : 'is-inactive' }} w-11 h-11 hover:bg-gray-200 hover:text-pink-600 transition flex-shrink-0"
-                        data-bookmark-button="true" aria-pressed="{{ $isBookmarked ? 'true' : 'false' }}"
+                        data-bookmark-button="true" data-post-id="{{ $mod->id }}" aria-pressed="{{ $isBookmarked ? 'true' : 'false' }}"
                         @if(!$userLoggedIn) disabled title="Jelentkezz be a mentéshez" @endif>
                     <span class="sr-only">{{ $isBookmarked ? 'Bookmarked' : 'Bookmark' }}</span>
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
@@ -223,9 +220,7 @@
                 <div class="flex border-b border-gray-200">
                     <button data-tab="description" class="tab-btn px-6 py-3 font-semibold active text-pink-600 border-b-2 border-pink-600">Description</button>
                     <button data-tab="comments" class="tab-btn px-6 py-3 font-semibold text-gray-600 hover:text-pink-600 border-b-2 border-transparent">Comments ({{ $mod->comments_count }})</button>
-                    @if($versions->count() > 1)
-                        <button data-tab="changelogs" class="tab-btn px-6 py-3 font-semibold text-gray-600 hover:text-pink-600 border-b-2 border-transparent">Changelogs</button>
-                    @endif
+                    <button data-tab="changelogs" class="tab-btn px-6 py-3 font-semibold text-gray-600 hover:text-pink-600 border-b-2 border-transparent">Changelogs ({{ $versions->count() + 1 }})</button>
                 </div>
 
                 {{-- Description Tab --}}
@@ -260,39 +255,67 @@
                 </div>
 
                 {{-- Changelogs Tab --}}
-                @if($versions->count() > 1)
-                    <div id="tab-changelogs" class="tab-content hidden p-4 md:p-6">
-                        <h4 class="font-bold text-lg mb-4 text-gray-900">Version History</h4>
-                        <div class="space-y-3">
-                            @foreach($versions as $version)
-                                <div class="p-4 bg-gray-50 rounded-lg border {{ $version->is_current ? 'border-pink-500 bg-pink-50' : 'border-gray-200' }}">
-                                    <div class="flex items-center justify-between">
-                                        <div>
-                                            <h3 class="font-bold text-gray-900">
-                                                Version {{ $version->version_number }}
-                                                @if($version->is_current)
-                                                    <span class="ml-2 px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">Current</span>
-                                                @endif
-                                            </h3>
-                                            <p class="text-xs text-gray-500 mt-1">
-                                                {{ $version->created_at->format('F j, Y') }}
-                                                @if($version->file_size_label)
-                                                    · {{ $version->file_size_label }}
-                                                @endif
-                                            </p>
-                                        </div>
-                                    </div>
-                                    @if($version->changelog)
-                                        <div class="mt-3 text-sm text-gray-700">
-                                            <strong>Changes:</strong>
-                                            <p class="mt-1 whitespace-pre-line">{{ $version->changelog }}</p>
-                                        </div>
-                                    @endif
+                <div id="tab-changelogs" class="tab-content hidden p-4 md:p-6">
+                    <h4 class="font-bold text-lg mb-4 text-gray-900">Version History</h4>
+                    <div class="space-y-3">
+                        {{-- Initial Version (from mod table) --}}
+                        <div class="p-4 bg-gray-50 rounded-lg border {{ $versions->isEmpty() ? 'border-pink-500 bg-pink-50' : 'border-gray-200' }}">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <h3 class="font-bold text-gray-900">
+                                        Version {{ $mod->version ?? '1.0' }}
+                                        @if($versions->isEmpty())
+                                            <span class="ml-2 px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">Current</span>
+                                        @endif
+                                        <span class="ml-2 px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">Initial Release</span>
+                                    </h3>
+                                    <p class="text-xs text-gray-500 mt-1">
+                                        {{ $mod->published_at ? $mod->published_at->format('F j, Y') : $mod->created_at->format('F j, Y') }}
+                                        @if($mod->file_size_label)
+                                            · {{ $mod->file_size_label }}
+                                        @endif
+                                    </p>
                                 </div>
-                            @endforeach
+                            </div>
+                            <div class="mt-3 text-sm text-gray-700">
+                                <strong>Changes:</strong>
+                                <p class="mt-1">Initial release</p>
+                            </div>
                         </div>
+
+                        {{-- Additional Versions (from mod_versions table) --}}
+                        @foreach($versions as $version)
+                            <div class="p-4 bg-gray-50 rounded-lg border {{ $version->is_current ? 'border-pink-500 bg-pink-50' : 'border-gray-200' }}">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <h3 class="font-bold text-gray-900">
+                                            Version {{ $version->version_number }}
+                                            @if($version->is_current)
+                                                <span class="ml-2 px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">Current</span>
+                                            @endif
+                                        </h3>
+                                        <p class="text-xs text-gray-500 mt-1">
+                                            {{ $version->created_at->format('F j, Y') }}
+                                            @if($version->file_size_label)
+                                                · {{ $version->file_size_label }}
+                                            @endif
+                                        </p>
+                                    </div>
+                                </div>
+                                @if($version->changelog)
+                                    <div class="mt-3 text-sm text-gray-700">
+                                        <strong>Changes:</strong>
+                                        <p class="mt-1 whitespace-pre-line">{{ $version->changelog }}</p>
+                                    </div>
+                                @else
+                                    <div class="mt-3 text-sm text-gray-500 italic">
+                                        No changelog provided
+                                    </div>
+                                @endif
+                            </div>
+                        @endforeach
                     </div>
-                @endif
+                </div>
             </div>
         </div>
 
