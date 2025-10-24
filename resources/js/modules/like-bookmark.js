@@ -37,16 +37,26 @@ class LikeBookmarkHandler {
 
         try {
             // Check like status
-            const likeResponse = await fetch(`/likes/${modId}/check`);
-            const likeData = await likeResponse.json();
+            const likeResponse = await fetch(`/api/likes/${modId}/check`, {
+                credentials: 'same-origin',
+                headers: {
+                    'Accept': 'application/json'
+                }
+            });
+            const likeData = await this.parseJsonResponse(likeResponse);
 
             if (likeData.success && likeData.liked) {
                 this.setLikeState(true);
             }
 
             // Check bookmark status
-            const bookmarkResponse = await fetch(`/bookmarks/${modId}/check`);
-            const bookmarkData = await bookmarkResponse.json();
+            const bookmarkResponse = await fetch(`/api/bookmarks/${modId}/check`, {
+                credentials: 'same-origin',
+                headers: {
+                    'Accept': 'application/json'
+                }
+            });
+            const bookmarkData = await this.parseJsonResponse(bookmarkResponse);
 
             if (bookmarkData.success && bookmarkData.bookmarked) {
                 this.setBookmarkState(true);
@@ -68,15 +78,39 @@ class LikeBookmarkHandler {
         button.disabled = true;
 
         try {
-            const response = await fetch(`/likes/${modId}/toggle`, {
+            const response = await fetch(`/api/likes/${modId}/toggle`, {
                 method: 'POST',
+                credentials: 'same-origin',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Accept': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
                 }
             });
 
-            const data = await response.json();
+            if (response.redirected && response.url.includes('/login')) {
+                window.location.href = response.url;
+                return;
+            }
+
+            let data;
+
+            try {
+                data = await this.parseJsonResponse(response);
+            } catch (parseError) {
+                if (response.status === 419) {
+                    alert('A munkamenet lejárt, kérjük, frissítsd az oldalt.');
+                    window.location.reload();
+                    return;
+                }
+
+                if (response.status === 401) {
+                    window.location.href = '/login';
+                    return;
+                }
+
+                throw parseError;
+            }
 
             if (response.ok && data.success) {
                 this.setLikeState(data.liked);
@@ -108,15 +142,39 @@ class LikeBookmarkHandler {
         button.disabled = true;
 
         try {
-            const response = await fetch(`/bookmarks/${modId}/toggle`, {
+            const response = await fetch(`/api/bookmarks/${modId}/toggle`, {
                 method: 'POST',
+                credentials: 'same-origin',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Accept': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
                 }
             });
 
-            const data = await response.json();
+            if (response.redirected && response.url.includes('/login')) {
+                window.location.href = response.url;
+                return;
+            }
+
+            let data;
+
+            try {
+                data = await this.parseJsonResponse(response);
+            } catch (parseError) {
+                if (response.status === 419) {
+                    alert('A munkamenet lejárt, kérjük, frissítsd az oldalt.');
+                    window.location.reload();
+                    return;
+                }
+
+                if (response.status === 401) {
+                    window.location.href = '/login';
+                    return;
+                }
+
+                throw parseError;
+            }
 
             if (response.ok && data.success) {
                 this.setBookmarkState(data.bookmarked);
@@ -175,6 +233,30 @@ class LikeBookmarkHandler {
 
     formatNumber(num) {
         return new Intl.NumberFormat('en-US').format(num);
+    }
+
+    async parseJsonResponse(response) {
+        const contentType = response.headers.get('content-type') || '';
+
+        if (contentType.includes('application/json')) {
+            return response.json();
+        }
+
+        const text = await response.text();
+
+        if (!text) {
+            return {};
+        }
+
+        try {
+            return JSON.parse(text);
+        } catch (error) {
+            const parseError = new Error('Unexpected non-JSON response');
+            parseError.originalError = error;
+            parseError.response = response;
+            parseError.body = text;
+            throw parseError;
+        }
     }
 
     getModId() {
