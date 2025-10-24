@@ -7,19 +7,10 @@
         <header class="text-center space-y-3">
             <h1 class="text-3xl md:text-4xl font-bold text-gray-900">Update {{ $mod->title }}</h1>
             <p class="text-sm md:text-base text-gray-500 max-w-2xl mx-auto">
-                Küldd be a mód frissítését új verziószámmal, képekkel és fájlokkal. A jelenlegi verzió addig marad elérhető, amíg a moderátorok jóvá nem hagyják az új kiadást.
+                Refresh your listing with new screenshots, files or version information. Changes are saved as soon as they pass
+                moderation.
             </p>
         </header>
-
-        @if ($pendingRevision)
-            <div class="rounded-2xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-800 flex items-center justify-between">
-                <div>
-                    <strong class="font-semibold">Folyamatban lévő frissítés:</strong>
-                    v{{ $pendingRevision->version }} – beküldve {{ $pendingRevision->created_at->diffForHumans() }}
-                </div>
-                <div class="text-xs text-yellow-700">A módosítás addig nem publikálódik, amíg jóvá nem hagyjuk.</div>
-            </div>
-        @endif
 
         <div class="grid gap-6 lg:grid-cols-[2fr,1fr]">
             <form id="mod-update-form" method="POST" action="{{ route('mods.update', $mod) }}" enctype="multipart/form-data" class="space-y-8">
@@ -51,11 +42,6 @@
                             <label class="form-label" for="download_url">Download URL</label>
                             <input id="download_url" name="download_url" type="url" value="{{ old('download_url', $mod->download_url) }}" class="form-input" placeholder="https://">
                             <p class="form-help">Leave empty if you rely on the uploaded archive below.</p>
-                        </div>
-                        <div class="md:col-span-2">
-                            <label class="form-label" for="changelog">Changelog</label>
-                            <textarea id="changelog" name="changelog" rows="4" class="form-textarea" placeholder="Írd le röviden, mi változott.">{{ old('changelog') }}</textarea>
-                            <p class="form-help">A moderátorok ez alapján döntik el, hogy milyen gyorsan kerül jóváhagyásra a frissítés.</p>
                         </div>
                     </div>
                     <div>

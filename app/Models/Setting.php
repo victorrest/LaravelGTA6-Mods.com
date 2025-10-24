@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Schema;
 
 class Setting extends Model
 {
@@ -12,39 +11,49 @@ class Setting extends Model
 
     protected $fillable = [
         'key',
-        'label',
         'value',
         'type',
-        'meta',
     ];
 
-    protected $casts = [
-        'meta' => 'array',
-    ];
-
+    /**
+     * Get a setting value by key
+     */
     public static function get(string $key, $default = null)
     {
-        if (! Schema::hasTable('settings')) {
+        $setting = static::where('key', $key)->first();
+
+        if (!$setting) {
             return $default;
         }
 
-        $setting = static::query()->where('key', $key)->first();
-
-        return $setting?->value ?? $default;
+        return static::castValue($setting->value, $setting->type);
     }
 
-    public static function set(string $key, $value, ?string $label = null): Setting
+    /**
+     * Set a setting value by key
+     */
+    public static function set(string $key, $value, string $type = 'string'): void
     {
-        if (! Schema::hasTable('settings')) {
-            throw new \RuntimeException('Settings tábla nem érhető el. Futtasd a migrációkat.');
-        }
-
-        return static::updateOrCreate(
+        static::updateOrCreate(
             ['key' => $key],
             [
-                'value' => $value,
-                'label' => $label ?? $key,
+                'value' => is_array($value) ? json_encode($value) : $value,
+                'type' => $type,
             ]
         );
+    }
+
+    /**
+     * Cast value based on type
+     */
+    protected static function castValue($value, string $type)
+    {
+        return match ($type) {
+            'boolean' => (bool) $value,
+            'integer' => (int) $value,
+            'float', 'double' => (float) $value,
+            'json', 'array' => json_decode($value, true),
+            default => $value,
+        };
     }
 }

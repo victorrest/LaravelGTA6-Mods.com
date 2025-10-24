@@ -6,19 +6,32 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /**
+     * Run the migrations.
+     */
     public function up(): void
     {
         Schema::create('settings', function (Blueprint $table) {
             $table->id();
             $table->string('key')->unique();
-            $table->string('label');
             $table->text('value')->nullable();
-            $table->string('type')->default('string');
-            $table->json('meta')->nullable();
+            $table->string('type')->default('string'); // string, boolean, integer, json, etc.
             $table->timestamps();
         });
+
+        // Insert default YouTube API key setting
+        DB::table('settings')->insert([
+            'key' => 'youtube_api_key',
+            'value' => '',
+            'type' => 'string',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
     }
 
+    /**
+     * Reverse the migrations.
+     */
     public function down(): void
     {
         Schema::dropIfExists('settings');

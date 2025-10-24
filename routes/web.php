@@ -5,12 +5,13 @@ use App\Http\Controllers\Admin\CommentController as AdminCommentController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\ForumController as AdminForumController;
 use App\Http\Controllers\Admin\ModController as AdminModController;
-use App\Http\Controllers\Admin\ModVideoController as AdminModVideoController;
-use App\Http\Controllers\Admin\ModRevisionController as AdminModRevisionController;
 use App\Http\Controllers\Admin\NewsController as AdminNewsController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
-use App\Http\Controllers\Admin\SettingController as AdminSettingController;
+use App\Http\Controllers\Admin\SettingsController as AdminSettingsController;
+use App\Http\Controllers\Admin\VideoController as AdminVideoController;
+use App\Http\Controllers\Admin\ModVersionController as AdminModVersionController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\ModVersionController;
 use App\Http\Controllers\ForumController;
 use App\Http\Controllers\InstallController;
 use App\Http\Controllers\HomeController;
@@ -24,7 +25,7 @@ use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\BookmarkController;
 use App\Http\Controllers\FollowController;
 use App\Http\Controllers\NotificationController;
-use App\Http\Controllers\ModVideoController;
+use App\Http\Controllers\VideoController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/install', [InstallController::class, 'index'])->name('install.index');
@@ -46,6 +47,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/mods/upload', [ModManagementController::class, 'create'])->name('mods.upload');
     Route::post('/mods', [ModManagementController::class, 'store'])->name('mods.store');
     Route::get('/dashboard/mods', [ModManagementController::class, 'myMods'])->name('mods.my');
+
+    // Mod version submission
+    Route::get('/mods/{mod}/version/submit', [ModVersionController::class, 'create'])->name('mods.version.create');
+    Route::post('/mods/{mod}/version', [ModVersionController::class, 'store'])->name('mods.version.store');
 });
 Route::get('/download/{downloadToken:token}', [ModDownloadController::class, 'show'])->name('mods.download.waiting');
 Route::post('/download/{downloadToken:token}/complete', [ModDownloadController::class, 'complete'])->name('mods.download.complete');
@@ -66,15 +71,6 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('mods/{mod}/edit', [AdminModController::class, 'edit'])->name('mods.edit');
     Route::put('mods/{mod}', [AdminModController::class, 'update'])->name('mods.update');
     Route::delete('mods/{mod}', [AdminModController::class, 'destroy'])->name('mods.destroy');
-
-    Route::get('mod-videos', [AdminModVideoController::class, 'index'])->name('mod-videos.index');
-    Route::put('mod-videos/{modVideo}/approve', [AdminModVideoController::class, 'approve'])->name('mod-videos.approve');
-    Route::put('mod-videos/{modVideo}/reject', [AdminModVideoController::class, 'reject'])->name('mod-videos.reject');
-
-    Route::get('mod-revisions', [AdminModRevisionController::class, 'index'])->name('mod-revisions.index');
-    Route::get('mod-revisions/{modRevision}', [AdminModRevisionController::class, 'show'])->name('mod-revisions.show');
-    Route::put('mod-revisions/{modRevision}/approve', [AdminModRevisionController::class, 'approve'])->name('mod-revisions.approve');
-    Route::put('mod-revisions/{modRevision}/reject', [AdminModRevisionController::class, 'reject'])->name('mod-revisions.reject');
 
     Route::get('categories', [AdminCategoryController::class, 'index'])->name('categories.index');
     Route::post('categories', [AdminCategoryController::class, 'store'])->name('categories.store');
@@ -101,8 +97,23 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('comments', [AdminCommentController::class, 'index'])->name('comments.index');
     Route::delete('comments/{comment}', [AdminCommentController::class, 'destroy'])->name('comments.destroy');
 
-    Route::get('settings', [AdminSettingController::class, 'index'])->name('settings.index');
-    Route::post('settings', [AdminSettingController::class, 'store'])->name('settings.store');
+    // Settings
+    Route::get('settings', [AdminSettingsController::class, 'index'])->name('settings.index');
+    Route::post('settings', [AdminSettingsController::class, 'update'])->name('settings.update');
+
+    // Video Moderation
+    Route::get('videos', [AdminVideoController::class, 'index'])->name('videos.index');
+    Route::post('videos/{video}/approve', [AdminVideoController::class, 'approve'])->name('videos.approve');
+    Route::post('videos/{video}/reject', [AdminVideoController::class, 'reject'])->name('videos.reject');
+    Route::delete('videos/{video}', [AdminVideoController::class, 'destroy'])->name('videos.destroy');
+    Route::post('videos/{video}/clear-reports', [AdminVideoController::class, 'clearReports'])->name('videos.clear-reports');
+
+    // Mod Version Moderation
+    Route::get('versions', [AdminModVersionController::class, 'index'])->name('versions.index');
+    Route::post('versions/{version}/approve', [AdminModVersionController::class, 'approve'])->name('versions.approve');
+    Route::post('versions/{version}/reject', [AdminModVersionController::class, 'reject'])->name('versions.reject');
+    Route::post('versions/{version}/set-current', [AdminModVersionController::class, 'setAsCurrent'])->name('versions.set-current');
+    Route::delete('versions/{version}', [AdminModVersionController::class, 'destroy'])->name('versions.destroy');
 });
 
 // Author Profile Routes
@@ -148,6 +159,13 @@ Route::prefix('api')->name('api.')->group(function () {
         Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount'])->name('notifications.unread');
         Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead'])->name('notifications.read');
         Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead'])->name('notifications.readAll');
+
+        // Videos
+        Route::post('/videos/submit', [VideoController::class, 'submit'])->name('videos.submit');
+        Route::post('/videos/{video}/report', [VideoController::class, 'report'])->name('videos.report');
+        Route::delete('/videos/{video}', [VideoController::class, 'destroy'])->name('videos.destroy');
+        Route::post('/videos/{video}/feature', [VideoController::class, 'feature'])->name('videos.feature');
+        Route::delete('/videos/{video}/feature', [VideoController::class, 'unfeature'])->name('videos.unfeature');
     });
 });
 
@@ -196,6 +214,5 @@ Route::middleware('auth')->group(function () {
     Route::put('/{category:slug}/{mod:slug}', [ModManagementController::class, 'update'])->name('mods.update');
     Route::post('/{category:slug}/{mod:slug}/rate', [ModController::class, 'rate'])->name('mods.rate');
     Route::post('/{category:slug}/{mod:slug}/comment', [ModController::class, 'comment'])->name('mods.comment');
-    Route::post('/{category:slug}/{mod:slug}/videos', [ModVideoController::class, 'store'])->name('mods.videos.store');
 });
 Route::post('/{category:slug}/{mod:slug}/download', [ModDownloadController::class, 'store'])->name('mods.download');

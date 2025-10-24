@@ -44,10 +44,27 @@ class ModController extends Controller
         // Verify that the mod belongs to this category
         abort_unless($mod->categories->contains($category), Response::HTTP_NOT_FOUND);
 
-        $mod->loadMissing(['author', 'categories', 'galleryImages', 'approvedVideos'])->loadCount(['comments', 'approvedVideos']);
+        $mod->loadMissing(['author', 'categories', 'galleryImages'])->loadCount('comments');
+
+        // Load approved videos
+        $videos = $mod->videos()
+            ->approved()
+            ->with('submitter')
+            ->orderBy('is_featured', 'desc')
+            ->orderBy('position')
+            ->get();
+
+        // Load mod versions
+        $versions = $mod->versions()
+            ->approved()
+            ->orderByDesc('created_at')
+            ->with('submitter')
+            ->get();
+
+        // Get current version (latest approved or the mod's own version)
+        $currentVersion = $versions->where('is_current', true)->first() ?? $versions->first();
 
         $comments = $mod->comments()->with('author')->latest()->take(20)->get();
-        $videos = $mod->approvedVideos()->with('author')->get();
 
         $userRating = Auth::check()
             ? $mod->ratings()->where('user_id', Auth::id())->value('rating')
@@ -107,14 +124,16 @@ class ModController extends Controller
         $canManagePin = $authUser && $authUser->getKey() === $mod->user_id;
         $isPinnedByOwner = $canManagePin && (int) $authUser->pinned_mod_id === (int) $mod->id;
 
+        // Check if user can manage this mod
+        $canManageMod = Auth::check() && (Auth::id() === $mod->user_id || Auth::user()->is_admin);
+
         return view('mods.show', [
             'mod' => $mod,
             'comments' => $comments,
-            'videos' => $videos,
             'relatedMods' => $relatedMods,
             'breadcrumbs' => $breadcrumbs,
             'primaryCategory' => $primaryCategory,
-            'downloadUrl' => $mod->download_url,
+            'downloadUrl' => $currentVersion ? ($currentVersion->download_url ?: $currentVersion->file_url) : $mod->download_url,
             'downloadFormatted' => number_format($mod->downloads),
             'likesFormatted' => number_format($mod->likes),
             'ratingValue' => $ratingValue,
@@ -126,7 +145,10 @@ class ModController extends Controller
             'galleryImages' => $galleryImages,
             'canManagePin' => $canManagePin,
             'isPinnedByOwner' => $isPinnedByOwner,
-            'videoCount' => $videos->count(),
+            'videos' => $videos,
+            'versions' => $versions,
+            'currentVersion' => $currentVersion,
+            'canManageMod' => $canManageMod,
         ]);
     }
 

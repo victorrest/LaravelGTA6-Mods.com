@@ -18,10 +18,6 @@ return [
         'token' => env('POSTMARK_TOKEN'),
     ],
 
-    'youtube' => [
-        'key' => env('YOUTUBE_API_KEY'),
-    ],
-
     'resend' => [
         'key' => env('RESEND_KEY'),
     ],

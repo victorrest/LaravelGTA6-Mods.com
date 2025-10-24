@@ -12,6 +12,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="{{ asset('assets/css/theme.css') }}">
     <link rel="stylesheet" href="{{ asset('css/theme.css') }}">
+    <!-- PhotoSwipe CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/photoswipe@5.4.3/dist/photoswipe.css">
     @stack('styles')
 </head>
 <body class="text-gray-700 min-h-screen flex flex-col">
@@ -250,6 +252,9 @@
     </footer>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/alpinejs/3.14.1/cdn.min.js" integrity="sha512-ytM6hP1K9BkRTjUQZpxZKFjJ2TvE4QXaK7phVymsm7NimaI5H09TWWW6f2JMbonLp4ftYU6xfwQGoe3C8jta9A==" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
+    <!-- PhotoSwipe JS -->
+    <script src="https://cdn.jsdelivr.net/npm/photoswipe@5.4.3/dist/umd/photoswipe.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/photoswipe@5.4.3/dist/umd/photoswipe-lightbox.umd.min.js"></script>
     <script src="{{ asset('assets/js/utils.js') }}" defer></script>
     <script src="{{ asset('assets/js/theme.js') }}" defer></script>
     <script src="{{ asset('js/header-menus.js') }}" defer></script>
