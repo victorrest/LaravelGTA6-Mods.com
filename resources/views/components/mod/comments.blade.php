@@ -1,200 +1,210 @@
 @props(['mod', 'comments'])
 
 @php
-    // Recursive function to render comments with proper depth
-    function renderComment($comment, $mod, $depth = 1, $maxDepth = 6) {
-        $userLoggedIn = auth()->check();
-        $isLiked = $userLoggedIn && $comment->isLikedBy(auth()->user());
-        $isCreator = $comment->user_id === $mod->user_id;
-        $canDelete = $userLoggedIn && (auth()->id() === $comment->user_id || auth()->user()->is_admin);
-        $canReply = $depth < $maxDepth;
-
-        // Depth classes for responsive threading
-        $depthClass = 'depth-' . $depth;
-        $wrapperClasses = "comment-wrapper {$depthClass}";
-
-        $authorName = $comment->author->name ?? 'Unknown User';
-        $authorAvatar = $comment->author->avatar_url ?? 'https://ui-avatars.com/api/?name=' . urlencode($authorName) . '&background=e5e7eb&color=374151';
-        $timeLabel = $comment->created_at->diffForHumans();
-
-        echo '<div id="comment-' . $comment->id . '" class="' . $wrapperClasses . '" data-comment-id="' . $comment->id . '" data-comment-depth="' . $depth . '">';
-        echo '<div class="comment-instance flex space-x-3">';
-
-        // Left column with avatar and thread line
-        echo '<div class="clickable-area flex-shrink-0 flex flex-col items-center" role="button" tabindex="0" aria-expanded="true">';
-        echo '<img src="' . e($authorAvatar) . '" class="avatar rounded-full w-10 h-10 object-cover" alt="' . e($authorName) . '">';
-        echo '<div class="collapsed-icon hidden w-10 h-10 rounded-full bg-gray-200 items-center justify-center text-gray-500 hover:bg-gray-300">';
-        echo '<i class="fas fa-plus"></i>';
-        echo '</div>';
-        echo '<div class="comment-thread-line w-0.5 mt-2 bg-gray-200 hover:bg-pink-500 flex-grow"></div>';
-        echo '</div>';
-
-        // Main content
-        echo '<div class="comment-main-content flex-1">';
-
-        // Author line
-        echo '<p class="font-semibold text-gray-900 text-sm">';
-        echo '<a href="' . route('author.profile', $comment->user_id) . '" class="comment-author-link hover:text-pink-600">' . e($authorName) . '</a>';
-
-        if ($isCreator) {
-            echo '<span class="text-xs text-white font-semibold bg-pink-500 px-1.5 py-0.5 rounded-full ml-1">Creator</span>';
-        }
-
-        if ($comment->author && $comment->author->is_admin) {
-            echo '<span class="text-xs text-white font-semibold bg-purple-500 px-1.5 py-0.5 rounded-full ml-1">Admin</span>';
-        }
-
-        echo '<time datetime="' . $comment->created_at->toIso8601String() . '">';
-        echo '<span class="text-xs text-gray-500 font-normal whitespace-nowrap ml-1">' . e($timeLabel) . '</span>';
-        echo '</time>';
-        echo '<span class="collapsed-text hidden text-xs font-normal text-gray-500">[+]</span>';
-        echo '</p>';
-
-        // Comment body
-        echo '<div class="comment-body">';
-        echo '<div class="mt-1 text-gray-800 leading-relaxed comment-content text-sm">' . nl2br(e($comment->body)) . '</div>';
-
-        // Actions
-        echo '<div class="flex items-center space-x-4 text-xs text-gray-500 mt-2">';
-
-        if ($canReply && $userLoggedIn) {
-            echo '<button type="button" class="reply-btn hover:text-pink-600 font-semibold" data-comment-id="' . $comment->id . '" data-comment-author="' . e($authorName) . '">Reply</button>';
-        }
-
-        // Like button
-        $likeCount = $comment->likes_count ?? 0;
-        $likePressed = $isLiked ? 'true' : 'false';
-        $likeClass = $isLiked ? 'comment-like-btn hover:text-pink-600 flex items-center font-semibold text-pink-600' : 'comment-like-btn hover:text-pink-600 flex items-center';
-
-        if ($userLoggedIn) {
-            echo '<button type="button" class="' . $likeClass . '" data-comment-id="' . $comment->id . '" aria-pressed="' . $likePressed . '">';
-            echo '<i class="fas fa-thumbs-up mr-1"></i> <span class="comment-like-count">' . $likeCount . '</span>';
-            echo '</button>';
-        } else {
-            echo '<span class="flex items-center text-gray-400">';
-            echo '<i class="fas fa-thumbs-up mr-1"></i> <span>' . $likeCount . '</span>';
-            echo '</span>';
-        }
-
-        // Delete button
-        if ($canDelete) {
-            echo '<form method="POST" action="' . route('admin.comments.destroy', $comment) . '" class="inline" onsubmit="return confirm(\'Are you sure you want to delete this comment?\')">';
-            echo csrf_field();
-            echo method_field('DELETE');
-            echo '<button type="submit" class="hover:text-red-600 font-semibold"><i class="fa-solid fa-trash mr-1"></i>Delete</button>';
-            echo '</form>';
-        }
-
-        echo '</div>'; // End actions
-
-        // Reply form
-        if ($canReply && $userLoggedIn) {
-            $primaryCategory = $mod->primary_category ?? $mod->categories->first();
-            echo '<div id="reply-form-container-' . $comment->id . '" class="reply-form-container hidden mt-4">';
-            echo '<form method="POST" action="' . route('mods.comment', [$primaryCategory, $mod]) . '" class="comment-box-container border border-gray-300 rounded-lg focus-within:ring-2 focus-within:ring-pink-500 overflow-hidden transition-all">';
-            echo csrf_field();
-            echo '<input type="hidden" name="parent_id" value="' . $comment->id . '">';
-            echo '<div class="comment-rich-editor">';
-            echo '<div class="comment-box-textarea w-full p-3 text-sm bg-transparent border-0 focus:ring-0 is-empty" contenteditable="true" data-placeholder="Replying to @' . e($authorName) . '..." data-comment-reply-editor="' . $comment->id . '"></div>';
-            echo '</div>';
-            echo '<textarea name="body" class="hidden" required minlength="5" maxlength="1500" data-comment-reply-textarea="' . $comment->id . '"></textarea>';
-            echo '<div class="comment-actions-bar px-3 pt-1.5 pb-3 flex justify-end items-center gap-x-2">';
-            echo '<button type="button" class="cancel-reply-btn text-gray-500 font-semibold py-1.5 px-3 rounded-md text-xs transition hover:bg-gray-100" data-comment-id="' . $comment->id . '">Cancel</button>';
-            echo '<button type="submit" class="post-reply-btn bg-pink-500 hover:bg-pink-600 text-white font-semibold py-1.5 px-3 rounded-lg text-xs transition" data-comment-id="' . $comment->id . '">Reply</button>';
-            echo '</div>';
-            echo '</form>';
-            echo '</div>';
-        }
-
-        echo '</div>'; // End comment-body
-        echo '</div>'; // End comment-main-content
-        echo '</div>'; // End comment-instance
-
-        // Render replies
-        if ($comment->replies && $comment->replies->count() > 0) {
-            echo '<div class="comment-replies">';
-            foreach ($comment->replies as $reply) {
-                renderComment($reply, $mod, $depth + 1, $maxDepth);
-            }
-            echo '</div>';
-        }
-
-        echo '</div>'; // End comment-wrapper
-    }
+    $primaryCategory = $mod->primary_category ?? $mod->categories->first();
+    $totalComments = $mod->comments_count;
+    $hasMoreComments = $totalComments > $comments->count();
 @endphp
 
-{{-- Comments Component (WordPress Style - Exact Match) --}}
-<div id="gta6-comments" class="space-y-6">
-    <h4 class="font-bold text-lg mb-4 text-gray-900">Comments ({{ $mod->comments_count }})</h4>
+<section
+    id="mod-comments"
+    class="space-y-6"
+    data-comments-section
+    data-mod-id="{{ $mod->id }}"
+    data-total-comments="{{ $totalComments }}"
+>
+    <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+            <h2 class="text-xl font-bold text-gray-900 flex items-center gap-2">
+                <i class="fa-regular fa-comments text-pink-500"></i>
+                <span>Comments</span>
+                <span class="text-sm text-gray-500" data-comment-count>({{ number_format($totalComments) }})</span>
+            </h2>
+            <p class="text-sm text-gray-500">Join the conversation, ask questions and share your feedback.</p>
+        </div>
+        <div class="flex items-center gap-2 text-sm">
+            <label for="comment-sort" class="text-gray-500">Sort by</label>
+            <select id="comment-sort" name="orderby" class="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-pink-500 focus:ring-pink-500" data-comment-sort>
+                <option value="best" selected>Top</option>
+                <option value="newest">Newest</option>
+                <option value="oldest">Oldest</option>
+            </select>
+        </div>
+    </div>
 
-    {{-- New Comment Form (Auth Users) --}}
     @auth
-        <div class="mb-6">
-            <form method="POST" action="{{ route('mods.comment', [$mod->primary_category ?? $mod->categories->first(), $mod]) }}" id="main-comment-form">
+        <div class="card p-4 md:p-5" data-comment-form>
+            <form method="POST" action="{{ route('mods.comment', [$primaryCategory, $mod]) }}" class="space-y-3">
                 @csrf
-                <div class="flex items-start space-x-3">
-                    <img src="{{ auth()->user()->avatar_url ?? 'https://ui-avatars.com/api/?name=' . urlencode(auth()->user()->name) . '&background=ec4899&color=fff' }}"
-                         class="rounded-full w-10 h-10 object-cover flex-shrink-0"
-                         alt="{{ auth()->user()->name }}'s avatar">
-                    <div class="flex-1">
-                        <div class="comment-box-container border border-gray-300 rounded-lg focus-within:ring-2 focus-within:ring-pink-500 overflow-hidden transition-all">
-                            <div class="comment-rich-editor">
-                                <div class="comment-box-textarea w-full p-3 text-sm bg-transparent border-0 focus:ring-0 is-empty"
-                                     contenteditable="true"
-                                     data-placeholder="Write a comment..."
-                                     id="main-comment-editor"></div>
-                            </div>
-                            <textarea name="body" class="hidden" required minlength="5" maxlength="1500" id="main-comment-textarea"></textarea>
-                            <div class="comment-actions-bar hidden px-3 pt-1.5 pb-3 flex justify-end items-center">
-                                <button type="submit" class="bg-pink-500 hover:bg-pink-600 text-white font-semibold py-1.5 px-3 rounded-lg text-xs transition">
-                                    <i class="fa-solid fa-paper-plane mr-1"></i>Post Comment
-                                </button>
-                            </div>
-                        </div>
+                <div class="flex items-start gap-3">
+                    <img
+                        src="{{ auth()->user()->avatar_url ?? 'https://ui-avatars.com/api/?name=' . urlencode(auth()->user()->name) . '&background=ec4899&color=fff' }}"
+                        alt="{{ auth()->user()->name }} avatar"
+                        class="h-10 w-10 rounded-full object-cover"
+                    >
+                    <div class="flex-1 space-y-3">
+                        <textarea
+                            name="body"
+                            rows="4"
+                            minlength="5"
+                            maxlength="1500"
+                            required
+                            class="w-full resize-none rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-700 shadow-sm focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                            placeholder="Share your thoughts about this mod..."
+                        ></textarea>
                         @error('body')
-                            <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
+                            <p class="text-xs font-semibold text-red-600">{{ $message }}</p>
                         @enderror
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs text-gray-400">1500 characters maximum</span>
+                            <button type="submit" class="inline-flex items-center gap-2 rounded-full bg-pink-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-pink-700">
+                                <i class="fa-solid fa-paper-plane"></i>
+                                <span>Post comment</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </form>
         </div>
     @else
-        <div class="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-lg text-center">
-            <p class="text-sm text-gray-600">
-                Please <a href="{{ route('login') }}" class="text-pink-600 hover:text-pink-700 font-semibold">log in</a> to post a comment.
+        <div class="card border border-dashed border-pink-200 bg-pink-50/50 p-5 text-center text-sm text-pink-700">
+            <p>
+                <strong>Sign in to join the discussion.</strong>
+                <a href="{{ route('login') }}" class="ml-1 font-semibold text-pink-600 underline-offset-4 hover:underline">Log in</a>
+                or
+                <a href="{{ route('register') }}" class="font-semibold text-pink-600 underline-offset-4 hover:underline">create an account</a>.
             </p>
         </div>
     @endauth
 
-    {{-- Comments List --}}
-    <div class="comments-list space-y-4">
-        @forelse ($comments as $comment)
-            {!! renderComment($comment, $mod) !!}
-        @empty
-            <div class="p-8 text-center bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
-                <i class="fa-regular fa-comments text-4xl text-gray-300 mb-2"></i>
-                <p class="text-sm text-gray-500">No comments yet. Be the first to comment!</p>
-            </div>
-        @endforelse
+    <div id="comment-thread" class="space-y-4" data-comment-thread>
+        @include('mods.partials.comment-thread', ['mod' => $mod, 'comments' => $comments])
     </div>
 
-    {{-- Load More Button (if needed) --}}
-    @if($comments->count() >= 20)
-        <div class="text-center mt-6">
-            <button type="button" class="px-6 py-2 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition" data-load-more-comments>
-                <i class="fa-solid fa-chevron-down mr-2"></i>Load More Comments
+    @if ($hasMoreComments)
+        <div class="flex justify-center">
+            <button
+                type="button"
+                class="inline-flex items-center gap-2 rounded-full border-2 border-pink-500 px-6 py-2 text-sm font-semibold text-pink-600 transition hover:bg-pink-50"
+                data-load-more-comments
+            >
+                <i class="fa-solid fa-rotate"></i>
+                Load more comments
             </button>
         </div>
     @endif
-</div>
-
-{{-- Include WordPress comment styles --}}
-@push('styles')
-<style>
-{!! file_get_contents(base_path('GTA6ModsWP/assets/css/comments.css')) !!}
-</style>
-@endpush
+</section>
 
 @push('scripts')
-<script src="{{ asset('js/comments.js') }}"></script>
+<script>
+    document.querySelectorAll('[data-comment-reply]').forEach(button => {
+        button.addEventListener('click', () => {
+            const targetId = button.dataset.commentReply;
+            const form = document.querySelector(`[data-comment-reply-form="${targetId}"]`);
+            if (!form) return;
+            form.classList.toggle('hidden');
+            if (!form.classList.contains('hidden')) {
+                const textarea = form.querySelector('textarea');
+                if (textarea) textarea.focus();
+            }
+        });
+    });
+
+    document.querySelectorAll('[data-cancel-reply]').forEach(button => {
+        button.addEventListener('click', () => {
+            const targetId = button.dataset.cancelReply;
+            const form = document.querySelector(`[data-comment-reply-form="${targetId}"]`);
+            if (!form) return;
+            form.classList.add('hidden');
+            const textarea = form.querySelector('textarea');
+            if (textarea) textarea.value = '';
+        });
+    });
+
+    const commentsSection = document.querySelector('[data-comments-section]');
+    if (commentsSection) {
+        const modId = commentsSection.dataset.modId;
+        const thread = commentsSection.querySelector('[data-comment-thread]');
+        const loadMoreBtn = commentsSection.querySelector('[data-load-more-comments]');
+        const sortSelect = commentsSection.querySelector('[data-comment-sort]');
+        const totalLabel = commentsSection.querySelector('[data-comment-count]');
+
+        let currentPage = 1;
+        const perPage = 15;
+        let totalComments = Number(commentsSection.dataset.totalComments || 0);
+        let lastPage = Math.max(1, Math.ceil(totalComments / perPage));
+        let currentOrder = sortSelect ? sortSelect.value : 'best';
+        const loaderText = loadMoreBtn ? loadMoreBtn.innerHTML : '';
+
+        const updateLoadMoreVisibility = () => {
+            if (!loadMoreBtn) return;
+            loadMoreBtn.classList.toggle('hidden', currentPage >= lastPage);
+        };
+
+        const fetchComments = async (page = 1, append = false) => {
+            try {
+                const params = new URLSearchParams({ page: String(page), order: currentOrder });
+                const response = await fetch(`/api/mods/${modId}/comments?${params.toString()}`, {
+                    headers: { 'Accept': 'application/json' }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to load comments');
+                }
+
+                const data = await response.json();
+                if (!data || !data.success) {
+                    throw new Error('Invalid response');
+                }
+
+                if (append) {
+                    thread.insertAdjacentHTML('beforeend', data.html);
+                } else {
+                    thread.innerHTML = data.html;
+                }
+
+                currentPage = data.page;
+                lastPage = data.last_page;
+
+                if (typeof data.total !== 'undefined') {
+                    totalComments = Number(data.total);
+                    if (totalLabel) {
+                        totalLabel.textContent = `(${totalComments.toLocaleString()})`;
+                    }
+                }
+
+                lastPage = data.last_page ?? lastPage;
+                updateLoadMoreVisibility();
+            } catch (error) {
+                console.error('Error loading comments:', error);
+                if (loadMoreBtn) {
+                    loadMoreBtn.innerHTML = 'Failed to load comments';
+                }
+            }
+        };
+
+        if (loadMoreBtn) {
+            loadMoreBtn.addEventListener('click', async () => {
+                if (loadMoreBtn.disabled) return;
+                loadMoreBtn.disabled = true;
+                loadMoreBtn.innerHTML = '<i class="fa-solid fa-rotate fa-spin"></i> Loading...';
+
+                await fetchComments(currentPage + 1, true);
+
+                loadMoreBtn.disabled = false;
+                loadMoreBtn.innerHTML = loaderText;
+            });
+        }
+
+        if (sortSelect) {
+            sortSelect.addEventListener('change', async () => {
+                currentOrder = sortSelect.value || 'best';
+                currentPage = 1;
+                await fetchComments(1, false);
+            });
+        }
+
+        updateLoadMoreVisibility();
+    }
+</script>
 @endpush
