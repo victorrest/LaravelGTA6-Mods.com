@@ -33,7 +33,12 @@ class LikeBookmarkHandler {
 
     async loadInitialStates() {
         const modId = this.getModId();
-        if (!modId) return;
+        if (!modId) {
+            console.error('Mod ID not found for like/bookmark handlers');
+            return;
+        }
+
+        console.log('Loading initial states for mod ID:', modId);
 
         try {
             // Check like status
@@ -63,8 +68,12 @@ class LikeBookmarkHandler {
         if (button.disabled) return;
 
         const modId = this.getModId();
-        if (!modId) return;
+        if (!modId) {
+            console.error('Mod ID not found');
+            return;
+        }
 
+        console.log('Toggling like for mod ID:', modId);
         button.disabled = true;
 
         try {
@@ -81,6 +90,7 @@ class LikeBookmarkHandler {
             if (response.ok && data.success) {
                 this.setLikeState(data.liked);
                 this.updateLikeCount(data.likes_count);
+                console.log('Like toggled successfully:', data);
             } else {
                 if (response.status === 401) {
                     window.location.href = '/login';
@@ -103,8 +113,12 @@ class LikeBookmarkHandler {
         if (button.disabled) return;
 
         const modId = this.getModId();
-        if (!modId) return;
+        if (!modId) {
+            console.error('Mod ID not found');
+            return;
+        }
 
+        console.log('Toggling bookmark for mod ID:', modId);
         button.disabled = true;
 
         try {
@@ -120,6 +134,7 @@ class LikeBookmarkHandler {
 
             if (response.ok && data.success) {
                 this.setBookmarkState(data.bookmarked);
+                console.log('Bookmark toggled successfully:', data);
             } else {
                 if (response.status === 401) {
                     window.location.href = '/login';
@@ -181,12 +196,14 @@ class LikeBookmarkHandler {
         // Try to get mod ID from data attribute or URL
         const modElement = document.querySelector('[data-mod-id]');
         if (modElement) {
+            console.log('Found mod ID from [data-mod-id]:', modElement.dataset.modId);
             return modElement.dataset.modId;
         }
 
         // Try to get from like button
         const likeButton = document.querySelector('[data-like-button]');
         if (likeButton && likeButton.dataset.postId) {
+            console.log('Found mod ID from like button [data-post-id]:', likeButton.dataset.postId);
             return likeButton.dataset.postId;
         }
 
@@ -194,14 +211,15 @@ class LikeBookmarkHandler {
         const urlParts = window.location.pathname.split('/');
         const modIndex = urlParts.indexOf('mods');
         if (modIndex !== -1 && urlParts[modIndex + 2]) {
+            console.log('Found mod ID from URL:', urlParts[modIndex + 2]);
             return urlParts[modIndex + 2];
         }
 
+        console.error('Mod ID not found anywhere!');
         return null;
     }
 }
 
 // Initialize
+console.log('Initializing LikeBookmarkHandler...');
 new LikeBookmarkHandler();
-
-export default LikeBookmarkHandler;

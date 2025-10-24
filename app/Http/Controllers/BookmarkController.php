@@ -56,13 +56,6 @@ class BookmarkController extends Controller
      */
     public function toggle(Request $request, $modId)
     {
-        if (!Auth::check()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Jelentkezz be a mentéshez.',
-            ], 401);
-        }
-
         $mod = Mod::findOrFail($modId);
         $user = Auth::user();
 

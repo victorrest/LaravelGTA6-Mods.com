@@ -6,7 +6,6 @@ use App\Http\Requests\ModStoreRequest;
 use App\Http\Requests\ModUpdateRequest;
 use App\Models\Mod;
 use App\Models\ModCategory;
-use App\Models\ModVersion;
 use App\Models\UserActivity;
 use App\Support\EditorJs;
 use Illuminate\Http\RedirectResponse;
@@ -45,7 +44,6 @@ class ModManagementController extends Controller
         $filesForRollback = [];
 
         DB::beginTransaction();
-        $shouldQueueVersion = false;
 
         try {
             $modFile = $this->storeModFile($request, $filesForRollback);
@@ -115,7 +113,7 @@ class ModManagementController extends Controller
         abort_unless($mod->categories->contains($category), 404);
 
         return view('mods.edit', [
-            'mod' => $mod->load(['categories', 'galleryImages', 'versions' => fn ($query) => $query->orderByDesc('created_at')]),
+            'mod' => $mod->load(['categories', 'galleryImages']),
             'categories' => ModCategory::query()->orderBy('name')->get(),
             'category' => $category,
         ]);
@@ -144,6 +142,9 @@ class ModManagementController extends Controller
                 'title' => $data['title'],
                 'excerpt' => Str::limit($plainDescription, 200),
                 'description' => $data['description'],
+                'version' => $data['version'],
+                'download_url' => $data['download_url'] ?? $mod->download_url,
+                'file_size' => $data['file_size'] ?? $mod->file_size,
             ]);
 
             if ($imagePath = $this->storeHeroImage($request, $filesForRollback)) {
@@ -154,65 +155,20 @@ class ModManagementController extends Controller
                 $mod->hero_image_path = $imagePath;
             }
 
-            $downloadUrlInput = $data['download_url'] ?? null;
-            $existingDownloadUrl = $mod->download_url;
-            $existingVersion = $mod->version;
-            $newVersionNumber = $data['version'];
+            if ($modFile) {
+                if ($mod->file_path && ! Str::startsWith($mod->file_path, ['http://', 'https://'])) {
+                    $filesToDeleteAfterCommit[] = $mod->file_path;
+                }
 
-            $hasNewFile = $modFile !== null;
-            $hasDownloadChange = $downloadUrlInput && $downloadUrlInput !== $existingDownloadUrl;
-            $hasVersionChange = $newVersionNumber !== $existingVersion;
-
-            $hasPendingVersion = $mod->versions()->pending()->exists();
-            if ($hasPendingVersion && ($hasNewFile || $hasDownloadChange || $hasVersionChange)) {
-                throw ValidationException::withMessages([
-                    'version' => 'An update is already waiting for moderator review. Please wait until it is processed before submitting another version.',
-                ]);
+                $mod->file_path = $modFile['path'];
+                $mod->download_url = $data['download_url'] ?? $modFile['public_url'];
+                $mod->file_size = $data['file_size'] ?? $modFile['size'];
             }
 
-            $shouldQueueVersion = $hasNewFile || $hasDownloadChange || $hasVersionChange;
-
-            if ($shouldQueueVersion) {
-                if (! $hasNewFile && ! $downloadUrlInput) {
-                    throw ValidationException::withMessages([
-                        'download_url' => 'Provide a new download URL or upload the updated archive for this version.',
-                    ]);
-                }
-
-                ModVersion::create([
-                    'mod_id' => $mod->id,
-                    'submitted_by' => Auth::id(),
-                    'version_number' => $newVersionNumber,
-                    'changelog' => $data['changelog'] ?? null,
-                    'file_path' => $modFile['path'] ?? null,
-                    'download_url' => $downloadUrlInput ?: null,
-                    'file_size' => $data['file_size'] ?? ($modFile['size'] ?? null),
-                    'status' => 'pending',
-                    'is_current' => false,
+            if (! $mod->download_url) {
+                throw ValidationException::withMessages([
+                    'download_url' => 'Please provide a download URL or upload a mod file.',
                 ]);
-            } else {
-                if ($hasNewFile) {
-                    if ($mod->file_path && ! Str::startsWith($mod->file_path, ['http://', 'https://'])) {
-                        $filesToDeleteAfterCommit[] = $mod->file_path;
-                    }
-
-                    $mod->file_path = $modFile['path'];
-                    $mod->download_url = $downloadUrlInput ?: $modFile['public_url'];
-                    $mod->file_size = $data['file_size'] ?? ($modFile['size'] ?? $mod->file_size);
-                } elseif ($downloadUrlInput) {
-                    $mod->download_url = $downloadUrlInput;
-                }
-
-                $mod->version = $newVersionNumber;
-                if (isset($data['file_size'])) {
-                    $mod->file_size = $data['file_size'];
-                }
-
-                if (! $mod->download_url && ! $mod->file_path) {
-                    throw ValidationException::withMessages([
-                        'download_url' => 'Please provide a download URL or upload a mod file.',
-                    ]);
-                }
             }
 
             $mod->save();
@@ -237,11 +193,7 @@ class ModManagementController extends Controller
 
         cache()->forget('home:landing');
 
-        $redirectMessage = $shouldQueueVersion ?? false
-            ? 'Your update has been submitted for moderation. The previous version stays live until approval.'
-            : 'Mod updated successfully.';
-
-        return redirect()->route('mods.show', [$mod->primary_category, $mod])->with('status', $redirectMessage);
+        return redirect()->route('mods.show', [$mod->primary_category, $mod])->with('status', 'Mod updated successfully.');
     }
 
     public function myMods()
