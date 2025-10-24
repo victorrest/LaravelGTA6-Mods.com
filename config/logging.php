@@ -127,13 +127,6 @@ return [
             'path' => storage_path('logs/laravel.log'),
         ],
 
-        'performance' => [
-            'driver' => 'single',
-            'path' => storage_path('logs/performance.log'),
-            'level' => env('LOG_PERFORMANCE_LEVEL', 'info'),
-            'replace_placeholders' => true,
-        ],
-
     ],
 
 ];

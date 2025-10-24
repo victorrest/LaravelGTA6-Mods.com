@@ -8,11 +8,10 @@
     "require": {
         "php": "^8.2",
         "laravel/framework": "^12.0",
-        "laravel/horizon": "^5.21",
-        "laravel/octane": "^2.6",
+        "laravel/horizon": "^5.37",
+        "laravel/octane": "^2.13",
         "laravel/tinker": "^2.10.1",
-        "lostlink/laravel-editorjs": "dev-main",
-        "predis/predis": "^2.2"
+        "lostlink/laravel-editorjs": "dev-main"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
@@ -80,6 +79,7 @@
         {
             "type": "path",
             "url": "packages/lostlink/laravel-editorjs",
+            "canonical": false,
             "options": {
                 "symlink": true
             }

@@ -5,89 +5,90 @@ namespace App\Services\Cache;
 use Closure;
 use DateInterval;
 use DateTimeInterface;
+use Illuminate\Cache\TaggedCache;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Contracts\Cache\Factory as CacheFactory;
 use Illuminate\Contracts\Cache\Repository;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Config;
 
 class CacheService
 {
     public function __construct(
-        protected CacheFactory $cache,
-        protected CacheKeyManager $keys,
+        private readonly CacheFactory $cache,
+        private readonly CacheKeyManager $keys
     ) {
     }
 
     /**
      * @param  array<string, mixed>  $context
+     * @param  array<int, string>  $tags
+     * @template TValue
+     * @param  Closure():TValue  $callback
+     * @return TValue
      */
     public function remember(
-        string $baseKey,
+        string $namespace,
         Closure $callback,
-        DateTimeInterface|DateInterval|int|null $ttl = null,
-        array $tags = [],
         array $context = [],
-        bool $perUser = false,
+        array $tags = [],
+        DateInterval|DateTimeInterface|int|null $ttl = null,
+        ?string $store = null,
+        ?Authenticatable $user = null
     ): mixed {
-        if ($perUser) {
-            $context['user_id'] = Auth::id() ?: 'guest';
+        $key = $this->keys->resolve($namespace, $context, $tags, $user);
+        $repository = $this->repository($store);
+
+        $cache = $this->applyTags($repository, $key);
+
+        if ($ttl === null) {
+            return $cache->rememberForever($key->key(), $callback);
         }
 
-        $context['locale'] = app()->getLocale();
-
-        $cacheKey = $this->keys->make($baseKey, $context);
-        $ttl ??= config('performance.fragments.default_ttl');
-
-        $repository = $this->repository($tags, config('cache.default'));
-
-        return $repository->remember($cacheKey, $ttl, $callback);
+        return $cache->remember($key->key(), $ttl, $callback);
     }
 
     /**
-     * Store an item in the guest page cache.
+     * @param  array<string, mixed>  $context
+     * @param  array<int, string>  $tags
      */
-    public function putGuestPage(string $cacheKey, array $payload, DateTimeInterface|DateInterval|int|null $ttl = null): void
+    public function forget(string $namespace, array $context = [], array $tags = [], ?string $store = null, ?Authenticatable $user = null): bool
     {
-        $ttl ??= config('performance.full_page_cache.ttl');
+        $key = $this->keys->resolve($namespace, $context, $tags, $user);
+        $repository = $this->repository($store);
 
-        $this->repository(CacheTags::guestPages(), config('performance.full_page_cache.store'))
-            ->put($cacheKey, $payload, $ttl);
+        $cache = $this->applyTags($repository, $key);
+
+        return $cache->forget($key->key());
     }
 
     /**
-     * Attempt to fetch a guest page cache payload.
+     * @param  array<string, mixed>  $context
+     * @param  array<int, string>  $tags
      */
-    public function getGuestPage(string $cacheKey): ?array
+    public function key(string $namespace, array $context = [], array $tags = [], ?Authenticatable $user = null): CacheKey
     {
-        $cached = $this->repository(CacheTags::guestPages(), config('performance.full_page_cache.store'))
-            ->get($cacheKey);
+        return $this->keys->resolve($namespace, $context, $tags, $user);
+    }
 
-        return is_array($cached) ? $cached : null;
+    public function repository(?string $store = null): Repository
+    {
+        $store ??= Config::get('performance.cache.default_store', Config::get('cache.default'));
+
+        return $this->cache->store($store);
     }
 
     /**
-     * Flush all guest page cache entries.
+     * @return Repository|TaggedCache
      */
-    public function flushGuestPages(): void
+    private function applyTags(Repository $repository, CacheKey $key): Repository|TaggedCache
     {
-        $this->repository(CacheTags::guestPages(), config('performance.full_page_cache.store'))->flush();
-    }
+        $tags = $key->tags();
 
-    /**
-     * Flush entries associated with the provided tags.
-     */
-    public function flushTags(array $tags): void
-    {
-        $this->repository($tags, config('cache.default'))->flush();
-    }
-
-    protected function repository(array $tags = [], ?string $store = null): Repository
-    {
-        $store = $this->cache->store($store ?? config('cache.default'));
-
-        if ($tags !== []) {
-            return $store->tags($tags);
+        if (empty($tags) || ! method_exists($repository, 'tags')) {
+            return $repository;
         }
 
-        return $store;
+        /** @phpstan-ignore-next-line */
+        return $repository->tags($tags);
     }
 }

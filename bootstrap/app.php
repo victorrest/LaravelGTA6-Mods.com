@@ -1,13 +1,16 @@
 <?php
 
 use App\Http\Middleware\AdminMiddleware;
-use App\Http\Middleware\CacheGuestResponse;
 use App\Http\Middleware\UpdateUserActivity;
+use App\Providers\HorizonServiceProvider;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 
 return Application::configure(basePath: dirname(__DIR__))
+    ->withProviders([
+        HorizonServiceProvider::class,
+    ])
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
         commands: __DIR__.'/../routes/console.php',
@@ -18,9 +21,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin' => AdminMiddleware::class,
         ]);
 
-        // Add caching and activity middleware to the web group
+        // Add UpdateUserActivity middleware to web group
         $middleware->web(append: [
-            CacheGuestResponse::class,
             UpdateUserActivity::class,
         ]);
     })
