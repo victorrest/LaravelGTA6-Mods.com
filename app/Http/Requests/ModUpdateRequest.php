@@ -39,6 +39,7 @@ class ModUpdateRequest extends FormRequest
             'remove_gallery_image_ids.*' => ['integer', 'exists:mod_gallery_images,id'],
             'mod_file' => ['nullable', 'file', 'max:204800', 'required_without:download_url'],
             'file_size' => ['nullable', 'numeric', 'min:0'],
+            'changelog' => ['nullable', 'string', 'max:2000'],
         ];
     }
 
