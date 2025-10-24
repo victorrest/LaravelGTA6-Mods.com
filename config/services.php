@@ -33,12 +33,6 @@ return [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
         ],
-        'horizon_webhook' => env('HORIZON_SLACK_WEBHOOK'),
-        'horizon_channel' => env('HORIZON_SLACK_CHANNEL', '#horizon'),
-    ],
-
-    'ops' => [
-        'horizon_mail' => env('HORIZON_ALERT_EMAIL'),
     ],
 
 ];

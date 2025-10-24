@@ -1,7 +1,6 @@
 <?php
 
 use App\Http\Middleware\AdminMiddleware;
-use App\Http\Middleware\CacheGuestResponse;
 use App\Http\Middleware\UpdateUserActivity;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -18,9 +17,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin' => AdminMiddleware::class,
         ]);
 
-        // Add caching and activity middleware to the web group
+        // Add UpdateUserActivity middleware to web group
         $middleware->web(append: [
-            CacheGuestResponse::class,
             UpdateUserActivity::class,
         ]);
     })

@@ -28,6 +28,9 @@
         $galleryImages = $galleryImages ?? [];
     @endphp
 
+    {{-- Hidden mod ID for JavaScript --}}
+    <div data-mod-id="{{ $mod->id }}" style="display: none;"></div>
+
     {{-- Success notices --}}
     @if(request()->get('update') === 'success')
         <div class="mb-4 rounded-lg border border-sky-200 bg-sky-50 p-4 text-sky-900 flex items-start gap-3">
@@ -374,6 +377,9 @@
         </aside>
     </div>
 @endsection
+
+{{-- Share Modal --}}
+<x-mod.share-modal :mod="$mod" :url="request()->url()" />
 
 @push('scripts')
 <script>

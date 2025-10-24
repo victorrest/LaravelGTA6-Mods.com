@@ -42,7 +42,7 @@ Route::middleware('guest')->group(function () {
 
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');
 
-Route::get('/mods', [ModController::class, 'index'])->middleware('throttle:mods-browse')->name('mods.index');
+Route::get('/mods', [ModController::class, 'index'])->name('mods.index');
 Route::middleware('auth')->group(function () {
     Route::get('/mods/upload', [ModManagementController::class, 'create'])->name('mods.upload');
     Route::post('/mods', [ModManagementController::class, 'store'])->name('mods.store');
@@ -53,9 +53,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/mods/{mod}/version', [ModVersionController::class, 'store'])->name('mods.version.store');
 });
 Route::get('/download/{downloadToken:token}', [ModDownloadController::class, 'show'])->name('mods.download.waiting');
-Route::post('/download/{downloadToken:token}/complete', [ModDownloadController::class, 'complete'])
-    ->middleware('throttle:downloads')
-    ->name('mods.download.complete');
+Route::post('/download/{downloadToken:token}/complete', [ModDownloadController::class, 'complete'])->name('mods.download.complete');
 
 Route::get('/forum', [ForumController::class, 'index'])->name('forum.index');
 Route::get('/forum/create', [ForumController::class, 'create'])->middleware('auth')->name('forum.create');
@@ -148,6 +146,10 @@ Route::prefix('api')->name('api.')->group(function () {
     Route::get('/author/{userId}/following', [FollowController::class, 'following'])->name('author.following');
 
     Route::middleware('auth')->group(function () {
+        // Likes
+        Route::post('/likes/{modId}/toggle', [LikeController::class, 'toggle'])->name('likes.toggle');
+        Route::get('/likes/{modId}/check', [LikeController::class, 'check'])->name('likes.check');
+
         // Bookmarks
         Route::get('/bookmarks', [BookmarkController::class, 'index'])->name('bookmarks.index');
         Route::post('/bookmarks/{modId}/toggle', [BookmarkController::class, 'toggle'])->name('bookmarks.toggle');
@@ -184,7 +186,7 @@ Route::post('/mods/{mod:slug}/download', function (\App\Models\Mod $mod) {
         return redirect()->route('mods.download', [$mod->primary_category, $mod], 307);
     }
     return redirect()->route('mods.index');
-})->middleware('throttle:downloads');
+});
 
 Route::middleware('auth')->group(function () {
     Route::get('/mods/{mod:slug}/edit', function (\App\Models\Mod $mod) {
@@ -217,6 +219,4 @@ Route::middleware('auth')->group(function () {
     Route::post('/{category:slug}/{mod:slug}/rate', [ModController::class, 'rate'])->name('mods.rate');
     Route::post('/{category:slug}/{mod:slug}/comment', [ModController::class, 'comment'])->name('mods.comment');
 });
-Route::post('/{category:slug}/{mod:slug}/download', [ModDownloadController::class, 'store'])
-    ->middleware('throttle:downloads')
-    ->name('mods.download');
+Route::post('/{category:slug}/{mod:slug}/download', [ModDownloadController::class, 'store'])->name('mods.download');

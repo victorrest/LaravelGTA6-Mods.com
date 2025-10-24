@@ -6,8 +6,6 @@ use App\Models\Mod;
 use App\Models\ModCategory;
 use App\Models\ModComment;
 use App\Models\UserActivity;
-use App\Services\Cache\CacheService;
-use App\Services\Cache\CacheTags;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -15,10 +13,6 @@ use Symfony\Component\HttpFoundation\Response;
 
 class ModController extends Controller
 {
-    public function __construct(private readonly CacheService $cache)
-    {
-    }
-
     public function index(Request $request)
     {
         $query = Mod::query()->published()->with(['author', 'categories']);
@@ -37,16 +31,9 @@ class ModController extends Controller
 
         $mods = $query->paginate(12);
 
-        $categories = $this->cache->remember(
-            'mods:filters:categories',
-            fn () => ModCategory::query()->orderBy('name')->get(['id', 'name', 'slug']),
-            ttl: config('performance.fragments.navigation_ttl'),
-            tags: CacheTags::categories(),
-        );
-
         return view('mods.index', [
             'mods' => $mods,
-            'categories' => $categories,
+            'categories' => ModCategory::query()->orderBy('name')->get(),
         ]);
     }
 
