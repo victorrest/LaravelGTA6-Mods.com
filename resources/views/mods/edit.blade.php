@@ -1,62 +1,310 @@
 @extends('layouts.app', ['title' => 'Update Mod'])
 
+@php($previewPlaceholder = $mod->hero_image_url)
+
 @section('content')
-    <section class="max-w-4xl mx-auto space-y-6">
-        <header class="space-y-2 text-center">
-            <h1 class="text-3xl font-bold text-gray-900">Update {{ $mod->title }}</h1>
-            <p class="text-sm text-gray-500">Keep your mod fresh with new builds, changelogs and screenshots.</p>
+    <section class="max-w-6xl mx-auto space-y-8" id="mod-edit-root">
+        <header class="text-center space-y-3">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-900">Update {{ $mod->title }}</h1>
+            <p class="text-sm md:text-base text-gray-500 max-w-2xl mx-auto">
+                Refresh your listing with new screenshots, files or version information. Changes are saved as soon as they pass
+                moderation.
+            </p>
         </header>
 
-        <form method="POST" action="{{ route('mods.update', $mod) }}" enctype="multipart/form-data" class="card p-6 space-y-6">
-            @include('components.validation-errors')
-            @csrf
-            @method('PUT')
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                    <label class="form-label" for="title">Title</label>
-                    <input id="title" name="title" type="text" value="{{ old('title', $mod->title) }}" class="form-input" required>
-                </div>
-                <div>
-                    <label class="form-label" for="version">Version</label>
-                    <input id="version" name="version" type="text" value="{{ old('version', $mod->version) }}" class="form-input" required>
-                </div>
-                <div>
-                    <label class="form-label" for="category_ids">Categories</label>
-                    <select id="category_ids" name="category_ids[]" multiple class="form-multiselect" required>
-                        @foreach ($categories as $category)
-                            <option value="{{ $category->id }}" @selected($mod->categories->pluck('id')->contains($category->id) || collect(old('category_ids'))->contains($category->id))>{{ $category->name }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div>
-                    <label class="form-label" for="download_url">Download URL</label>
-                    <input id="download_url" name="download_url" type="url" value="{{ old('download_url', $mod->download_url) }}" class="form-input" required>
-                </div>
-            </div>
+        <div class="grid gap-6 lg:grid-cols-[2fr,1fr]">
+            <form id="mod-update-form" method="POST" action="{{ route('mods.update', $mod) }}" enctype="multipart/form-data" class="space-y-8">
+                @include('components.validation-errors')
+                @csrf
+                @method('PUT')
 
-            <div>
-                <label class="form-label" for="description">Description</label>
-                <textarea id="description" name="description" rows="8" class="form-textarea" required>{{ old('description', $mod->description) }}</textarea>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                    <label class="form-label" for="hero_image">Hero image</label>
-                    <input id="hero_image" name="hero_image" type="file" accept="image/*" class="form-input">
-                    <p class="form-help">Leave empty to keep the current image.</p>
+                <div class="card p-6 md:p-8 space-y-6">
+                    <h2 class="text-lg font-semibold text-gray-900">General details</h2>
+                    <div class="grid gap-6 md:grid-cols-2">
+                        <div>
+                            <label class="form-label" for="title">Mod title</label>
+                            <input id="title" name="title" type="text" value="{{ old('title', $mod->title) }}" class="form-input" required>
+                        </div>
+                        <div>
+                            <label class="form-label" for="version">Version</label>
+                            <input id="version" name="version" type="text" value="{{ old('version', $mod->version) }}" class="form-input" required>
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="form-label" for="category_ids">Categories</label>
+                            <select id="category_ids" name="category_ids[]" multiple class="form-multiselect" required>
+                                @foreach ($categories as $category)
+                                    <option value="{{ $category->id }}" @selected($mod->categories->pluck('id')->contains($category->id) || collect(old('category_ids'))->contains($category->id))>{{ $category->name }}</option>
+                                @endforeach
+                            </select>
+                            <p class="form-help">Hold Ctrl or Cmd to select every category that applies.</p>
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="form-label" for="download_url">Download URL</label>
+                            <input id="download_url" name="download_url" type="url" value="{{ old('download_url', $mod->download_url) }}" class="form-input" placeholder="https://">
+                            <p class="form-help">Leave empty if you rely on the uploaded archive below.</p>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="form-label" for="description">Description</label>
+                        <x-editorjs
+                            name="description"
+                            id="description"
+                            :value="old('description', $mod->description_raw)"
+                            :plain-text="\App\Support\EditorJs::toPlainText(old('description', $mod->description_raw))"
+                            placeholder="Describe features, installation steps and credits"
+                            required
+                        />
+                    </div>
                 </div>
-                <div>
-                    <label class="form-label" for="file_size">File size (MB)</label>
-                    <input id="file_size" name="file_size" type="number" step="0.1" min="0" value="{{ old('file_size', $mod->file_size) }}" class="form-input">
-                </div>
-            </div>
 
-            <div class="flex items-center justify-end gap-3">
-                <a href="{{ route('mods.show', $mod) }}" class="inline-flex items-center px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</a>
-                <button type="submit" class="inline-flex items-center px-5 py-2.5 rounded-lg bg-pink-600 text-white text-sm font-semibold shadow hover:bg-pink-700 transition">
-                    <i class="fa-solid fa-floppy-disk mr-2"></i>Save changes
-                </button>
-            </div>
-        </form>
+                <div class="card p-6 md:p-8 space-y-6">
+                    <h2 class="text-lg font-semibold text-gray-900">Visual assets</h2>
+                    <div class="grid gap-6 lg:grid-cols-2">
+                        <div>
+                            <label class="form-label">Hero image</label>
+                            <div id="hero-dropzone" class="relative flex h-48 w-full cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-pink-300 bg-white text-center transition hover:border-pink-500 hover:bg-pink-50">
+                                <input id="hero_image" name="hero_image" type="file" accept="image/*" class="absolute inset-0 h-full w-full cursor-pointer opacity-0">
+                                <div class="space-y-2 px-6">
+                                    <i class="fa-regular fa-image text-2xl text-pink-500"></i>
+                                    <p class="text-sm font-semibold text-gray-700">Drop or click to upload</p>
+                                    <p class="text-xs text-gray-500">Current image will remain unless you replace it.</p>
+                                </div>
+                                <p id="hero-upload-status" class="pointer-events-none mt-3 text-xs font-semibold text-pink-600"></p>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="form-label">Current hero image</label>
+                            <div class="h-48 overflow-hidden rounded-2xl border border-gray-200 bg-gray-100">
+                                <img src="{{ $mod->hero_image_url }}" alt="{{ $mod->title }} hero" class="h-full w-full object-cover">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="form-label">Existing gallery</label>
+                        @if ($mod->galleryImages->isEmpty())
+                            <p class="text-sm text-gray-500">No additional screenshots yet. Add some below!</p>
+                        @else
+                            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                                @foreach ($mod->galleryImages as $image)
+                                    <label class="relative block overflow-hidden rounded-2xl border border-gray-200 shadow-sm">
+                                        <img src="{{ $image->url }}" alt="Gallery image" class="h-40 w-full object-cover">
+                                        <input type="checkbox" name="remove_gallery_image_ids[]" value="{{ $image->id }}" class="absolute top-3 right-3 h-4 w-4 rounded border-gray-300 text-pink-500 focus:ring-pink-400">
+                                        <span class="absolute bottom-3 left-3 rounded-full bg-black/60 px-3 py-1 text-xs font-semibold text-white">Remove</span>
+                                    </label>
+                                @endforeach
+                            </div>
+                        @endif
+                    </div>
+
+                    <div>
+                        <label class="form-label">Upload new screenshots</label>
+                        <div id="gallery-dropzone" data-existing-count="{{ $mod->galleryImages->count() }}" class="relative flex min-h-[220px] w-full cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-pink-300 bg-white text-center transition hover:border-pink-500 hover:bg-pink-50">
+                            <input id="gallery_images" name="gallery_images[]" type="file" accept="image/*" multiple class="absolute inset-0 h-full w-full cursor-pointer opacity-0">
+                            <div class="space-y-2 px-6">
+                                <i class="fa-solid fa-images text-2xl text-pink-500"></i>
+                                <p class="text-sm font-semibold text-gray-700">Bulk upload additional screenshots</p>
+                                <p class="text-xs text-gray-500">Add up to 12 JPG/PNG/WebP images to showcase your mod.</p>
+                            </div>
+                        </div>
+                        <div id="gallery-previews" class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3"></div>
+                    </div>
+                </div>
+
+                <div class="card p-6 md:p-8 space-y-6">
+                    <h2 class="text-lg font-semibold text-gray-900">Files</h2>
+                    <div class="grid gap-6 lg:grid-cols-2">
+                        <div>
+                            <label class="form-label" for="file_size">File size (MB)</label>
+                            <input id="file_size" name="file_size" type="number" step="0.01" min="0" value="{{ old('file_size', $mod->file_size) }}" class="form-input" placeholder="850">
+                            <p class="form-help">We will auto-fill this when possible using your uploaded archive.</p>
+                        </div>
+                        <div>
+                            <label class="form-label" for="mod_file">Upload mod archive</label>
+                            <div class="relative flex h-48 cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-indigo-300 bg-indigo-50/60 text-center transition hover:border-indigo-400 hover:bg-indigo-100">
+                                <input id="mod_file" name="mod_file" type="file" class="absolute inset-0 h-full w-full cursor-pointer opacity-0">
+                                <div class="space-y-2 px-6">
+                                    <i class="fa-solid fa-file-zipper text-2xl text-indigo-500"></i>
+                                    <p class="text-sm font-semibold text-gray-700">Drop ZIP/RAR/7Z here</p>
+                                    <p class="text-xs text-gray-500">Max 200 MB. Existing archive remains unless replaced.</p>
+                                    <p id="mod-file-label" class="text-xs text-indigo-500">{{ $mod->file_path ? basename($mod->file_path) : '' }}</p>
+                                </div>
+                            </div>
+                            @if ($mod->file_path)
+                                <p class="mt-2 text-xs text-gray-500">Current archive: <span class="font-semibold">{{ \Illuminate\Support\Str::limit($mod->file_path, 48) }}</span></p>
+                            @endif
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-end gap-3">
+                        <a href="{{ route('mods.show', $mod) }}" class="inline-flex items-center gap-2 rounded-full border border-gray-300 px-5 py-2 text-sm font-semibold text-gray-600 transition hover:bg-gray-50">
+                            Cancel
+                        </a>
+                        <button type="submit" class="inline-flex items-center gap-2 rounded-full bg-pink-600 px-5 py-2 text-sm font-semibold text-white shadow hover:bg-pink-700 transition">
+                            <i class="fa-solid fa-floppy-disk"></i>
+                            Save changes
+                        </button>
+                    </div>
+                </div>
+            </form>
+
+            <aside class="card p-6 md:p-7 space-y-6 lg:sticky lg:top-24" aria-live="polite">
+                <div class="rounded-2xl overflow-hidden shadow-inner bg-gray-900 text-white">
+                    <div id="preview-hero" class="relative h-48 bg-cover bg-center" style="background-image: url('{{ $previewPlaceholder }}');">
+                        <div class="absolute inset-0 bg-gradient-to-t from-gray-900/80 via-gray-900/40 to-transparent"></div>
+                        <div class="absolute bottom-4 left-4 right-4">
+                            <div class="flex items-center justify-between text-xs uppercase tracking-widest text-pink-200/80">
+                                <span>Preview card</span>
+                                <span id="preview-version" class="rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold">v{{ $mod->version }}</span>
+                            </div>
+                            <h2 id="preview-title" class="mt-2 text-2xl font-bold leading-tight">{{ $mod->title }}</h2>
+                        </div>
+                    </div>
+                    <div class="space-y-4 bg-gray-900 px-5 py-6 text-sm">
+                        <div>
+                            <p class="text-gray-400 text-xs uppercase">Categories</p>
+                            <p id="preview-categories" class="text-gray-100 font-medium">{{ $mod->category_names }}</p>
+                        </div>
+                        <div>
+                            <p class="text-gray-400 text-xs uppercase">Download</p>
+                            <p id="preview-download" class="text-gray-100 font-medium">{{ $mod->file_path ? 'Direct download enabled' : 'External link selected' }}</p>
+                        </div>
+                        <div>
+                            <p class="text-gray-400 text-xs uppercase">Screenshots</p>
+                            <div id="preview-gallery" class="mt-2 grid grid-cols-3 gap-2">
+                                @forelse ($mod->galleryImages->take(3) as $image)
+                                    <div class="h-16 rounded-lg bg-cover bg-center" style="background-image: url('{{ $image->url }}');"></div>
+                                @empty
+                                    <div class="col-span-3 text-xs text-gray-400">No gallery images yet.</div>
+                                @endforelse
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="info-box text-sm leading-relaxed text-gray-600">
+                    <h3 class="text-base font-semibold text-gray-800">Moderation note</h3>
+                    <p class="mt-1">Updates may require re-approval depending on their scope. Keep your changelog handy for quicker reviews.</p>
+                </div>
+            </aside>
+        </div>
     </section>
 @endsection
+
+@push('scripts')
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const MAX_GALLERY_ITEMS = 12;
+            const galleryDropzone = document.getElementById('gallery-dropzone');
+            const existingGalleryCount = Number(galleryDropzone.dataset.existingCount || 0);
+
+            const heroInput = document.getElementById('hero_image');
+            const heroStatusLabel = document.getElementById('hero-upload-status');
+            const previewHero = document.getElementById('preview-hero');
+
+            const galleryInput = document.getElementById('gallery_images');
+            const galleryPreviewWrapper = document.getElementById('gallery-previews');
+            const previewGallery = document.getElementById('preview-gallery');
+            const initialPreviewGalleryHtml = previewGallery.innerHTML;
+
+            const modFileInput = document.getElementById('mod_file');
+            const modFileLabel = document.getElementById('mod-file-label');
+            const fileSizeInput = document.getElementById('file_size');
+
+            const titleInput = document.getElementById('title');
+            const versionInput = document.getElementById('version');
+            const categoriesSelect = document.getElementById('category_ids');
+            const downloadInput = document.getElementById('download_url');
+
+            const previewTitle = document.getElementById('preview-title');
+            const previewVersion = document.getElementById('preview-version');
+            const previewCategories = document.getElementById('preview-categories');
+            const previewDownload = document.getElementById('preview-download');
+
+            const updatePreviewMeta = () => {
+                previewTitle.textContent = titleInput.value.trim() || previewTitle.textContent;
+                previewVersion.textContent = `v${versionInput.value.trim() || versionInput.placeholder || ''}`;
+
+                const selectedCategories = Array.from(categoriesSelect.selectedOptions).map((option) => option.text.trim());
+                previewCategories.textContent = selectedCategories.length ? selectedCategories.join(', ') : previewCategories.textContent;
+
+                if (modFileInput.files.length > 0) {
+                    previewDownload.textContent = 'Direct download enabled';
+                } else if (downloadInput.value.trim()) {
+                    previewDownload.textContent = 'External link selected';
+                } else {
+                    previewDownload.textContent = 'Select an archive or add a download link';
+                }
+            };
+
+            const handleHeroChange = () => {
+                if (!heroInput.files.length) {
+                    heroStatusLabel.textContent = '';
+                    return;
+                }
+
+                const file = heroInput.files[0];
+                heroStatusLabel.textContent = file.name;
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    previewHero.style.backgroundImage = `url('${event.target.result}')`;
+                };
+                reader.readAsDataURL(file);
+            };
+
+            const handleGalleryChange = () => {
+                const files = Array.from(galleryInput.files || []);
+                const remainingSlots = MAX_GALLERY_ITEMS - existingGalleryCount;
+
+                if (files.length > remainingSlots) {
+                    alert(`You can upload up to ${remainingSlots} new screenshot${remainingSlots === 1 ? '' : 's'}.`);
+                    galleryInput.value = '';
+                    galleryPreviewWrapper.innerHTML = '';
+                    previewGallery.innerHTML = initialPreviewGalleryHtml;
+                    return;
+                }
+
+                galleryPreviewWrapper.innerHTML = '';
+                previewGallery.innerHTML = initialPreviewGalleryHtml;
+
+                files.forEach((file) => {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        const previewContainer = document.createElement('div');
+                        previewContainer.className = 'relative h-24 overflow-hidden rounded-xl shadow-sm';
+                        previewContainer.innerHTML = `<img src="${event.target.result}" alt="Screenshot preview" class="h-full w-full object-cover" />`;
+                        galleryPreviewWrapper.appendChild(previewContainer);
+
+                        const thumb = document.createElement('div');
+                        thumb.className = 'h-16 rounded-lg bg-cover bg-center';
+                        thumb.style.backgroundImage = `url('${event.target.result}')`;
+                        previewGallery.appendChild(thumb);
+                    };
+                    reader.readAsDataURL(file);
+                });
+            };
+
+            const handleModFileChange = () => {
+                if (!modFileInput.files.length) {
+                    modFileLabel.textContent = '';
+                    return;
+                }
+
+                const file = modFileInput.files[0];
+                modFileLabel.textContent = file.name;
+                fileSizeInput.value = (file.size / 1024 / 1024).toFixed(2);
+                previewDownload.textContent = 'Direct download enabled';
+            };
+
+            heroInput.addEventListener('change', handleHeroChange);
+            galleryInput.addEventListener('change', handleGalleryChange);
+            modFileInput.addEventListener('change', handleModFileChange);
+            titleInput.addEventListener('input', updatePreviewMeta);
+            versionInput.addEventListener('input', updatePreviewMeta);
+            categoriesSelect.addEventListener('change', updatePreviewMeta);
+            downloadInput.addEventListener('input', updatePreviewMeta);
+
+            updatePreviewMeta();
+        });
+    </script>
+@endpush

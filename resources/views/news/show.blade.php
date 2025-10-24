@@ -9,8 +9,8 @@
                 <span><i class="fa-solid fa-clock mr-1"></i>{{ $article->published_at->format('M d, Y H:i') }}</span>
             </p>
         </header>
-        <div class="card p-6 prose max-w-none text-gray-700">
-            {!! nl2br(e($article->body)) !!}
+        <div class="card p-6 editorjs-content">
+            {!! $article->body_html !!}
         </div>
         <footer class="text-center text-sm text-gray-500">
             <a href="{{ route('news.index') }}" class="text-pink-600 hover:text-pink-700">Back to news</a>

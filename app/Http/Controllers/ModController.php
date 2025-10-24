@@ -39,9 +39,13 @@ class ModController extends Controller
     {
         abort_unless($mod->status === 'published', Response::HTTP_NOT_FOUND);
 
-        $mod->loadMissing(['author', 'categories'])->loadCount('comments');
+        $mod->loadMissing(['author', 'categories', 'galleryImages'])->loadCount('comments');
 
         $comments = $mod->comments()->with('author')->latest()->take(20)->get();
+
+        $userRating = Auth::check()
+            ? $mod->ratings()->where('user_id', Auth::id())->value('rating')
+            : null;
 
         $relatedMods = Mod::query()
             ->published()
@@ -73,7 +77,7 @@ class ModController extends Controller
             'url' => route('mods.show', $mod),
         ];
 
-        $ratingValue = $mod->rating ? (float) $mod->rating : null;
+        $ratingValue = $mod->ratings_count > 0 ? (float) $mod->rating : null;
         $ratingFullStars = $ratingValue ? (int) floor($ratingValue) : 0;
         $ratingHasHalf = $ratingValue ? ($ratingValue - $ratingFullStars) >= 0.5 : false;
 
@@ -84,16 +88,14 @@ class ModController extends Controller
             'updated_at' => optional($mod->updated_at)->format('M d, Y'),
         ];
 
-        $galleryImages = [
-            [
+        $galleryImages = collect($mod->galleryImages)
+            ->map(fn ($image) => [
+                'src' => $image->url,
+                'alt' => $mod->title,
+            ])->prepend([
                 'src' => $mod->hero_image_url,
                 'alt' => $mod->title,
-            ],
-        ];
-
-        $requestedTab = request()->string('tab')->toString();
-        $allowedTabs = ['description', 'comments', 'changelog'];
-        $activeTab = in_array($requestedTab, $allowedTabs, true) ? $requestedTab : 'description';
+            ])->unique('src')->values()->all();
 
         return view('mods.show', [
             'mod' => $mod,
@@ -107,10 +109,36 @@ class ModController extends Controller
             'ratingValue' => $ratingValue,
             'ratingFullStars' => $ratingFullStars,
             'ratingHasHalf' => $ratingHasHalf,
+            'ratingCount' => $mod->ratings_count,
+            'userRating' => $userRating ? (int) $userRating : null,
             'metaDetails' => $metaDetails,
             'galleryImages' => $galleryImages,
-            'activeTab' => $activeTab,
         ]);
+    }
+
+    public function rate(Request $request, Mod $mod): RedirectResponse
+    {
+        abort_unless($mod->status === Mod::STATUS_PUBLISHED, Response::HTTP_NOT_FOUND);
+
+        $data = $request->validate([
+            'rating' => ['required', 'integer', 'min:1', 'max:5'],
+        ]);
+
+        $userId = $request->user()->getKey();
+        $existing = $mod->ratings()->where('user_id', $userId)->first();
+
+        if ($existing && (int) $existing->rating === (int) $data['rating']) {
+            $existing->delete();
+
+            return back()->with('status', 'Your rating has been removed.');
+        }
+
+        $mod->ratings()->updateOrCreate(
+            ['user_id' => $userId],
+            ['rating' => (int) $data['rating']]
+        );
+
+        return back()->with('status', 'Thanks for rating this mod!');
     }
 
     public function comment(Request $request, Mod $mod): RedirectResponse
@@ -127,12 +155,4 @@ class ModController extends Controller
         return back()->with('status', 'Comment posted successfully.');
     }
 
-    public function download(Mod $mod)
-    {
-        abort_unless($mod->status === 'published', Response::HTTP_NOT_FOUND);
-
-        $mod->increment('downloads');
-
-        return redirect()->away($mod->download_url);
-    }
 }

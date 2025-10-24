@@ -1,0 +1,42 @@
+{
+	"name": "lostlink/laravel-editorjs",
+	"description": "A simple editor.js html parser for Laravel with Tailwind styling",
+	"type": "library",
+	"license": "MIT",
+	"authors": [
+		{
+			"name": "Al-Amin Firdows",
+			"email": "alaminfirdows@gmail.com"
+		},
+		{
+			"name": "Nuno Souto",
+			"email": "nsouto@lostlink.net"
+		}
+	],
+	"require": {
+        "php": "^7.4|^8",
+        "codex-team/editor.js": "dev-master",
+        "illuminate/support": "^6|^7|^8|^9|^10|^11|^12"
+	},
+	"require-dev": {
+		"orchestra/testbench": "^6.0",
+		"phpunit/phpunit": "^9.5"
+	},
+	"autoload": {
+		"psr-4": {
+			"Lostlink\\LaravelEditorJs\\": "src/"
+		}
+	},
+	"autoload-dev": {
+		"psr-4": {
+			"Lostlink\\LaravelEditorJs\\Tests\\": "tests/"
+		}
+	},
+	"extra": {
+		"laravel": {
+			"providers": [
+				"Lostlink\\LaravelEditorJs\\LaravelEditorJsServiceProvider"
+			]
+		}
+	}
+}

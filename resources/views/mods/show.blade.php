@@ -2,11 +2,6 @@
 
 @section('content')
     @php
-        $tabUrls = [
-            'description' => route('mods.show', $mod),
-            'comments' => route('mods.show', [$mod, 'tab' => 'comments']),
-            'changelog' => route('mods.show', [$mod, 'tab' => 'changelog']),
-        ];
         $ratingDisplay = $ratingValue ? number_format($ratingValue, 1) : '—';
     @endphp
 
@@ -60,18 +55,43 @@
                         <span>Download</span>
                     </button>
                 </form>
-                <div class="text-sm text-gray-500 md:text-right">
+                <div class="text-sm text-gray-500 md:text-right space-y-2">
                     <div class="flex items-center justify-start md:justify-end gap-1 text-xl font-bold text-gray-900">
                         <span>{{ $ratingDisplay }}</span>
                         <span class="text-base font-normal text-gray-500">/ 5</span>
                     </div>
-                    <div class="flex justify-start md:justify-end gap-1 mt-1 text-lg">
+                    <div class="flex justify-start md:justify-end gap-1 text-lg text-yellow-400" aria-label="Átlagos értékelés">
                         @for ($i = 1; $i <= 5; $i++)
                             @php($isHalf = $ratingHasHalf && $i === $ratingFullStars + 1)
                             <i class="fa-solid {{ $i <= $ratingFullStars ? 'fa-star text-yellow-400' : ($isHalf ? 'fa-star-half-stroke text-yellow-400' : 'fa-star text-gray-300') }}"></i>
                         @endfor
                     </div>
-                    <p class="text-xs text-gray-400 mt-1">Közösségi értékelés</p>
+                    <p class="text-xs text-gray-400">
+                        Közösségi értékelés · {{ number_format($ratingCount) }} értékelés
+                    </p>
+
+                    @auth
+                        <form method="POST" action="{{ route('mods.rate', $mod) }}" class="space-y-2" data-rating-form data-rating-initial="{{ $userRating ?? 0 }}">
+                            @csrf
+                            <input type="hidden" name="rating" value="{{ $userRating ?? '' }}" data-rating-input>
+                            <div class="flex justify-start md:justify-end gap-1 text-2xl" data-rating-stars aria-label="Add le az értékelésed">
+                                @for ($i = 1; $i <= 5; $i++)
+                                    <button type="button" class="rating-star bg-transparent p-1 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-pink-500 transition-transform" data-rating-value="{{ $i }}" aria-label="{{ $i }} csillag">
+                                        <i class="fa-star {{ $userRating && $i <= $userRating ? 'fa-solid text-amber-400' : 'fa-regular text-gray-300' }}"></i>
+                                    </button>
+                                @endfor
+                            </div>
+                            <div class="flex items-center justify-start md:justify-end gap-2">
+                                <button type="submit" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-pink-600 text-white text-xs font-semibold shadow transition disabled:opacity-60 disabled:cursor-not-allowed" data-rating-submit disabled>
+                                    <i class="fa-solid fa-paper-plane text-xs"></i>
+                                    <span>Értékelés mentése</span>
+                                </button>
+                                <span class="text-xs text-gray-400" data-rating-feedback>{{ $userRating ? 'Jelenlegi értékelésed: ' . $userRating . '/5' : 'Kattints egy csillagra a saját értékelésedhez.' }}</span>
+                            </div>
+                        </form>
+                    @else
+                        <p class="text-xs text-gray-400">A saját értékelésed leadásához <a href="{{ route('login') }}" class="text-pink-600 hover:text-pink-700 font-medium">jelentkezz be</a>.</p>
+                    @endauth
                 </div>
             </div>
         </div>
@@ -84,6 +104,22 @@
                         <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent pointer-events-none"></div>
                     </div>
                 </div>
+
+                @if (count($galleryImages) > 1)
+                    <div class="card p-5 space-y-4">
+                        <div class="flex items-center justify-between">
+                            <h2 class="text-lg font-semibold text-gray-900">Galéria</h2>
+                            <span class="text-xs text-gray-500">{{ count($galleryImages) }} kép</span>
+                        </div>
+                        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                            @foreach (array_slice($galleryImages, 1) as $image)
+                                <div class="group relative overflow-hidden rounded-xl border border-gray-200">
+                                    <img src="{{ $image['src'] }}" alt="{{ $image['alt'] }}" class="h-40 w-full object-cover transition-transform duration-300 group-hover:scale-105">
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
 
                 <div class="card border-t border-b border-gray-200 py-4 px-4 md:px-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div class="flex items-center flex-wrap gap-4 md:gap-6 text-gray-600">
@@ -108,87 +144,62 @@
                     </div>
                 </div>
 
-                <div class="card overflow-hidden">
-                    <div class="flex border-b border-gray-200 bg-gray-50">
-                        @foreach ($tabUrls as $tabKey => $tabUrl)
-                            @php
-                                $isActive = $activeTab === $tabKey;
-                                $activeClass = 'text-pink-600 border-pink-500 bg-white';
-                                $inactiveClass = 'text-gray-600 border-transparent hover:text-pink-600';
-                            @endphp
-                            <a
-                                href="{{ $tabUrl }}"
-                                data-tab-target="tab-{{ $tabKey }}"
-                                data-tab-active-class="{{ $activeClass }}"
-                                data-tab-inactive-class="{{ $inactiveClass }}"
-                                class="tab-trigger flex-1 sm:flex-none px-4 sm:px-6 py-3 text-sm font-semibold border-b-2 transition-colors {{ $isActive ? $activeClass : $inactiveClass }}"
-                                aria-selected="{{ $isActive ? 'true' : 'false' }}"
-                                role="tab"
-                            >
-                                @switch($tabKey)
-                                    @case('comments')
-                                        Kommentek ({{ $mod->comments_count }})
-                                        @break
-                                    @case('changelog')
-                                        Changelog
-                                        @break
-                                    @default
-                                        Leírás
-                                @endswitch
-                            </a>
-                        @endforeach
-                    </div>
-                    <div class="p-4 md:p-6 text-gray-700 leading-relaxed space-y-6">
-                        <div id="tab-description" data-tab-section class="space-y-6 {{ $activeTab === 'description' ? '' : 'hidden' }}">
-                            <div class="prose max-w-none text-gray-700">
-                                {!! nl2br(e($mod->description)) !!}
-                            </div>
-                            <div class="pt-6 border-t border-gray-200 space-y-3">
-                                <h3 class="text-sm font-semibold text-gray-600 uppercase tracking-wide">Címkék</h3>
-                                <div class="flex flex-wrap gap-2">
-                                    @forelse ($mod->categories as $category)
-                                        <a href="{{ route('mods.index', ['category' => $category->slug]) }}" class="bg-gray-200 text-gray-700 text-xs font-semibold px-3 py-1 rounded-full hover:bg-gray-300 transition">{{ $category->name }}</a>
-                                    @empty
-                                        <span class="text-xs text-gray-400">Nincsenek kategóriák megadva.</span>
-                                    @endforelse
-                                </div>
-                            </div>
+                <div class="card p-6 space-y-6">
+                    <section id="mod-description" class="space-y-4">
+                        <h2 class="text-xl font-semibold text-gray-900">Leírás</h2>
+                        <div class="editorjs-content">
+                            {!! $mod->description_html !!}
                         </div>
+                    </section>
 
-                        <div id="tab-comments" data-tab-section class="space-y-5 {{ $activeTab === 'comments' ? '' : 'hidden' }}">
-                            <div class="flex items-center justify-between">
-                                <h3 class="font-bold text-lg text-gray-900">Kommentek</h3>
-                                <span class="text-sm text-gray-500">{{ $mod->comments_count }} összesen</span>
-                            </div>
-                            <div class="space-y-4">
-                                @forelse ($comments as $comment)
-                                    <div class="border border-gray-200 rounded-xl p-4 bg-gray-50">
-                                        <div class="flex items-center justify-between">
-                                            <p class="font-semibold text-gray-900">{{ $comment->author->name }}</p>
-                                            <span class="text-xs text-gray-500">{{ $comment->created_at->diffForHumans() }}</span>
-                                        </div>
-                                        <p class="text-sm text-gray-700 mt-2">{{ $comment->body }}</p>
-                                    </div>
-                                @empty
-                                    <p class="text-sm text-gray-500">Még nincsenek hozzászólások.</p>
-                                @endforelse
-                            </div>
-                            @auth
-                                <form method="POST" action="{{ route('mods.comment', $mod) }}" class="space-y-3">
-                                    @csrf
-                                    <textarea name="body" rows="4" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-pink-500" placeholder="Írd meg a véleményed"></textarea>
-                                    <button type="submit" class="inline-flex items-center justify-center px-4 py-2 bg-pink-600 text-white text-sm font-medium rounded-lg shadow hover:bg-pink-700 transition">Hozzászólás küldése</button>
-                                </form>
-                            @else
-                                <p class="text-sm text-gray-500">A hozzászóláshoz kérjük <a href="{{ route('login') }}" class="text-pink-600">jelentkezz be</a>.</p>
-                            @endauth
+                    <section aria-labelledby="mod-tags" class="pt-4 border-t border-gray-200 space-y-3">
+                        <h3 id="mod-tags" class="text-sm font-semibold text-gray-600 uppercase tracking-wide">Címkék</h3>
+                        <div class="flex flex-wrap gap-2">
+                            @forelse ($mod->categories as $category)
+                                <a href="{{ route('mods.index', ['category' => $category->slug]) }}" class="bg-gray-200 text-gray-700 text-xs font-semibold px-3 py-1 rounded-full hover:bg-gray-300 transition">{{ $category->name }}</a>
+                            @empty
+                                <span class="text-xs text-gray-400">Nincsenek kategóriák megadva.</span>
+                            @endforelse
                         </div>
+                    </section>
+                </div>
 
-                        <div id="tab-changelog" data-tab-section class="space-y-3 {{ $activeTab === 'changelog' ? '' : 'hidden' }}">
-                            <h3 class="font-bold text-lg text-gray-900">Verziótörténet (Changelog)</h3>
-                            <p class="text-sm text-gray-500">A verziótörténet hamarosan elérhető lesz.</p>
+                <div class="card p-6 space-y-6">
+                    <section id="mod-comments" class="space-y-4">
+                        <div class="flex items-center justify-between">
+                            <h2 class="text-xl font-semibold text-gray-900">Kommentek</h2>
+                            <span class="text-sm text-gray-500">{{ $mod->comments_count }} összesen</span>
                         </div>
-                    </div>
+                        <div class="space-y-4">
+                            @forelse ($comments as $comment)
+                                <article class="border border-gray-200 rounded-xl p-4 bg-gray-50">
+                                    <header class="flex items-center justify-between">
+                                        <p class="font-semibold text-gray-900">{{ $comment->author->name }}</p>
+                                        <span class="text-xs text-gray-500">{{ $comment->created_at->diffForHumans() }}</span>
+                                    </header>
+                                    <p class="text-sm text-gray-700 mt-2">{{ $comment->body }}</p>
+                                </article>
+                            @empty
+                                <p class="text-sm text-gray-500">Még nincsenek hozzászólások.</p>
+                            @endforelse
+                        </div>
+                        @auth
+                            <form method="POST" action="{{ route('mods.comment', $mod) }}" class="space-y-3">
+                                @csrf
+                                <textarea name="body" rows="4" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-pink-500" placeholder="Írd meg a véleményed"></textarea>
+                                <button type="submit" class="inline-flex items-center justify-center px-4 py-2 bg-pink-600 text-white text-sm font-medium rounded-lg shadow hover:bg-pink-700 transition">Hozzászólás küldése</button>
+                            </form>
+                        @else
+                            <p class="text-sm text-gray-500">A hozzászóláshoz kérjük <a href="{{ route('login') }}" class="text-pink-600">jelentkezz be</a>.</p>
+                        @endauth
+                    </section>
+                </div>
+
+                <div class="card p-6 space-y-4">
+                    <section id="mod-changelog" class="space-y-3">
+                        <h2 class="text-xl font-semibold text-gray-900">Verziótörténet (Changelog)</h2>
+                        <p class="text-sm text-gray-500">A verziótörténet hamarosan elérhető lesz.</p>
+                    </section>
                 </div>
             </div>
 
@@ -228,69 +239,3 @@
     </div>
 @endsection
 
-@push('scripts')
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const tabTriggers = document.querySelectorAll('[data-tab-target]');
-            const tabSections = document.querySelectorAll('[data-tab-section]');
-
-            if (!tabTriggers.length || !tabSections.length) {
-                return;
-            }
-
-            const applyClassList = (element, classes, action) => {
-                if (!classes) {
-                    return;
-                }
-
-                classes.split(/\s+/).forEach((cls) => {
-                    if (!cls) {
-                        return;
-                    }
-
-                    if (action === 'add') {
-                        element.classList.add(cls);
-                    } else {
-                        element.classList.remove(cls);
-                    }
-                });
-            };
-
-            const activateTab = (targetId) => {
-                tabSections.forEach((section) => {
-                    if (section.id === targetId) {
-                        section.classList.remove('hidden');
-                    } else {
-                        section.classList.add('hidden');
-                    }
-                });
-
-                tabTriggers.forEach((trigger) => {
-                    const isActive = trigger.getAttribute('data-tab-target') === targetId;
-                    const activeClasses = trigger.getAttribute('data-tab-active-class');
-                    const inactiveClasses = trigger.getAttribute('data-tab-inactive-class');
-
-                    if (isActive) {
-                        applyClassList(trigger, inactiveClasses, 'remove');
-                        applyClassList(trigger, activeClasses, 'add');
-                        trigger.setAttribute('aria-selected', 'true');
-                    } else {
-                        applyClassList(trigger, activeClasses, 'remove');
-                        applyClassList(trigger, inactiveClasses, 'add');
-                        trigger.setAttribute('aria-selected', 'false');
-                    }
-                });
-            };
-
-            tabTriggers.forEach((trigger) => {
-                trigger.addEventListener('click', (event) => {
-                    event.preventDefault();
-                    const targetId = trigger.getAttribute('data-tab-target');
-                    if (targetId) {
-                        activateTab(targetId);
-                    }
-                });
-            });
-        });
-    </script>
-@endpush
