@@ -42,7 +42,7 @@ class LikeBookmarkHandler {
 
         try {
             // Check like status
-            const likeResponse = await fetch(`/likes/${modId}/check`);
+            const likeResponse = await fetch(`/api/likes/${modId}/check`);
             const likeData = await likeResponse.json();
 
             if (likeData.success && likeData.liked) {
@@ -50,7 +50,7 @@ class LikeBookmarkHandler {
             }
 
             // Check bookmark status
-            const bookmarkResponse = await fetch(`/bookmarks/${modId}/check`);
+            const bookmarkResponse = await fetch(`/api/bookmarks/${modId}/check`);
             const bookmarkData = await bookmarkResponse.json();
 
             if (bookmarkData.success && bookmarkData.bookmarked) {
@@ -77,7 +77,7 @@ class LikeBookmarkHandler {
         button.disabled = true;
 
         try {
-            const response = await fetch(`/likes/${modId}/toggle`, {
+            const response = await fetch(`/api/likes/${modId}/toggle`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -122,7 +122,7 @@ class LikeBookmarkHandler {
         button.disabled = true;
 
         try {
-            const response = await fetch(`/bookmarks/${modId}/toggle`, {
+            const response = await fetch(`/api/bookmarks/${modId}/toggle`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

@@ -197,7 +197,7 @@
         button.disabled = true;
 
         try {
-            const response = await fetch(`/comments/${commentId}/like/toggle`, {
+            const response = await fetch(`/api/comments/${commentId}/like/toggle`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
