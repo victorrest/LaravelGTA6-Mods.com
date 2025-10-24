@@ -48,8 +48,4 @@ return [
             'icon' => 'fa-puzzle-piece',
         ],
     ],
-    'downloads' => [
-        'waiting_room_countdown' => (int) env('GTA6_WAITING_ROOM_COUNTDOWN', 5),
-        'token_ttl' => (int) env('GTA6_DOWNLOAD_TOKEN_TTL', 300),
-    ],
 ];

@@ -8,7 +8,7 @@
             <h1 class="text-3xl font-bold text-gray-900">{{ $mod->title }}</h1>
             <p class="text-sm text-gray-500">Készítette: {{ $mod->author?->name ?? 'Ismeretlen' }} • {{ $mod->statusLabel() }}</p>
         </div>
-        <a href="{{ route('mods.show', [$mod->primary_category, $mod]) }}" class="inline-flex items-center px-4 py-2 rounded-lg border border-gray-300 text-sm font-semibold text-gray-700 hover:bg-gray-50" target="_blank">Megnyitás a nyilvános oldalon</a>
+        <a href="{{ route('mods.show', $mod) }}" class="inline-flex items-center px-4 py-2 rounded-lg border border-gray-300 text-sm font-semibold text-gray-700 hover:bg-gray-50" target="_blank">Megnyitás a nyilvános oldalon</a>
     </div>
 @endsection
 
@@ -50,7 +50,7 @@
                 </div>
                 <div>
                     <label class="form-label" for="file_size">Fájlméret (MB)</label>
-                    <input type="number" step="0.01" min="0" id="file_size" name="file_size" value="{{ old('file_size', $mod->file_size) }}" class="form-input">
+                    <input type="number" step="0.1" min="0" id="file_size" name="file_size" value="{{ old('file_size', $mod->file_size) }}" class="form-input">
                 </div>
             </div>
             <div>
@@ -58,17 +58,10 @@
                 <textarea id="excerpt" name="excerpt" rows="3" class="form-textarea">{{ old('excerpt', $mod->excerpt) }}</textarea>
                 <p class="form-help">Rövid leírás a listanézetekhez, maximum 255 karakter.</p>
             </div>
-        <div>
-            <label class="form-label" for="description">Leírás</label>
-            <x-editorjs
-                name="description"
-                id="description"
-                :value="old('description', $mod->description_raw)"
-                :plain-text="\App\Support\EditorJs::toPlainText(old('description', $mod->description_raw))"
-                placeholder="Fogalmazd meg a mod részletes leírását"
-                required
-            />
-        </div>
+            <div>
+                <label class="form-label" for="description">Leírás</label>
+                <textarea id="description" name="description" rows="10" class="form-textarea" required>{{ old('description', $mod->description) }}</textarea>
+            </div>
             <div class="grid gap-4 md:grid-cols-2">
                 <div>
                     <label class="form-label" for="category_ids">Kategóriák</label>

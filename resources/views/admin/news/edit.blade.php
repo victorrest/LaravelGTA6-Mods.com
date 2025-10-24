@@ -29,14 +29,7 @@
         </div>
         <div>
             <label class="form-label" for="body">Tartalom</label>
-            <x-editorjs
-                name="body"
-                id="body"
-                :value="old('body', $article->body_raw)"
-                :plain-text="\App\Support\EditorJs::toPlainText(old('body', $article->body_raw))"
-                placeholder="Írd meg a hír teljes tartalmát"
-                required
-            />
+            <textarea id="body" name="body" rows="10" class="form-textarea" required>{{ old('body', $article->body) }}</textarea>
         </div>
         <div>
             <label class="form-label" for="published_at">Publikálás ideje</label>

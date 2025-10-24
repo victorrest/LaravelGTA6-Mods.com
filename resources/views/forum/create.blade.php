@@ -25,14 +25,7 @@
             </div>
             <div>
                 <label class="form-label" for="body">Body</label>
-                <x-editorjs
-                    name="body"
-                    id="body"
-                    :value="old('body')"
-                    :plain-text="\App\Support\EditorJs::toPlainText(old('body'))"
-                    placeholder="Share every detail, add bullet lists, embeds or code snippets"
-                    required
-                />
+                <textarea id="body" name="body" rows="8" class="form-textarea" required>{{ old('body') }}</textarea>
             </div>
             <div class="flex items-center justify-end gap-3">
                 <a href="{{ route('forum.index') }}" class="inline-flex items-center px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</a>

@@ -1,5 +1,5 @@
 <div class="card hover:shadow-xl transition duration-300">
-    <a href="{{ route('mods.show', [$mod->primary_category, $mod]) }}" class="block">
+    <a href="{{ route('mods.show', $mod) }}" class="block">
         <div class="relative">
             <img src="{{ $mod->hero_image_url }}" alt="{{ $mod->title }}" class="w-full h-44 object-cover rounded-t-xl">
             <div class="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/70 to-transparent text-white text-xs">

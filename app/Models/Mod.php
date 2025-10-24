@@ -2,7 +2,9 @@
 
 namespace App\Models;
 
-use App\Support\EditorJs;
+use App\Models\ModCategory;
+use App\Models\ModComment;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -10,8 +12,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 
 class Mod extends Model
 {
@@ -29,10 +29,6 @@ class Mod extends Model
 
     use HasFactory;
 
-    protected $appends = [
-        'description_html',
-    ];
-
     protected $fillable = [
         'user_id',
         'title',
@@ -42,11 +38,9 @@ class Mod extends Model
         'version',
         'hero_image_path',
         'download_url',
-        'file_path',
         'file_size',
         'rating',
         'likes',
-        'ratings_count',
         'downloads',
         'featured',
         'status',
@@ -78,44 +72,6 @@ class Mod extends Model
     public function comments(): HasMany
     {
         return $this->hasMany(ModComment::class);
-    }
-
-    public function galleryImages(): HasMany
-    {
-        return $this->hasMany(ModGalleryImage::class)->orderBy('position');
-    }
-
-    public function ratings(): HasMany
-    {
-        return $this->hasMany(ModRating::class);
-    }
-
-    public function videos(): HasMany
-    {
-        return $this->hasMany(ModVideo::class)->orderBy('is_featured', 'desc')->orderBy('position');
-    }
-
-    public function versions(): HasMany
-    {
-        return $this->hasMany(ModVersion::class)->orderByDesc('created_at');
-    }
-
-    public function updateRatingAggregate(): void
-    {
-        $aggregate = $this->ratings()
-            ->selectRaw('COALESCE(AVG(rating), 0) as avg_rating, COUNT(*) as rating_count')
-            ->first();
-
-        if ($aggregate) {
-            $this->forceFill([
-                'rating' => round((float) $aggregate->avg_rating, 2),
-                'ratings_count' => (int) $aggregate->rating_count,
-            ]);
-
-            static::withoutTimestamps(function () {
-                $this->save();
-            });
-        }
     }
 
     public function scopeFeatured(Builder $query): Builder
@@ -151,7 +107,7 @@ class Mod extends Model
     protected function heroImageUrl(): Attribute
     {
         return Attribute::get(function (): string {
-            if ($this->hero_image_path && Str::startsWith($this->hero_image_path, ['http://', 'https://'])) {
+            if ($this->hero_image_path && str_starts_with($this->hero_image_path, ['http://', 'https://'])) {
                 return $this->hero_image_path;
             }
 
@@ -168,43 +124,8 @@ class Mod extends Model
         return Attribute::get(fn (): ?string => $this->file_size ? number_format((float) $this->file_size, 2) . ' MB' : null);
     }
 
-    protected function fileUrl(): Attribute
-    {
-        return Attribute::get(function (): ?string {
-            if (! $this->file_path) {
-                return null;
-            }
-
-            if (Str::startsWith($this->file_path, ['http://', 'https://'])) {
-                return $this->file_path;
-            }
-
-            return Storage::disk('public')->url($this->file_path);
-        });
-    }
-
     protected function categoryNames(): Attribute
     {
         return Attribute::get(fn (): string => $this->categories->pluck('name')->join(', '));
-    }
-
-    protected function descriptionHtml(): Attribute
-    {
-        return Attribute::get(fn (): string => EditorJs::render($this->attributes['description'] ?? ''));
-    }
-
-    protected function descriptionRaw(): Attribute
-    {
-        return Attribute::get(fn (): string => $this->attributes['description'] ?? '');
-    }
-
-    protected function primaryCategory(): Attribute
-    {
-        return Attribute::get(fn (): ?ModCategory => $this->categories->first());
-    }
-
-    public function getCategorySlug(): string
-    {
-        return $this->primaryCategory?->slug ?? 'uncategorized';
     }
 }

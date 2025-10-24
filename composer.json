@@ -8,8 +8,7 @@
     "require": {
         "php": "^8.2",
         "laravel/framework": "^12.0",
-        "laravel/tinker": "^2.10.1",
-        "lostlink/laravel-editorjs": "dev-main"
+        "laravel/tinker": "^2.10.1"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
@@ -73,15 +72,6 @@
             "dont-discover": []
         }
     },
-    "repositories": [
-        {
-            "type": "path",
-            "url": "packages/lostlink/laravel-editorjs",
-            "options": {
-                "symlink": true
-            }
-        }
-    ],
     "config": {
         "optimize-autoloader": true,
         "preferred-install": "dist",
@@ -91,6 +81,6 @@
             "php-http/discovery": true
         }
     },
-    "minimum-stability": "dev",
+    "minimum-stability": "stable",
     "prefer-stable": true
 }

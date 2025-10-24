@@ -4,8 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Mod;
 use App\Models\ModCategory;
-use App\Models\ModComment;
-use App\Models\UserActivity;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -37,45 +35,13 @@ class ModController extends Controller
         ]);
     }
 
-    public function show(ModCategory $category, Mod $mod)
+    public function show(Mod $mod)
     {
         abort_unless($mod->status === 'published', Response::HTTP_NOT_FOUND);
 
-        // Verify that the mod belongs to this category
-        abort_unless($mod->categories->contains($category), Response::HTTP_NOT_FOUND);
+        $mod->loadMissing(['author', 'categories'])->loadCount('comments');
 
-        $mod->loadMissing(['author', 'categories', 'galleryImages'])->loadCount('comments');
-
-        // Load approved videos
-        $videos = $mod->videos()
-            ->approved()
-            ->with('submitter')
-            ->orderBy('is_featured', 'desc')
-            ->orderBy('position')
-            ->get();
-
-        // Load mod versions
-        $versions = $mod->versions()
-            ->approved()
-            ->orderByDesc('created_at')
-            ->with('submitter')
-            ->get();
-
-        // Get current version (latest approved or the mod's own version)
-        $currentVersion = $versions->where('is_current', true)->first() ?? $versions->first();
-
-        // Load top-level comments with replies and likes
-        $comments = $mod->comments()
-            ->whereNull('parent_id')
-            ->with(['author', 'replies.author', 'replies.likes'])
-            ->withCount('likes')
-            ->latest()
-            ->take(20)
-            ->get();
-
-        $userRating = Auth::check()
-            ? $mod->ratings()->where('user_id', Auth::id())->value('rating')
-            : null;
+        $comments = $mod->comments()->with('author')->latest()->take(20)->get();
 
         $relatedMods = Mod::query()
             ->published()
@@ -104,10 +70,10 @@ class ModController extends Controller
 
         $breadcrumbs[] = [
             'label' => $mod->title,
-            'url' => route('mods.show', [$category, $mod]),
+            'url' => route('mods.show', $mod),
         ];
 
-        $ratingValue = $mod->ratings_count > 0 ? (float) $mod->rating : null;
+        $ratingValue = $mod->rating ? (float) $mod->rating : null;
         $ratingFullStars = $ratingValue ? (int) floor($ratingValue) : 0;
         $ratingHasHalf = $ratingValue ? ($ratingValue - $ratingFullStars) >= 0.5 : false;
 
@@ -118,21 +84,16 @@ class ModController extends Controller
             'updated_at' => optional($mod->updated_at)->format('M d, Y'),
         ];
 
-        $galleryImages = collect($mod->galleryImages)
-            ->map(fn ($image) => [
-                'src' => $image->url,
-                'alt' => $mod->title,
-            ])->prepend([
+        $galleryImages = [
+            [
                 'src' => $mod->hero_image_url,
                 'alt' => $mod->title,
-            ])->unique('src')->values()->all();
+            ],
+        ];
 
-        $authUser = Auth::user();
-        $canManagePin = $authUser && $authUser->getKey() === $mod->user_id;
-        $isPinnedByOwner = $canManagePin && (int) $authUser->pinned_mod_id === (int) $mod->id;
-
-        // Check if user can manage this mod
-        $canManageMod = Auth::check() && (Auth::id() === $mod->user_id || Auth::user()->is_admin);
+        $requestedTab = request()->string('tab')->toString();
+        $allowedTabs = ['description', 'comments', 'changelog'];
+        $activeTab = in_array($requestedTab, $allowedTabs, true) ? $requestedTab : 'description';
 
         return view('mods.show', [
             'mod' => $mod,
@@ -140,83 +101,38 @@ class ModController extends Controller
             'relatedMods' => $relatedMods,
             'breadcrumbs' => $breadcrumbs,
             'primaryCategory' => $primaryCategory,
-            'downloadUrl' => $currentVersion ? ($currentVersion->download_url ?: $currentVersion->file_url) : $mod->download_url,
+            'downloadUrl' => $mod->download_url,
             'downloadFormatted' => number_format($mod->downloads),
             'likesFormatted' => number_format($mod->likes),
             'ratingValue' => $ratingValue,
             'ratingFullStars' => $ratingFullStars,
             'ratingHasHalf' => $ratingHasHalf,
-            'ratingCount' => $mod->ratings_count,
-            'userRating' => $userRating ? (int) $userRating : null,
             'metaDetails' => $metaDetails,
             'galleryImages' => $galleryImages,
-            'canManagePin' => $canManagePin,
-            'isPinnedByOwner' => $isPinnedByOwner,
-            'videos' => $videos,
-            'versions' => $versions,
-            'currentVersion' => $currentVersion,
-            'canManageMod' => $canManageMod,
+            'activeTab' => $activeTab,
         ]);
     }
 
-    public function rate(Request $request, ModCategory $category, Mod $mod): RedirectResponse
+    public function comment(Request $request, Mod $mod): RedirectResponse
     {
-        abort_unless($mod->status === Mod::STATUS_PUBLISHED, Response::HTTP_NOT_FOUND);
-
-        // Verify that the mod belongs to this category
-        abort_unless($mod->categories->contains($category), Response::HTTP_NOT_FOUND);
-
-        $data = $request->validate([
-            'rating' => ['required', 'integer', 'min:1', 'max:5'],
-        ]);
-
-        $userId = $request->user()->getKey();
-        $existing = $mod->ratings()->where('user_id', $userId)->first();
-
-        if ($existing && (int) $existing->rating === (int) $data['rating']) {
-            $existing->delete();
-
-            return back()->with('status', 'Your rating has been removed.');
-        }
-
-        $mod->ratings()->updateOrCreate(
-            ['user_id' => $userId],
-            ['rating' => (int) $data['rating']]
-        );
-
-        return back()->with('status', 'Thanks for rating this mod!');
-    }
-
-    public function comment(Request $request, ModCategory $category, Mod $mod): RedirectResponse
-    {
-        // Verify that the mod belongs to this category
-        abort_unless($mod->categories->contains($category), Response::HTTP_NOT_FOUND);
-
         $validated = $request->validate([
             'body' => ['required', 'string', 'min:5', 'max:1500'],
-            'parent_id' => ['nullable', 'exists:mod_comments,id'],
         ]);
 
-        $comment = $mod->comments()->create([
+        $mod->comments()->create([
             'user_id' => Auth::id(),
-            'parent_id' => $validated['parent_id'] ?? null,
             'body' => $validated['body'],
-        ]);
-
-        // Log activity for comment
-        UserActivity::create([
-            'user_id' => Auth::id(),
-            'action_type' => UserActivity::TYPE_COMMENT,
-            'subject_type' => ModComment::class,
-            'subject_id' => $comment->id,
-            'metadata' => [
-                'mod_id' => $mod->id,
-                'mod_title' => $mod->title,
-                'comment_excerpt' => substr($validated['body'], 0, 100),
-            ],
         ]);
 
         return back()->with('status', 'Comment posted successfully.');
     }
 
+    public function download(Mod $mod)
+    {
+        abort_unless($mod->status === 'published', Response::HTTP_NOT_FOUND);
+
+        $mod->increment('downloads');
+
+        return redirect()->away($mod->download_url);
+    }
 }

@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Http\Requests\ThreadReplyRequest;
 use App\Http\Requests\ThreadStoreRequest;
 use App\Models\ForumThread;
-use App\Models\UserActivity;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
@@ -55,18 +54,6 @@ class ForumController extends Controller
         ]);
 
         $thread->update(['replies_count' => 1]);
-
-        // Log activity for forum thread creation
-        UserActivity::create([
-            'user_id' => Auth::id(),
-            'action_type' => UserActivity::TYPE_FORUM_POST,
-            'subject_type' => ForumThread::class,
-            'subject_id' => $thread->id,
-            'metadata' => [
-                'thread_title' => $thread->title,
-                'flair' => $thread->flair,
-            ],
-        ]);
 
         return redirect()->route('forum.show', $thread)->with('status', 'Thread created successfully.');
     }

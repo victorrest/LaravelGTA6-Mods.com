@@ -42,9 +42,9 @@
                     </div>
                     <div class="flex items-center gap-3">
                         @if ($mod->status === $publishedStatus)
-                            <a href="{{ route('mods.show', [$mod->primary_category, $mod]) }}" class="inline-flex items-center px-3 py-1.5 rounded-lg border border-gray-300 text-xs font-semibold text-gray-700 hover:bg-gray-50">View</a>
+                            <a href="{{ route('mods.show', $mod) }}" class="inline-flex items-center px-3 py-1.5 rounded-lg border border-gray-300 text-xs font-semibold text-gray-700 hover:bg-gray-50">View</a>
                         @endif
-                        <a href="{{ route('mods.edit', [$mod->primary_category, $mod]) }}" class="inline-flex items-center px-3 py-1.5 rounded-lg border border-pink-600 text-xs font-semibold text-pink-600 hover:bg-pink-50">Edit</a>
+                        <a href="{{ route('mods.edit', $mod) }}" class="inline-flex items-center px-3 py-1.5 rounded-lg border border-pink-600 text-xs font-semibold text-pink-600 hover:bg-pink-50">Edit</a>
                     </div>
                 </article>
             @empty

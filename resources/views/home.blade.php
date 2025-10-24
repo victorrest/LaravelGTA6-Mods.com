@@ -31,7 +31,7 @@
                     >
                         @if ($hasFeatured && $primaryFeatured)
                             @php($primaryImage = $primaryFeatured->hero_image_url)
-                            <a href="{{ route('mods.show', [$primaryFeatured->primary_category, $primaryFeatured]) }}" id="featured-main-display" class="block relative group rounded-lg overflow-hidden">
+                            <a href="{{ route('mods.show', $primaryFeatured) }}" id="featured-main-display" class="block relative group rounded-lg overflow-hidden">
                                 <div id="featured-image-container" class="relative w-full aspect-video bg-gray-800">
                                     <img id="featured-image-1" src="{{ $primaryImage }}" alt="{{ $primaryFeatured->title }}" class="absolute inset-0 w-full h-full object-cover" style="opacity: 1;">
                                     <img id="featured-image-2" src="" alt="" class="absolute inset-0 w-full h-full object-cover" style="opacity: 0;">
@@ -89,15 +89,12 @@
             @if ($hasPopular)
                 @foreach ($popularMods as $mod)
                     <div class="card hover:shadow-xl transition duration-300">
-                        <a href="{{ route('mods.show', [$mod->primary_category, $mod]) }}" class="block">
+                        <a href="{{ route('mods.show', $mod) }}" class="block">
                             <div class="relative">
                                 <img src="{{ $mod->hero_image_url }}" alt="{{ $mod->title }}" class="w-full h-auto object-cover rounded-t-xl">
                                 <div class="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/70 to-transparent text-white text-xs">
                                     <div class="flex justify-between items-center">
-                                        @php($hasRating = ($mod->ratings_count ?? 0) > 0)
-                                        <span class="flex items-center font-semibold text-yellow-400" title="{{ $hasRating ? $mod->ratings_count . ' értékelés' : 'Még nincs értékelés' }}">
-                                            <i class="fa-solid fa-star mr-1"></i>{{ $hasRating ? number_format((float) $mod->rating, 1) : '—' }}
-                                        </span>
+                                        <span class="flex items-center font-semibold text-yellow-400"><i class="fa-solid fa-star mr-1"></i>{{ $mod->rating ? number_format((float) $mod->rating, 1) : '—' }}</span>
                                         <div class="flex items-center space-x-3">
                                             <span class="flex items-center"><i class="fa-solid fa-thumbs-up mr-1"></i>{{ number_format($mod->likes) }}</span>
                                             <span class="flex items-center"><i class="fa-solid fa-download mr-1"></i>{{ number_format($mod->downloads) }}</span>
@@ -133,15 +130,12 @@
             @if ($hasLatest)
                 @foreach ($latestMods as $mod)
                     <div class="card hover:shadow-xl transition duration-300">
-                        <a href="{{ route('mods.show', [$mod->primary_category, $mod]) }}" class="block">
+                        <a href="{{ route('mods.show', $mod) }}" class="block">
                             <div class="relative">
                                 <img src="{{ $mod->hero_image_url }}" alt="{{ $mod->title }}" class="w-full h-auto object-cover rounded-t-xl">
                                 <div class="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/70 to-transparent text-white text-xs">
                                     <div class="flex justify-between items-center">
-                                        @php($hasRating = ($mod->ratings_count ?? 0) > 0)
-                                        <span class="flex items-center font-semibold text-yellow-400" title="{{ $hasRating ? $mod->ratings_count . ' értékelés' : 'Még nincs értékelés' }}">
-                                            <i class="fa-solid fa-star mr-1"></i>{{ $hasRating ? number_format((float) $mod->rating, 1) : '—' }}
-                                        </span>
+                                        <span class="flex items-center font-semibold text-yellow-400"><i class="fa-solid fa-star mr-1"></i>{{ $mod->rating ? number_format((float) $mod->rating, 1) : '—' }}</span>
                                         <div class="flex items-center space-x-3">
                                             <span class="flex items-center"><i class="fa-solid fa-thumbs-up mr-1"></i>{{ number_format($mod->likes) }}</span>
                                             <span class="flex items-center"><i class="fa-solid fa-download mr-1"></i>{{ number_format($mod->downloads) }}</span>

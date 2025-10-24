@@ -20,9 +20,6 @@ class ModFactory extends Factory
     {
         $title = fake()->unique()->sentence(4);
 
-        $ratingsCount = fake()->numberBetween(0, 250);
-        $ratingValue = $ratingsCount > 0 ? fake()->randomFloat(2, 3, 5) : 0;
-
         return [
             'user_id' => User::factory(),
             'title' => $title,
@@ -33,8 +30,7 @@ class ModFactory extends Factory
             'hero_image_path' => 'https://placehold.co/1280x720/ec4899/1f2937?text=GTA6+Mod',
             'download_url' => fake()->url(),
             'file_size' => fake()->randomFloat(2, 5, 2500),
-            'rating' => $ratingValue,
-            'ratings_count' => $ratingsCount,
+            'rating' => fake()->randomFloat(1, 3.5, 5),
             'likes' => fake()->numberBetween(0, 5000),
             'downloads' => fake()->numberBetween(100, 50000),
             'featured' => fake()->boolean(25),
