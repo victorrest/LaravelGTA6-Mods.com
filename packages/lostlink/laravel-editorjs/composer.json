@@ -1,6 +1,7 @@
 {
 	"name": "lostlink/laravel-editorjs",
-	"description": "A simple editor.js html parser for Laravel with Tailwind styling",
+        "description": "A simple editor.js html parser for Laravel with Tailwind styling",
+        "version": "dev-main",
 	"type": "library",
 	"license": "MIT",
 	"authors": [

@@ -144,7 +144,7 @@ return [
 
     'redis' => [
 
-        'client' => env('REDIS_CLIENT', 'phpredis'),
+        'client' => env('REDIS_CLIENT', extension_loaded('redis') ? 'phpredis' : 'predis'),
 
         'options' => [
             'cluster' => env('REDIS_CLUSTER', 'redis'),
@@ -176,6 +176,32 @@ return [
             'backoff_algorithm' => env('REDIS_BACKOFF_ALGORITHM', 'decorrelated_jitter'),
             'backoff_base' => env('REDIS_BACKOFF_BASE', 100),
             'backoff_cap' => env('REDIS_BACKOFF_CAP', 1000),
+        ],
+
+        'queue' => [
+            'url' => env('REDIS_QUEUE_URL', env('REDIS_URL')),
+            'host' => env('REDIS_QUEUE_HOST', env('REDIS_HOST', '127.0.0.1')),
+            'username' => env('REDIS_QUEUE_USERNAME', env('REDIS_USERNAME')),
+            'password' => env('REDIS_QUEUE_PASSWORD', env('REDIS_PASSWORD')),
+            'port' => env('REDIS_QUEUE_PORT', env('REDIS_PORT', '6379')),
+            'database' => env('REDIS_QUEUE_DB', '2'),
+            'max_retries' => env('REDIS_QUEUE_MAX_RETRIES', env('REDIS_MAX_RETRIES', 3)),
+            'backoff_algorithm' => env('REDIS_QUEUE_BACKOFF_ALGORITHM', env('REDIS_BACKOFF_ALGORITHM', 'decorrelated_jitter')),
+            'backoff_base' => env('REDIS_QUEUE_BACKOFF_BASE', env('REDIS_BACKOFF_BASE', 100)),
+            'backoff_cap' => env('REDIS_QUEUE_BACKOFF_CAP', env('REDIS_BACKOFF_CAP', 1000)),
+        ],
+
+        'sessions' => [
+            'url' => env('REDIS_SESSION_URL', env('REDIS_URL')),
+            'host' => env('REDIS_SESSION_HOST', env('REDIS_HOST', '127.0.0.1')),
+            'username' => env('REDIS_SESSION_USERNAME', env('REDIS_USERNAME')),
+            'password' => env('REDIS_SESSION_PASSWORD', env('REDIS_PASSWORD')),
+            'port' => env('REDIS_SESSION_PORT', env('REDIS_PORT', '6379')),
+            'database' => env('REDIS_SESSION_DB', '3'),
+            'max_retries' => env('REDIS_SESSION_MAX_RETRIES', env('REDIS_MAX_RETRIES', 3)),
+            'backoff_algorithm' => env('REDIS_SESSION_BACKOFF_ALGORITHM', env('REDIS_BACKOFF_ALGORITHM', 'decorrelated_jitter')),
+            'backoff_base' => env('REDIS_SESSION_BACKOFF_BASE', env('REDIS_BACKOFF_BASE', 100)),
+            'backoff_cap' => env('REDIS_SESSION_BACKOFF_CAP', env('REDIS_BACKOFF_CAP', 1000)),
         ],
 
     ],
