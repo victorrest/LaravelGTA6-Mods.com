@@ -102,9 +102,6 @@ class ModController extends Controller
                 'alt' => $mod->title,
             ])->unique('src')->values()->all();
 
-        $canManagePin = Auth::check() && Auth::id() === $mod->user_id;
-        $isPinnedByOwner = $canManagePin && (int) Auth::user()->pinned_mod_id === (int) $mod->id;
-
         return view('mods.show', [
             'mod' => $mod,
             'comments' => $comments,
@@ -121,12 +118,6 @@ class ModController extends Controller
             'userRating' => $userRating ? (int) $userRating : null,
             'metaDetails' => $metaDetails,
             'galleryImages' => $galleryImages,
-            'canManagePin' => $canManagePin,
-            'isPinnedByOwner' => $isPinnedByOwner,
-            'pinRoutes' => [
-                'pin' => $canManagePin ? route('profile.mod.pin', $mod) : null,
-                'unpin' => $canManagePin ? route('profile.mod.unpin') : null,
-            ],
         ]);
     }
 

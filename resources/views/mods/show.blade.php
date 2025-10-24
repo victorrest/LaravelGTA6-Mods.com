@@ -70,7 +70,7 @@
                         Közösségi értékelés · {{ number_format($ratingCount) }} értékelés
                     </p>
 
-                    @auth
+                    @if (auth()->check())
                         <form method="POST" action="{{ route('mods.rate', [$primaryCategory, $mod]) }}" class="space-y-2" data-rating-form data-rating-initial="{{ $userRating ?? 0 }}">
                             @csrf
                             <input type="hidden" name="rating" value="{{ $userRating ?? '' }}" data-rating-input>
@@ -91,7 +91,7 @@
                         </form>
                     @else
                         <p class="text-xs text-gray-400">A saját értékelésed leadásához <a href="{{ route('login') }}" class="text-pink-600 hover:text-pink-700 font-medium">jelentkezz be</a>.</p>
-                    @endauth
+                    @endif
                 </div>
             </div>
         </div>
@@ -183,7 +183,7 @@
                                 <p class="text-sm text-gray-500">Még nincsenek hozzászólások.</p>
                             @endforelse
                         </div>
-                        @auth
+                        @if (auth()->check())
                             <form method="POST" action="{{ route('mods.comment', [$primaryCategory, $mod]) }}" class="space-y-3">
                                 @csrf
                                 <textarea name="body" rows="4" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-pink-500" placeholder="Írd meg a véleményed"></textarea>
@@ -191,7 +191,7 @@
                             </form>
                         @else
                             <p class="text-sm text-gray-500">A hozzászóláshoz kérjük <a href="{{ route('login') }}" class="text-pink-600">jelentkezz be</a>.</p>
-                        @endauth
+                        @endif
                     </section>
                 </div>
 
@@ -214,17 +214,21 @@
                         </button>
                     </form>
 
-                    @if ($canManagePin)
+                    @if (auth()->check() && auth()->id() === $mod->user_id)
+                        @php
+                            $pinnedModId = auth()->user()->pinned_mod_id;
+                            $isPinned = (int) $pinnedModId === (int) $mod->id;
+                        @endphp
                         <button
                             type="button"
                             id="pin-mod-btn"
-                            data-pin-url="{{ $pinRoutes['pin'] }}"
-                            data-unpin-url="{{ $pinRoutes['unpin'] }}"
-                            data-is-pinned="{{ $isPinnedByOwner ? '1' : '0' }}"
-                            class="w-full inline-flex items-center justify-center px-4 py-2 {{ $isPinnedByOwner ? 'bg-purple-600 hover:bg-purple-700' : 'bg-gray-600 hover:bg-gray-700' }} text-white text-sm font-semibold rounded-lg shadow transition"
+                            data-pin-url="{{ route('profile.mod.pin', $mod) }}"
+                            data-unpin-url="{{ route('profile.mod.unpin') }}"
+                            data-is-pinned="{{ $isPinned ? '1' : '0' }}"
+                            class="w-full inline-flex items-center justify-center px-4 py-2 {{ $isPinned ? 'bg-purple-600 hover:bg-purple-700' : 'bg-gray-600 hover:bg-gray-700' }} text-white text-sm font-semibold rounded-lg shadow transition"
                         >
-                            <i class="fas fa-thumbtack mr-2 {{ $isPinnedByOwner ? '' : 'rotate-45' }}"></i>
-                            <span data-pin-text>{{ $isPinnedByOwner ? 'Unpin from Profile' : 'Pin to Profile' }}</span>
+                            <i class="fas fa-thumbtack mr-2 {{ $isPinned ? '' : 'rotate-45' }}"></i>
+                            <span data-pin-text>{{ $isPinned ? 'Unpin from Profile' : 'Pin to Profile' }}</span>
                         </button>
                     @endif
 
