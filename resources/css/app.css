@@ -129,3 +129,106 @@
     border-color: theme('colors.pink.400');
     box-shadow: 0 0 0 3px color-mix(in srgb, theme('colors.pink.400') 25%, transparent);
 }
+
+/* Mod Page Specific Styles */
+@layer components {
+    .card {
+        @apply bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden;
+    }
+
+    .btn-download {
+        @apply bg-pink-600 text-white shadow-lg transition-all duration-300;
+    }
+
+    .btn-download:hover {
+        @apply bg-pink-700 shadow-xl;
+    }
+
+    .btn-download:disabled {
+        @apply bg-gray-400 cursor-not-allowed opacity-60;
+    }
+
+    .mod-hero-icon-button {
+        @apply flex items-center justify-center bg-gray-100 text-gray-500 rounded-full transition-all duration-200;
+    }
+
+    .mod-hero-icon-button:hover:not(:disabled) {
+        @apply bg-gray-200 text-pink-600;
+    }
+
+    .mod-hero-icon-button:disabled {
+        @apply opacity-50 cursor-not-allowed;
+    }
+
+    .mod-hero-icon-button.is-active {
+        @apply bg-pink-600 text-white;
+    }
+
+    .mod-hero-icon-button.is-active:hover {
+        @apply bg-pink-700;
+    }
+
+    .mod-hero-icon-button.is-active svg {
+        @apply fill-current;
+    }
+
+    .more-options-dropdown {
+        @apply absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl z-20 border border-gray-200 py-1;
+    }
+
+    .more-options-item {
+        @apply flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition;
+    }
+
+    .more-options-item.is-placeholder {
+        @apply opacity-50 cursor-not-allowed;
+    }
+
+    .tab-btn {
+        @apply px-6 py-3 font-semibold transition-colors duration-200 cursor-pointer;
+    }
+
+    .tab-btn.active {
+        @apply text-pink-600 border-b-2 border-pink-600;
+    }
+
+    .tab-btn:not(.active) {
+        @apply text-gray-600 border-b-2 border-transparent hover:text-pink-600;
+    }
+
+    .action-btn {
+        @apply border border-gray-200 text-gray-600 hover:bg-gray-100 transition-colors;
+    }
+
+    /* Like/Bookmark button states */
+    .mod-like-button.is-active,
+    .mod-bookmark-button.is-active {
+        @apply bg-pink-600 text-white;
+    }
+
+    .mod-like-button.is-active svg,
+    .mod-bookmark-button.is-active svg {
+        fill: currentColor;
+    }
+
+    /* Breadcrumb styles */
+    .breadcrumb-link {
+        @apply hover:text-pink-600 transition-colors;
+    }
+
+    .breadcrumb-current {
+        @apply text-gray-700 font-semibold;
+    }
+
+    .breadcrumb-separator {
+        @apply text-gray-400 mx-1;
+    }
+}
+
+/* Line clamp utilities */
+.line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
