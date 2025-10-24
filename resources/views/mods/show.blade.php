@@ -32,6 +32,15 @@
     <div data-mod-id="{{ $mod->id }}" style="display: none;"></div>
 
     {{-- Success notices --}}
+    @if(session('success'))
+        <div class="mb-4 rounded-lg border border-green-200 bg-green-50 p-4 text-green-900 flex items-start gap-3">
+            <i class="fa-solid fa-check-circle mt-1 text-green-500" aria-hidden="true"></i>
+            <div>
+                <p class="font-semibold">{{ session('success') }}</p>
+            </div>
+        </div>
+    @endif
+
     @if(request()->get('update') === 'success')
         <div class="mb-4 rounded-lg border border-sky-200 bg-sky-50 p-4 text-sky-900 flex items-start gap-3">
             <i class="fa-solid fa-circle-info mt-1 text-sky-500" aria-hidden="true"></i>
