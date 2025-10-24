@@ -9,7 +9,9 @@ use App\Http\Controllers\Admin\NewsController as AdminNewsController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Admin\SettingsController as AdminSettingsController;
 use App\Http\Controllers\Admin\VideoController as AdminVideoController;
+use App\Http\Controllers\Admin\ModVersionController as AdminModVersionController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\ModVersionController;
 use App\Http\Controllers\ForumController;
 use App\Http\Controllers\InstallController;
 use App\Http\Controllers\HomeController;
@@ -45,6 +47,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/mods/upload', [ModManagementController::class, 'create'])->name('mods.upload');
     Route::post('/mods', [ModManagementController::class, 'store'])->name('mods.store');
     Route::get('/dashboard/mods', [ModManagementController::class, 'myMods'])->name('mods.my');
+
+    // Mod version submission
+    Route::get('/mods/{mod}/version/submit', [ModVersionController::class, 'create'])->name('mods.version.create');
+    Route::post('/mods/{mod}/version', [ModVersionController::class, 'store'])->name('mods.version.store');
 });
 Route::get('/download/{downloadToken:token}', [ModDownloadController::class, 'show'])->name('mods.download.waiting');
 Route::post('/download/{downloadToken:token}/complete', [ModDownloadController::class, 'complete'])->name('mods.download.complete');
@@ -101,6 +107,13 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('videos/{video}/reject', [AdminVideoController::class, 'reject'])->name('videos.reject');
     Route::delete('videos/{video}', [AdminVideoController::class, 'destroy'])->name('videos.destroy');
     Route::post('videos/{video}/clear-reports', [AdminVideoController::class, 'clearReports'])->name('videos.clear-reports');
+
+    // Mod Version Moderation
+    Route::get('versions', [AdminModVersionController::class, 'index'])->name('versions.index');
+    Route::post('versions/{version}/approve', [AdminModVersionController::class, 'approve'])->name('versions.approve');
+    Route::post('versions/{version}/reject', [AdminModVersionController::class, 'reject'])->name('versions.reject');
+    Route::post('versions/{version}/set-current', [AdminModVersionController::class, 'setAsCurrent'])->name('versions.set-current');
+    Route::delete('versions/{version}', [AdminModVersionController::class, 'destroy'])->name('versions.destroy');
 });
 
 // Author Profile Routes
