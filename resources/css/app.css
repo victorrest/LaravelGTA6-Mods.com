@@ -223,6 +223,23 @@
     .breadcrumb-separator {
         @apply text-gray-400 mx-1;
     }
+
+    .pswp__bg {
+        background-color: rgba(9, 6, 17, 0.94) !important;
+    }
+
+    .pswp-video-meta {
+        backdrop-filter: blur(24px);
+    }
+
+    .pswp-video-frame {
+        aspect-ratio: 16 / 9;
+    }
+
+    .pswp__button--arrow svg,
+    .pswp__button--close svg {
+        stroke: #f9fafb;
+    }
 }
 
 /* Line clamp utilities */
