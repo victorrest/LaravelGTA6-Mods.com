@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Mod;
 use App\Models\User;
 use App\Models\UserSocialLink;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
@@ -236,39 +238,51 @@ class ProfileSettingsController extends Controller
     /**
      * Pin a mod to profile
      */
-    public function pinMod($modId)
+    public function pinMod(Request $request, Mod $mod): JsonResponse
     {
-        $user = Auth::user();
-        $mod = \App\Models\Mod::findOrFail($modId);
+        $user = $request->user();
 
-        // Check if user owns the mod
         if ($mod->user_id !== $user->id) {
             return response()->json([
                 'success' => false,
-                'message' => 'You can only pin your own mods',
+                'message' => 'You can only pin your own mods.',
             ], 403);
         }
 
-        $user->update(['pinned_mod_id' => $mod->id]);
+        $message = 'This mod is already pinned to your profile.';
+
+        if ($user->pinned_mod_id !== $mod->id) {
+            $user->forceFill(['pinned_mod_id' => $mod->id])->save();
+            $message = 'Mod pinned to your profile.';
+        }
 
         return response()->json([
             'success' => true,
-            'message' => 'Mod pinned successfully',
+            'message' => $message,
+            'pinned' => true,
+            'pinned_mod_id' => $user->pinned_mod_id,
         ]);
     }
 
     /**
      * Unpin mod from profile
      */
-    public function unpinMod()
+    public function unpinMod(Request $request): JsonResponse
     {
-        $user = Auth::user();
+        $user = $request->user();
 
-        $user->update(['pinned_mod_id' => null]);
+        $message = 'You do not have a pinned mod.';
+
+        if ($user->pinned_mod_id) {
+            $user->forceFill(['pinned_mod_id' => null])->save();
+            $message = 'Mod removed from your profile.';
+        }
 
         return response()->json([
             'success' => true,
-            'message' => 'Mod unpinned successfully',
+            'message' => $message,
+            'pinned' => false,
+            'pinned_mod_id' => $user->pinned_mod_id,
         ]);
     }
 
