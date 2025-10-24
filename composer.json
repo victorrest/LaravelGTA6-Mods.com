@@ -8,8 +8,11 @@
     "require": {
         "php": "^8.2",
         "laravel/framework": "^12.0",
+        "laravel/horizon": "^5.21",
+        "laravel/octane": "^2.6",
         "laravel/tinker": "^2.10.1",
-        "lostlink/laravel-editorjs": "dev-main"
+        "lostlink/laravel-editorjs": "dev-main",
+        "predis/predis": "^2.2"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
