@@ -414,6 +414,7 @@
 <x-mod.share-modal :mod="$mod" :url="request()->url()" />
 
 @push('scripts')
+<script src="{{ asset('js/like-bookmark.js') }}"></script>
 <script>
 // Tab switching
 document.querySelectorAll('[data-tab]').forEach(button => {
