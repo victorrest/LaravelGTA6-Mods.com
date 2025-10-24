@@ -7,6 +7,8 @@ use App\Http\Controllers\Admin\ForumController as AdminForumController;
 use App\Http\Controllers\Admin\ModController as AdminModController;
 use App\Http\Controllers\Admin\NewsController as AdminNewsController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
+use App\Http\Controllers\Admin\SettingsController as AdminSettingsController;
+use App\Http\Controllers\Admin\VideoController as AdminVideoController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ForumController;
 use App\Http\Controllers\InstallController;
@@ -21,6 +23,7 @@ use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\BookmarkController;
 use App\Http\Controllers\FollowController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\VideoController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/install', [InstallController::class, 'index'])->name('install.index');
@@ -87,6 +90,17 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
 
     Route::get('comments', [AdminCommentController::class, 'index'])->name('comments.index');
     Route::delete('comments/{comment}', [AdminCommentController::class, 'destroy'])->name('comments.destroy');
+
+    // Settings
+    Route::get('settings', [AdminSettingsController::class, 'index'])->name('settings.index');
+    Route::post('settings', [AdminSettingsController::class, 'update'])->name('settings.update');
+
+    // Video Moderation
+    Route::get('videos', [AdminVideoController::class, 'index'])->name('videos.index');
+    Route::post('videos/{video}/approve', [AdminVideoController::class, 'approve'])->name('videos.approve');
+    Route::post('videos/{video}/reject', [AdminVideoController::class, 'reject'])->name('videos.reject');
+    Route::delete('videos/{video}', [AdminVideoController::class, 'destroy'])->name('videos.destroy');
+    Route::post('videos/{video}/clear-reports', [AdminVideoController::class, 'clearReports'])->name('videos.clear-reports');
 });
 
 // Author Profile Routes
@@ -132,6 +146,13 @@ Route::prefix('api')->name('api.')->group(function () {
         Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount'])->name('notifications.unread');
         Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead'])->name('notifications.read');
         Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead'])->name('notifications.readAll');
+
+        // Videos
+        Route::post('/videos/submit', [VideoController::class, 'submit'])->name('videos.submit');
+        Route::post('/videos/{video}/report', [VideoController::class, 'report'])->name('videos.report');
+        Route::delete('/videos/{video}', [VideoController::class, 'destroy'])->name('videos.destroy');
+        Route::post('/videos/{video}/feature', [VideoController::class, 'feature'])->name('videos.feature');
+        Route::delete('/videos/{video}/feature', [VideoController::class, 'unfeature'])->name('videos.unfeature');
     });
 });
 

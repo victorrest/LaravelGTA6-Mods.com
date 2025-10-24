@@ -90,6 +90,16 @@ class Mod extends Model
         return $this->hasMany(ModRating::class);
     }
 
+    public function videos(): HasMany
+    {
+        return $this->hasMany(ModVideo::class)->orderBy('is_featured', 'desc')->orderBy('position');
+    }
+
+    public function versions(): HasMany
+    {
+        return $this->hasMany(ModVersion::class)->orderByDesc('created_at');
+    }
+
     public function updateRatingAggregate(): void
     {
         $aggregate = $this->ratings()
