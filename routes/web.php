@@ -15,6 +15,7 @@ use App\Http\Controllers\ModVersionController;
 use App\Http\Controllers\ForumController;
 use App\Http\Controllers\InstallController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\ModCommentController;
 use App\Http\Controllers\ModController;
 use App\Http\Controllers\ModDownloadController;
 use App\Http\Controllers\ModManagementController;
@@ -145,16 +146,17 @@ Route::prefix('api')->name('api.')->group(function () {
     Route::get('/author/{userId}/activities', [ActivityController::class, 'getUserActivities'])->name('author.activities');
     Route::get('/author/{userId}/followers', [FollowController::class, 'followers'])->name('author.followers');
     Route::get('/author/{userId}/following', [FollowController::class, 'following'])->name('author.following');
+    Route::get('/mods/{mod}/comments', [ModCommentController::class, 'index'])->name('mods.comments.index');
+
+    // Public endpoints that still perform auth checks in their controllers.
+    Route::get('/likes/{modId}/check', [LikeController::class, 'check'])->name('likes.check');
+    Route::get('/bookmarks/{modId}/check', [BookmarkController::class, 'check'])->name('bookmarks.check');
+    Route::post('/likes/{modId}/toggle', [LikeController::class, 'toggle'])->name('likes.toggle');
+    Route::post('/bookmarks/{modId}/toggle', [BookmarkController::class, 'toggle'])->name('bookmarks.toggle');
 
     Route::middleware('auth')->group(function () {
         // Likes
-        Route::post('/likes/{modId}/toggle', [LikeController::class, 'toggle'])->name('likes.toggle');
-        Route::get('/likes/{modId}/check', [LikeController::class, 'check'])->name('likes.check');
-
-        // Bookmarks
         Route::get('/bookmarks', [BookmarkController::class, 'index'])->name('bookmarks.index');
-        Route::post('/bookmarks/{modId}/toggle', [BookmarkController::class, 'toggle'])->name('bookmarks.toggle');
-        Route::get('/bookmarks/{modId}/check', [BookmarkController::class, 'check'])->name('bookmarks.check');
 
         // Follow
         Route::post('/follow/{userId}/toggle', [FollowController::class, 'toggle'])->name('follow.toggle');
