@@ -20,7 +20,7 @@ class ModVersionController extends Controller
 
         // Check permissions
         if (!Auth::check() || (Auth::id() !== $mod->user_id && !Auth::user()->is_admin)) {
-            return response()->json(['message' => 'Nincs jogosultságod ehhez a művelethez.'], 403);
+            abort(403, 'Nincs jogosultságod ehhez a művelethez.');
         }
 
         $validated = $request->validate([
@@ -32,9 +32,7 @@ class ModVersionController extends Controller
 
         // Check if version number already exists
         if (ModVersion::where('mod_id', $mod->id)->where('version_number', $validated['version_number'])->exists()) {
-            return response()->json([
-                'message' => 'Ez a verziószám már létezik ehhez a modhoz.'
-            ], 422);
+            return back()->withErrors(['version_number' => 'Ez a verziószám már létezik ehhez a modhoz.'])->withInput();
         }
 
         $filePath = null;
@@ -69,14 +67,12 @@ class ModVersionController extends Controller
             'approved_by' => $status === 'approved' ? Auth::id() : null,
         ]);
 
-        $message = $status === 'approved'
-            ? 'Új verzió sikeresen hozzáadva.'
-            : 'Új verzió beküldve moderációra. Jóváhagyás után jelenik meg.';
-
-        return response()->json([
-            'message' => $message,
-            'version' => $version,
-        ], 201);
+        // Redirect back to mod page with success message
+        $primaryCategory = $mod->primary_category ?? $mod->categories->first();
+        return redirect()->route('mods.show', [$primaryCategory, $mod])
+            ->with('success', $status === 'approved'
+                ? 'Új verzió sikeresen hozzáadva.'
+                : 'Új verzió beküldve moderációra. Jóváhagyás után jelenik meg.');
     }
 
     /**
