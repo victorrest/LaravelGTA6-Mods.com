@@ -232,3 +232,127 @@
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
+
+/* PhotoSwipe Custom Styles */
+.pswp-video-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.pswp-video-wrapper {
+    width: 100%;
+    max-width: 1280px;
+    aspect-ratio: 16 / 9;
+    background: #000;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.pswp-video-iframe {
+    width: 100%;
+    height: 100%;
+}
+
+.pswp-video-actions {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0.7));
+    padding: 1rem 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    backdrop-filter: blur(10px);
+    z-index: 10;
+}
+
+.pswp-video-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.pswp-video-buttons {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.pswp-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 0.5rem;
+    color: white;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+}
+
+.pswp-action-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.3);
+    transform: translateY(-1px);
+}
+
+.pswp-action-feature:hover,
+.pswp-action-unfeature:hover {
+    background: rgba(251, 191, 36, 0.3);
+    border-color: rgb(251, 191, 36);
+}
+
+.pswp-action-delete:hover {
+    background: rgba(239, 68, 68, 0.3);
+    border-color: rgb(239, 68, 68);
+}
+
+.pswp-action-report:hover {
+    background: rgba(249, 115, 22, 0.3);
+    border-color: rgb(249, 115, 22);
+}
+
+/* PhotoSwipe overrides */
+.pswp__bg {
+    background: rgba(0, 0, 0, 0.95);
+}
+
+.pswp__button {
+    background: rgba(255, 255, 255, 0.1) !important;
+    border-radius: 50%;
+}
+
+.pswp__button:hover {
+    background: rgba(255, 255, 255, 0.2) !important;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+    .pswp-video-actions {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 0.75rem;
+    }
+
+    .pswp-video-buttons {
+        justify-content: center;
+    }
+
+    .pswp-action-btn span {
+        display: none;
+    }
+
+    .pswp-action-btn {
+        padding: 0.5rem;
+        justify-content: center;
+    }
+}

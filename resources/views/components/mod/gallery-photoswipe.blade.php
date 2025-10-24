@@ -59,7 +59,7 @@
 @endphp
 
 {{-- Gallery Container --}}
-<div class="card overflow-hidden">
+<div class="card overflow-hidden" data-can-manage-videos="{{ $canManageVideos ? 'true' : 'false' }}">
     @if($mainMedia)
         {{-- Main Media Display --}}
         <div class="relative w-full aspect-video bg-gray-900 cursor-pointer group" data-pswp-index="0">
@@ -162,49 +162,7 @@
     {!! json_encode($allMediaItems) !!}
 </script>
 
-@push('scripts')
-<script>
-(function() {
-    const modId = {{ $modId }};
-    const galleryDataEl = document.getElementById(`gallery-data-${modId}`);
-    if (!galleryDataEl) return;
-
-    const galleryData = JSON.parse(galleryDataEl.textContent);
-
-    // Load more button
-    const loadMoreBtn = document.getElementById('load-more-gallery');
-    if (loadMoreBtn) {
-        loadMoreBtn.addEventListener('click', function() {
-            document.querySelectorAll('.gallery-hidden-thumb').forEach(thumb => {
-                thumb.classList.remove('hidden');
-            });
-            this.style.display = 'none';
-        });
-    }
-
-    // PhotoSwipe initialization will be added here
-    // TODO: Initialize PhotoSwipe with galleryData
-    console.log('Gallery data loaded:', galleryData);
-
-    // Temporary click handlers (will be replaced with PhotoSwipe)
-    document.querySelectorAll('[data-pswp-index]').forEach(element => {
-        element.addEventListener('click', function() {
-            const index = parseInt(this.dataset.pswpIndex);
-            const item = galleryData[index];
-
-            if (item.type === 'video') {
-                // Open YouTube video
-                const youtubeUrl = `https://www.youtube.com/watch?v=${item.youtube_id}`;
-                window.open(youtubeUrl, '_blank');
-            } else {
-                // Open image in new tab (temporary - will use PhotoSwipe)
-                window.open(item.src, '_blank');
-            }
-        });
-    });
-})();
-</script>
-@endpush
+{{-- PhotoSwipe is initialized via resources/js/modules/photoswipe-gallery.js --}}
 
 {{-- Add Video Button (for authenticated users) --}}
 @auth
