@@ -64,7 +64,14 @@ class ModController extends Controller
         // Get current version (latest approved or the mod's own version)
         $currentVersion = $versions->where('is_current', true)->first() ?? $versions->first();
 
-        $comments = $mod->comments()->with('author')->latest()->take(20)->get();
+        // Load top-level comments with replies and likes
+        $comments = $mod->comments()
+            ->whereNull('parent_id')
+            ->with(['author', 'replies.author', 'replies.likes'])
+            ->withCount('likes')
+            ->latest()
+            ->take(20)
+            ->get();
 
         $userRating = Auth::check()
             ? $mod->ratings()->where('user_id', Auth::id())->value('rating')
@@ -187,10 +194,12 @@ class ModController extends Controller
 
         $validated = $request->validate([
             'body' => ['required', 'string', 'min:5', 'max:1500'],
+            'parent_id' => ['nullable', 'exists:mod_comments,id'],
         ]);
 
         $comment = $mod->comments()->create([
             'user_id' => Auth::id(),
+            'parent_id' => $validated['parent_id'] ?? null,
             'body' => $validated['body'],
         ]);
 
