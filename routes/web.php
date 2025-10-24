@@ -146,15 +146,17 @@ Route::prefix('api')->name('api.')->group(function () {
     Route::get('/author/{userId}/followers', [FollowController::class, 'followers'])->name('author.followers');
     Route::get('/author/{userId}/following', [FollowController::class, 'following'])->name('author.following');
 
-    Route::middleware('auth')->group(function () {
-        // Likes
-        Route::post('/likes/{modId}/toggle', [LikeController::class, 'toggle'])->name('likes.toggle');
-        Route::get('/likes/{modId}/check', [LikeController::class, 'check'])->name('likes.check');
+    // Public check endpoints (no auth required - they check internally)
+    Route::get('/likes/{modId}/check', [LikeController::class, 'check'])->name('likes.check');
+    Route::get('/bookmarks/{modId}/check', [BookmarkController::class, 'check'])->name('bookmarks.check');
 
-        // Bookmarks
+    Route::middleware('auth')->group(function () {
+        // Likes (auth required)
+        Route::post('/likes/{modId}/toggle', [LikeController::class, 'toggle'])->name('likes.toggle');
+
+        // Bookmarks (auth required)
         Route::get('/bookmarks', [BookmarkController::class, 'index'])->name('bookmarks.index');
         Route::post('/bookmarks/{modId}/toggle', [BookmarkController::class, 'toggle'])->name('bookmarks.toggle');
-        Route::get('/bookmarks/{modId}/check', [BookmarkController::class, 'check'])->name('bookmarks.check');
 
         // Follow
         Route::post('/follow/{userId}/toggle', [FollowController::class, 'toggle'])->name('follow.toggle');
