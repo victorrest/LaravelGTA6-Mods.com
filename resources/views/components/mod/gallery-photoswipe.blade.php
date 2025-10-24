@@ -12,27 +12,62 @@
             'src' => $image['src'],
             'thumbnail' => $image['src'],
             'alt' => $image['alt'] ?? $modTitle,
-            'width' => 1920,
-            'height' => 1080,
+            'width' => \Illuminate\Support\Arr::get($image, 'width', 1920),
+            'height' => \Illuminate\Support\Arr::get($image, 'height', 1080),
             'sequence' => $imageSequence++,
         ];
     }
 
     // Process videos
     foreach ($videos as $video) {
-        $thumbnailUrl = $video->thumbnail_url ?? "https://i.ytimg.com/vi/{$video->youtube_id}/hqdefault.jpg";
+        $submitter = $video->submitter;
+        $thumbnailLarge = $video->thumbnail_large_url ?? $video->thumbnail_url;
+        $thumbnailSmall = $video->thumbnail_small_url ?? $thumbnailLarge;
+
+        $durationLabel = null;
+
+        if (!empty($video->duration)) {
+            try {
+                $interval = \Carbon\CarbonInterval::make($video->duration);
+                if ($interval) {
+                    $seconds = (int) $interval->totalSeconds;
+                    if ($seconds >= 3600) {
+                        $durationLabel = gmdate('H:i:s', $seconds);
+                    } elseif ($seconds > 0) {
+                        $durationLabel = gmdate('i:s', $seconds);
+                    }
+                }
+            } catch (\Exception $e) {
+                $durationLabel = null;
+            }
+        }
+
         $allMediaItems[] = [
             'type' => 'video',
             'youtube_id' => $video->youtube_id,
-            'src' => $thumbnailUrl,
-            'thumbnail' => $thumbnailUrl,
-            'alt' => $video->title ?? $modTitle,
+            'src' => $thumbnailLarge,
+            'thumbnail' => $thumbnailSmall,
+            'alt' => $video->video_title ?: $modTitle,
+            'title' => $video->video_title,
             'width' => 1920,
             'height' => 1080,
             'sequence' => $videoSequence++,
             'video_id' => $video->id,
-            'submitter_name' => $video->submitter->name ?? 'Anonymous',
-            'is_featured' => $video->is_featured ?? false,
+            'submitter_name' => $submitter->name ?? 'Community Member',
+            'submitter_url' => $submitter ? route('author.profile', $submitter->username ?? $submitter->id) : null,
+            'is_featured' => (bool) $video->is_featured,
+            'status' => $video->status,
+            'duration' => $durationLabel,
+            'raw_duration' => $video->duration,
+            'description' => $video->video_description,
+            'youtube_url' => $video->youtube_url ?: "https://www.youtube.com/watch?v={$video->youtube_id}",
+            'report_url' => auth()->check() ? route('api.videos.report', $video) : null,
+            'feature_url' => $canManageVideos ? route('api.videos.feature', $video) : null,
+            'unfeature_url' => $canManageVideos ? route('api.videos.unfeature', $video) : null,
+            'delete_url' => $canManageVideos ? route('api.videos.destroy', $video) : null,
+            'can_manage' => (bool) $canManageVideos,
+            'submitted_human' => optional($video->created_at)->diffForHumans(),
+            'report_count' => $video->report_count,
         ];
     }
 
@@ -59,10 +94,10 @@
 @endphp
 
 {{-- Gallery Container --}}
-<div class="card overflow-hidden">
+<div class="card overflow-hidden" data-pswp-gallery="{{ $modId }}">
     @if($mainMedia)
         {{-- Main Media Display --}}
-        <div class="relative w-full aspect-video bg-gray-900 cursor-pointer group" data-pswp-index="0">
+        <button type="button" class="relative w-full aspect-video bg-gray-900 cursor-pointer group focus:outline-none" data-pswp-index="0">
             @if($mainMedia['type'] === 'image')
                 <img src="{{ $mainMedia['src'] }}"
                      alt="{{ $mainMedia['alt'] }}"
@@ -89,7 +124,7 @@
                     </span>
                 @endif
             </div>
-        </div>
+        </button>
 
         {{-- Thumbnails Grid --}}
         @if(count($thumbnails) > 0)
@@ -105,8 +140,8 @@
                 {{-- Thumbnails --}}
                 <div class="grid grid-cols-5 gap-2" id="gallery-thumbnails">
                     @foreach($visibleThumbnails as $index => $item)
-                        <div class="relative aspect-video rounded-md overflow-hidden cursor-pointer border-2 {{ $index === 0 ? 'border-pink-500' : 'border-transparent hover:border-pink-500' }} transition group"
-                             data-pswp-index="{{ $index + 1 }}">
+                        <button type="button" class="relative aspect-video rounded-md overflow-hidden cursor-pointer border-2 {{ $index === 0 ? 'border-pink-500' : 'border-transparent hover:border-pink-500' }} transition group focus:outline-none"
+                                data-pswp-index="{{ $index + 1 }}">
                             <img src="{{ $item['thumbnail'] }}"
                                  alt="{{ $item['alt'] }}"
                                  class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300">
@@ -116,13 +151,13 @@
                                     <i class="fab fa-youtube text-white text-xl"></i>
                                 </div>
                             @endif
-                        </div>
+                        </button>
                     @endforeach
 
                     {{-- Hidden thumbnails (loaded on click) --}}
                     @foreach($hiddenThumbnails as $index => $item)
-                        <div class="hidden gallery-hidden-thumb relative aspect-video rounded-md overflow-hidden cursor-pointer border-2 border-transparent hover:border-pink-500 transition group"
-                             data-pswp-index="{{ $index + 6 }}">
+                        <button type="button" class="hidden gallery-hidden-thumb relative aspect-video rounded-md overflow-hidden cursor-pointer border-2 border-transparent hover:border-pink-500 transition group focus:outline-none"
+                                data-pswp-index="{{ $index + count($visibleThumbnails) + 1 }}">
                             <img src="{{ $item['thumbnail'] }}"
                                  alt="{{ $item['alt'] }}"
                                  class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300">
@@ -132,14 +167,15 @@
                                     <i class="fab fa-youtube text-white text-xl"></i>
                                 </div>
                             @endif
-                        </div>
+                        </button>
                     @endforeach
                 </div>
 
                 {{-- Load More Button --}}
                 @if(count($hiddenThumbnails) > 0)
-                    <button type="button" id="load-more-gallery"
-                            class="w-full mt-4 py-3 px-4 rounded-lg border-2 border-pink-500 text-pink-600 font-semibold hover:bg-pink-50 transition duration-300 ease-in-out flex items-center justify-center">
+                    <button type="button"
+                            class="w-full mt-4 py-3 px-4 rounded-lg border-2 border-pink-500 text-pink-600 font-semibold hover:bg-pink-50 transition duration-300 ease-in-out flex items-center justify-center"
+                            data-load-more>
                         <i class="fas fa-images mr-2"></i>
                         <span>Load {{ count($hiddenThumbnails) }} More</span>
                     </button>
@@ -161,50 +197,6 @@
 <script id="gallery-data-{{ $modId }}" type="application/json">
     {!! json_encode($allMediaItems) !!}
 </script>
-
-@push('scripts')
-<script>
-(function() {
-    const modId = {{ $modId }};
-    const galleryDataEl = document.getElementById(`gallery-data-${modId}`);
-    if (!galleryDataEl) return;
-
-    const galleryData = JSON.parse(galleryDataEl.textContent);
-
-    // Load more button
-    const loadMoreBtn = document.getElementById('load-more-gallery');
-    if (loadMoreBtn) {
-        loadMoreBtn.addEventListener('click', function() {
-            document.querySelectorAll('.gallery-hidden-thumb').forEach(thumb => {
-                thumb.classList.remove('hidden');
-            });
-            this.style.display = 'none';
-        });
-    }
-
-    // PhotoSwipe initialization will be added here
-    // TODO: Initialize PhotoSwipe with galleryData
-    console.log('Gallery data loaded:', galleryData);
-
-    // Temporary click handlers (will be replaced with PhotoSwipe)
-    document.querySelectorAll('[data-pswp-index]').forEach(element => {
-        element.addEventListener('click', function() {
-            const index = parseInt(this.dataset.pswpIndex);
-            const item = galleryData[index];
-
-            if (item.type === 'video') {
-                // Open YouTube video
-                const youtubeUrl = `https://www.youtube.com/watch?v=${item.youtube_id}`;
-                window.open(youtubeUrl, '_blank');
-            } else {
-                // Open image in new tab (temporary - will use PhotoSwipe)
-                window.open(item.src, '_blank');
-            }
-        });
-    });
-})();
-</script>
-@endpush
 
 {{-- Add Video Button (for authenticated users) --}}
 @auth
