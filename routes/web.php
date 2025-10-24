@@ -23,6 +23,7 @@ use App\Http\Controllers\AuthorProfileController;
 use App\Http\Controllers\ProfileSettingsController;
 use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\BookmarkController;
+use App\Http\Controllers\LikeController;
 use App\Http\Controllers\FollowController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\VideoController;
