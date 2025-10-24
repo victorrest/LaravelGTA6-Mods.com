@@ -108,16 +108,13 @@
                 @if (count($galleryImages) > 1)
                     <div class="card p-5 space-y-4">
                         <div class="flex items-center justify-between">
-                            <h2 class="text-lg font-semibold text-gray-900">Galéria</h2>
-                            <span class="text-xs text-gray-500">{{ count($galleryImages) }} kép</span>
+                            <h2 class="text-xl font-bold text-gray-900 flex items-center gap-2">
+                                <i class="fa-solid fa-images text-pink-600"></i>
+                                <span>Képgaléria</span>
+                            </h2>
+                            <span class="text-sm text-gray-500 font-medium">{{ count($galleryImages) }} kép</span>
                         </div>
-                        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                            @foreach (array_slice($galleryImages, 1) as $image)
-                                <div class="group relative overflow-hidden rounded-xl border border-gray-200">
-                                    <img src="{{ $image['src'] }}" alt="{{ $image['alt'] }}" class="h-40 w-full object-cover transition-transform duration-300 group-hover:scale-105">
-                                </div>
-                            @endforeach
-                        </div>
+                        <x-mod.gallery :images="$galleryImages" :modTitle="$mod->title" />
                     </div>
                 @endif
 
@@ -195,12 +192,81 @@
                     </section>
                 </div>
 
-                <div class="card p-6 space-y-4">
-                    <section id="mod-changelog" class="space-y-3">
-                        <h2 class="text-xl font-semibold text-gray-900">Verziótörténet (Changelog)</h2>
-                        <p class="text-sm text-gray-500">A verziótörténet hamarosan elérhető lesz.</p>
-                    </section>
-                </div>
+                {{-- Video Gallery --}}
+                @if ($videos->isNotEmpty())
+                    <div class="card p-5 space-y-4">
+                        <div class="flex items-center justify-between">
+                            <h2 class="text-xl font-bold text-gray-900 flex items-center gap-2">
+                                <i class="fa-brands fa-youtube text-red-600"></i>
+                                <span>Videógaléria</span>
+                            </h2>
+                            <span class="text-sm text-gray-500 font-medium">{{ $videos->count() }} videó</span>
+                        </div>
+                        <x-mod.video-gallery :videos="$videos" :modId="$mod->id" :modTitle="$mod->title" :canManage="$canManageMod" />
+                    </div>
+                @elseif(auth()->check())
+                    <div class="card p-6 text-center">
+                        <div class="py-8">
+                            <i class="fa-brands fa-youtube text-6xl text-gray-300 mb-4"></i>
+                            <h3 class="text-lg font-semibold text-gray-900 mb-2">Még nincsenek videók</h3>
+                            <p class="text-gray-600 mb-4">Légy az első, aki videót oszt meg erről a modról!</p>
+                            <button
+                                type="button"
+                                class="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-red-600 to-pink-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all"
+                                data-modal-trigger="video-submit-modal"
+                            >
+                                <i class="fa-brands fa-youtube text-xl"></i>
+                                <span>YouTube videó hozzáadása</span>
+                            </button>
+                        </div>
+                    </div>
+                @endif
+
+                {{-- Version History / Changelog --}}
+                @if($versions->isNotEmpty())
+                    <div class="card p-6 space-y-4">
+                        <h2 class="text-2xl font-bold text-gray-900 flex items-center gap-2 border-b pb-3">
+                            <i class="fa-solid fa-clock-rotate-left text-pink-600"></i>
+                            <span>Verziótörténet</span>
+                        </h2>
+                        <div class="space-y-3">
+                            @foreach($versions as $version)
+                                <div class="p-4 bg-gray-50 rounded-lg border {{ $version->is_current ? 'border-pink-500 bg-pink-50' : 'border-gray-200' }}">
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <h3 class="font-bold text-gray-900">
+                                                Verzió {{ $version->version_number }}
+                                                @if($version->is_current)
+                                                    <span class="ml-2 px-2 py-1 bg-pink-600 text-white text-xs rounded-full">Aktuális</span>
+                                                @endif
+                                            </h3>
+                                            <p class="text-xs text-gray-500 mt-1">
+                                                {{ $version->created_at->format('Y. m. d.') }}
+                                                @if($version->file_size_label)
+                                                    · {{ $version->file_size_label }}
+                                                @endif
+                                            </p>
+                                        </div>
+                                        @if($version->download_url || $version->file_url)
+                                            <a
+                                                href="{{ $version->download_url ?: $version->file_url }}"
+                                                class="px-4 py-2 bg-pink-600 text-white text-sm font-semibold rounded-lg hover:bg-pink-700 transition"
+                                            >
+                                                <i class="fa-solid fa-download mr-1"></i>Letöltés
+                                            </a>
+                                        @endif
+                                    </div>
+                                    @if($version->changelog)
+                                        <div class="mt-3 text-sm text-gray-700">
+                                            <strong>Változások:</strong>
+                                            <p class="mt-1 whitespace-pre-line">{{ $version->changelog }}</p>
+                                        </div>
+                                    @endif
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
             </div>
 
             <aside class="space-y-6">
@@ -254,7 +320,40 @@
     </div>
 @endsection
 
+{{-- Video Submit Modal --}}
+@auth
+    <x-mod.video-submit-modal :modId="$mod->id" />
+@endauth
+
 @push('scripts')
+<script>
+// Rating stars interactivity
+document.querySelectorAll('[data-rating-form]').forEach(form => {
+    const stars = form.querySelectorAll('[data-rating-value]');
+    const input = form.querySelector('[data-rating-input]');
+    const submitBtn = form.querySelector('[data-rating-submit]');
+
+    stars.forEach(star => {
+        star.addEventListener('click', function() {
+            const value = this.dataset.ratingValue;
+            input.value = value;
+            submitBtn.disabled = false;
+
+            // Update star display
+            stars.forEach((s, index) => {
+                const icon = s.querySelector('i');
+                if (index < value) {
+                    icon.classList.remove('fa-regular', 'text-gray-300');
+                    icon.classList.add('fa-solid', 'text-amber-400');
+                } else {
+                    icon.classList.remove('fa-solid', 'text-amber-400');
+                    icon.classList.add('fa-regular', 'text-gray-300');
+                }
+            });
+        });
+    });
+});
+</script>
 <!-- Pin toggle behavior handled by resources/js/modules/pin-mod.js -->
 @endpush
 
