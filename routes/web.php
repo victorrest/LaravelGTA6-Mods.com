@@ -146,6 +146,10 @@ Route::prefix('api')->name('api.')->group(function () {
     Route::get('/author/{userId}/following', [FollowController::class, 'following'])->name('author.following');
 
     Route::middleware('auth')->group(function () {
+        // Likes
+        Route::post('/likes/{modId}/toggle', [LikeController::class, 'toggle'])->name('likes.toggle');
+        Route::get('/likes/{modId}/check', [LikeController::class, 'check'])->name('likes.check');
+
         // Bookmarks
         Route::get('/bookmarks', [BookmarkController::class, 'index'])->name('bookmarks.index');
         Route::post('/bookmarks/{modId}/toggle', [BookmarkController::class, 'toggle'])->name('bookmarks.toggle');
