@@ -46,21 +46,21 @@
 
             <a href="{{ route('mods.show', [$pinnedMod->primary_category, $pinnedMod]) }}" class="block bg-gradient-to-r from-pink-50 to-purple-50 rounded-lg p-4 border-2 border-pink-200 hover:border-pink-300 transition group">
                 <div class="flex gap-4">
-                    @if($pinnedMod->hero_image_url)
-                        <img src="{{ $pinnedMod->hero_image_url }}" alt="{{ $pinnedMod->title }}" class="w-32 h-20 object-cover rounded-md flex-shrink-0 group-hover:shadow-md transition">
+                    @if($pinnedMod->thumbnail_url)
+                        <img src="{{ $pinnedMod->thumbnail_url }}" alt="{{ $pinnedMod->title }}" class="w-32 h-20 object-cover rounded-md flex-shrink-0 group-hover:shadow-md transition">
                     @endif
                     <div class="flex-1 min-w-0">
                         <h4 class="font-bold text-gray-900 text-lg mb-1 group-hover:text-pink-600 transition">{{ $pinnedMod->title }}</h4>
-                        <p class="text-sm text-gray-600 line-clamp-2 mb-2">{{ \Illuminate\Support\Str::limit(strip_tags($pinnedMod->description_html), 120) }}</p>
+                        <p class="text-sm text-gray-600 line-clamp-2 mb-2">{{ $pinnedMod->description }}</p>
                         <div class="flex items-center gap-4 text-sm">
                             <span class="text-gray-600">
                                 <i class="fas fa-download mr-1 text-pink-600"></i>
                                 <strong>{{ number_format($pinnedMod->downloads) }}</strong> downloads
                             </span>
-                            @if($pinnedMod->rating)
+                            @if($pinnedMod->average_rating)
                                 <span class="text-gray-600">
                                     <i class="fas fa-star mr-1 text-yellow-500"></i>
-                                    <strong>{{ number_format((float) $pinnedMod->rating, 1) }}</strong> rating
+                                    <strong>{{ number_format($pinnedMod->average_rating, 1) }}</strong> rating
                                 </span>
                             @endif
                             <span class="text-gray-500">
