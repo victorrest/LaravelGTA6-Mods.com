@@ -5,10 +5,12 @@ namespace App\Http\Controllers;
 use App\Models\Mod;
 use App\Models\ModCategory;
 use App\Models\ModComment;
+use App\Models\ModLike;
 use App\Models\UserActivity;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\Response;
 
 class ModController extends Controller
@@ -64,7 +66,14 @@ class ModController extends Controller
         // Get current version (latest approved or the mod's own version)
         $currentVersion = $versions->where('is_current', true)->first() ?? $versions->first();
 
-        $comments = $mod->comments()->with('author')->latest()->take(20)->get();
+        $comments = $mod->comments()
+            ->approved()
+            ->whereNull('parent_id')
+            ->with(['author', 'replies.author'])
+            ->orderByDesc('likes_count')
+            ->orderByDesc('created_at')
+            ->take(15)
+            ->get();
 
         $userRating = Auth::check()
             ? $mod->ratings()->where('user_id', Auth::id())->value('rating')
@@ -111,14 +120,92 @@ class ModController extends Controller
             'updated_at' => optional($mod->updated_at)->format('M d, Y'),
         ];
 
-        $galleryImages = collect($mod->galleryImages)
-            ->map(fn ($image) => [
-                'src' => $image->url,
-                'alt' => $mod->title,
-            ])->prepend([
-                'src' => $mod->hero_image_url,
-                'alt' => $mod->title,
-            ])->unique('src')->values()->all();
+        $galleryItems = [];
+        $imageSequence = 1;
+
+        $baseImage = [
+            'type' => 'image',
+            'src' => $mod->hero_image_url,
+            'thumbnail_small' => $mod->hero_image_url,
+            'thumbnail_large' => $mod->hero_image_url,
+            'width' => 1920,
+            'height' => 1080,
+            'alt' => $mod->title,
+            'title' => $mod->title,
+            'identifier' => 'hero-image',
+            'sequence' => $imageSequence++,
+        ];
+
+        $imageItems = collect($mod->galleryImages)
+            ->map(function ($image) use (&$imageSequence, $mod) {
+                $src = $image->url;
+
+                return [
+                    'type' => 'image',
+                    'src' => $src,
+                    'thumbnail_small' => $src,
+                    'thumbnail_large' => $src,
+                    'width' => 1920,
+                    'height' => 1080,
+                    'alt' => $image->caption ?: $mod->title,
+                    'title' => $mod->title,
+                    'identifier' => 'gallery-image-' . $imageSequence,
+                    'sequence' => $imageSequence++,
+                ];
+            })
+            ->filter(fn ($item) => !empty($item['src']))
+            ->values();
+
+        $imageItems->prepend($baseImage);
+
+        $imageItems = $imageItems->unique('src')->values();
+
+        $videoItems = $videos->map(function ($video) use (&$imageSequence, $mod) {
+            $thumbnailLarge = $video->thumbnail_large_url;
+            $thumbnailSmall = $video->thumbnail_small_url;
+
+            return [
+                'type' => 'video',
+                'src' => $thumbnailLarge,
+                'thumbnail_small' => $thumbnailSmall,
+                'thumbnail_large' => $thumbnailLarge,
+                'width' => 1920,
+                'height' => 1080,
+                'alt' => $video->video_title ?: $mod->title,
+                'title' => $video->video_title ?: $mod->title,
+                'identifier' => 'video-' . $video->id,
+                'sequence' => $imageSequence++,
+                'is_featured' => (bool) $video->is_featured,
+                'youtube_id' => $video->youtube_id,
+                'video_id' => $video->id,
+                'submitter_name' => optional($video->submitter)->name ?? 'Community member',
+                'profile_url' => optional($video->submitter)
+                    ? route('author.profile', optional($video->submitter)->username ?? optional($video->submitter)->id)
+                    : null,
+                'status' => $video->status,
+                'is_reported' => $video->status === 'reported',
+                'report_count' => $video->report_count,
+            ];
+        })->values();
+
+        $featuredVideo = $videoItems->firstWhere('is_featured', true);
+
+        if ($featuredVideo) {
+            $galleryItems[] = $featuredVideo;
+            $galleryItems = array_merge($galleryItems, $imageItems->toArray());
+            $galleryItems = array_merge($galleryItems, $videoItems->reject(fn ($item) => $item['is_featured'])->toArray());
+        } else {
+            $galleryItems = array_merge($imageItems->toArray(), $videoItems->toArray());
+        }
+
+        if (empty($galleryItems)) {
+            $galleryItems[] = $baseImage;
+        }
+
+        $defaultImage = collect($galleryItems)
+            ->first(fn ($item) => $item['type'] === 'image');
+
+        $galleryJson = json_encode($galleryItems);
 
         $authUser = Auth::user();
         $canManagePin = $authUser && $authUser->getKey() === $mod->user_id;
@@ -126,6 +213,29 @@ class ModController extends Controller
 
         // Check if user can manage this mod
         $canManageMod = Auth::check() && (Auth::id() === $mod->user_id || Auth::user()->is_admin);
+        $isPendingMod = $mod->status === Mod::STATUS_PENDING;
+        $isAuthorViewing = Auth::id() === $mod->user_id;
+        $hasPendingUpdate = $mod->versions()->pending()->exists();
+        $canBypassPending = Auth::user()?->is_admin;
+        $showUpdateButton = $canManageMod && (!$isPendingMod || $canBypassPending) && (!$hasPendingUpdate || $canBypassPending);
+        $showPendingNotice = $hasPendingUpdate && ($canBypassPending || $isAuthorViewing);
+        $showAuthorPendingNotice = $isPendingMod && $isAuthorViewing;
+
+        $isLiked = Auth::check() && ModLike::where('mod_id', $mod->id)
+            ->where('user_id', Auth::id())
+            ->exists();
+        $isBookmarked = Auth::check() && Auth::user()->hasBookmarked($mod);
+
+        $uploadedAt = optional($mod->published_at);
+        $updatedAt = optional($mod->updated_at);
+
+        $metaDetails = [
+            'version' => $mod->version,
+            'file_size' => $mod->file_size_label,
+            'uploaded_at' => $uploadedAt?->format('F j, Y'),
+            'updated_at' => $updatedAt?->format('F j, Y'),
+            'uploaded_ago' => $uploadedAt ? $uploadedAt->diffForHumans() : null,
+        ];
 
         return view('mods.show', [
             'mod' => $mod,
@@ -142,13 +252,20 @@ class ModController extends Controller
             'ratingCount' => $mod->ratings_count,
             'userRating' => $userRating ? (int) $userRating : null,
             'metaDetails' => $metaDetails,
-            'galleryImages' => $galleryImages,
+            'galleryItems' => $galleryItems,
+            'galleryJson' => $galleryJson,
+            'defaultGalleryImage' => $defaultImage,
             'canManagePin' => $canManagePin,
             'isPinnedByOwner' => $isPinnedByOwner,
             'videos' => $videos,
             'versions' => $versions,
             'currentVersion' => $currentVersion,
             'canManageMod' => $canManageMod,
+            'showUpdateButton' => $showUpdateButton,
+            'showPendingNotice' => $showPendingNotice,
+            'showAuthorPendingNotice' => $showAuthorPendingNotice,
+            'isLiked' => $isLiked,
+            'isBookmarked' => $isBookmarked,
         ]);
     }
 
@@ -187,11 +304,14 @@ class ModController extends Controller
 
         $validated = $request->validate([
             'body' => ['required', 'string', 'min:5', 'max:1500'],
+            'parent_id' => ['nullable', 'integer', Rule::exists('mod_comments', 'id')->where('mod_id', $mod->id)],
         ]);
 
         $comment = $mod->comments()->create([
             'user_id' => Auth::id(),
+            'parent_id' => $validated['parent_id'] ?? null,
             'body' => $validated['body'],
+            'status' => ModComment::STATUS_APPROVED,
         ]);
 
         // Log activity for comment

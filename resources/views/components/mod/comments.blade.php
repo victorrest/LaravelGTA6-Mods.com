@@ -1,189 +1,210 @@
 @props(['mod', 'comments'])
 
-{{-- Comments Component (WordPress Style) --}}
-<div class="space-y-6">
-    <h4 class="font-bold text-lg mb-4 text-gray-900">Comments ({{ $mod->comments_count }})</h4>
+@php
+    $primaryCategory = $mod->primary_category ?? $mod->categories->first();
+    $totalComments = $mod->comments_count;
+    $hasMoreComments = $totalComments > $comments->count();
+@endphp
 
-    {{-- New Comment Form (Auth Users) --}}
+<section
+    id="mod-comments"
+    class="space-y-6"
+    data-comments-section
+    data-mod-id="{{ $mod->id }}"
+    data-total-comments="{{ $totalComments }}"
+>
+    <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+            <h2 class="text-xl font-bold text-gray-900 flex items-center gap-2">
+                <i class="fa-regular fa-comments text-pink-500"></i>
+                <span>Comments</span>
+                <span class="text-sm text-gray-500" data-comment-count>({{ number_format($totalComments) }})</span>
+            </h2>
+            <p class="text-sm text-gray-500">Join the conversation, ask questions and share your feedback.</p>
+        </div>
+        <div class="flex items-center gap-2 text-sm">
+            <label for="comment-sort" class="text-gray-500">Sort by</label>
+            <select id="comment-sort" name="orderby" class="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-pink-500 focus:ring-pink-500" data-comment-sort>
+                <option value="best" selected>Top</option>
+                <option value="newest">Newest</option>
+                <option value="oldest">Oldest</option>
+            </select>
+        </div>
+    </div>
+
     @auth
-        <div class="mb-6">
-            <form method="POST" action="{{ route('mods.comment', [$mod->primary_category ?? $mod->categories->first(), $mod]) }}" class="space-y-3">
+        <div class="card p-4 md:p-5" data-comment-form>
+            <form method="POST" action="{{ route('mods.comment', [$primaryCategory, $mod]) }}" class="space-y-3">
                 @csrf
-                <div class="flex items-start space-x-3">
-                    <img src="{{ auth()->user()->avatar_url ?? 'https://ui-avatars.com/api/?name=' . urlencode(auth()->user()->name) . '&background=ec4899&color=fff' }}"
-                         class="rounded-full w-10 h-10 object-cover flex-shrink-0"
-                         alt="{{ auth()->user()->name }}'s avatar">
-                    <div class="flex-1">
-                        <textarea name="body" rows="3" required minlength="5" maxlength="1500"
-                                  class="w-full p-3 bg-white border border-gray-300 rounded-md focus:ring-2 focus:ring-pink-500 focus:border-pink-500 text-gray-700 text-sm resize-none"
-                                  placeholder="Write a comment..."></textarea>
+                <div class="flex items-start gap-3">
+                    <img
+                        src="{{ auth()->user()->avatar_url ?? 'https://ui-avatars.com/api/?name=' . urlencode(auth()->user()->name) . '&background=ec4899&color=fff' }}"
+                        alt="{{ auth()->user()->name }} avatar"
+                        class="h-10 w-10 rounded-full object-cover"
+                    >
+                    <div class="flex-1 space-y-3">
+                        <textarea
+                            name="body"
+                            rows="4"
+                            minlength="5"
+                            maxlength="1500"
+                            required
+                            class="w-full resize-none rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-700 shadow-sm focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                            placeholder="Share your thoughts about this mod..."
+                        ></textarea>
                         @error('body')
-                            <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
+                            <p class="text-xs font-semibold text-red-600">{{ $message }}</p>
                         @enderror
-                        <button type="submit" class="mt-2 btn-download font-semibold py-2 px-5 rounded-lg text-sm transition inline-flex items-center">
-                            <i class="fa-solid fa-paper-plane mr-2"></i>
-                            Post Comment
-                        </button>
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs text-gray-400">1500 characters maximum</span>
+                            <button type="submit" class="inline-flex items-center gap-2 rounded-full bg-pink-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-pink-700">
+                                <i class="fa-solid fa-paper-plane"></i>
+                                <span>Post comment</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </form>
         </div>
     @else
-        <div class="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-lg text-center">
-            <p class="text-sm text-gray-600">
-                Please <a href="{{ route('login') }}" class="text-pink-600 hover:text-pink-700 font-semibold">log in</a> to post a comment.
+        <div class="card border border-dashed border-pink-200 bg-pink-50/50 p-5 text-center text-sm text-pink-700">
+            <p>
+                <strong>Sign in to join the discussion.</strong>
+                <a href="{{ route('login') }}" class="ml-1 font-semibold text-pink-600 underline-offset-4 hover:underline">Log in</a>
+                or
+                <a href="{{ route('register') }}" class="font-semibold text-pink-600 underline-offset-4 hover:underline">create an account</a>.
             </p>
         </div>
     @endauth
 
-    {{-- Comments List --}}
-    <div class="space-y-4">
-        @forelse ($comments as $comment)
-            <div class="flex items-start space-x-3 p-4 bg-gray-50 rounded-lg border border-gray-200 hover:border-gray-300 transition">
-                {{-- Avatar --}}
-                <img src="{{ $comment->author->avatar_url ?? 'https://ui-avatars.com/api/?name=' . urlencode($comment->author->name) . '&background=e5e7eb&color=374151' }}"
-                     class="rounded-full w-10 h-10 object-cover flex-shrink-0"
-                     alt="{{ $comment->author->name }}'s avatar">
-
-                {{-- Comment Content --}}
-                <div class="flex-1 min-w-0">
-                    <div class="flex items-center justify-between mb-1">
-                        <div class="flex items-center space-x-2">
-                            <p class="font-semibold text-gray-900 text-sm">{{ $comment->author->name }}</p>
-
-                            {{-- Creator Badge --}}
-                            @if($comment->user_id === $mod->user_id)
-                                <span class="text-xs font-semibold bg-pink-500 text-white px-2 py-0.5 rounded-full">Creator</span>
-                            @endif
-
-                            {{-- Admin Badge --}}
-                            @if($comment->author->is_admin)
-                                <span class="text-xs font-semibold bg-purple-500 text-white px-2 py-0.5 rounded-full">Admin</span>
-                            @endif
-                        </div>
-                        <span class="text-xs text-gray-500 flex-shrink-0">{{ $comment->created_at->diffForHumans() }}</span>
-                    </div>
-
-                    {{-- Comment Body --}}
-                    <p class="text-sm text-gray-700 break-words">{{ $comment->body }}</p>
-
-                    {{-- Comment Actions --}}
-                    <div class="flex items-center space-x-4 text-xs text-gray-500 mt-2">
-                        @auth
-                            <button type="button" class="hover:text-pink-600 font-semibold transition" data-comment-reply="{{ $comment->id }}">
-                                <i class="fa-solid fa-reply mr-1"></i>Reply
-                            </button>
-                        @endauth
-
-                        {{-- Like Button (Placeholder) --}}
-                        <button type="button" class="hover:text-pink-600 flex items-center transition group" data-comment-like="{{ $comment->id }}">
-                            <i class="fa-regular fa-thumbs-up mr-1 group-hover:fa-solid"></i>
-                            <span>{{ $comment->likes_count ?? 0 }}</span>
-                        </button>
-
-                        {{-- Delete Button (Own Comments or Admin) --}}
-                        @if(auth()->check() && (auth()->id() === $comment->user_id || auth()->user()->is_admin))
-                            <form method="POST" action="{{ route('admin.comments.destroy', $comment) }}" class="inline" onsubmit="return confirm('Are you sure you want to delete this comment?');">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="hover:text-red-600 font-semibold transition">
-                                    <i class="fa-solid fa-trash mr-1"></i>Delete
-                                </button>
-                            </form>
-                        @endif
-                    </div>
-
-                    {{-- Reply Form (Hidden by default) --}}
-                    @auth
-                        <div class="mt-3 hidden" data-comment-reply-form="{{ $comment->id }}">
-                            <form method="POST" action="{{ route('mods.comment', [$mod->primary_category ?? $mod->categories->first(), $mod]) }}" class="space-y-2">
-                                @csrf
-                                <input type="hidden" name="parent_id" value="{{ $comment->id }}">
-                                <textarea name="body" rows="2" required minlength="5" maxlength="1500"
-                                          class="w-full p-2 bg-white border border-gray-300 rounded-md focus:ring-2 focus:ring-pink-500 text-gray-700 text-sm resize-none"
-                                          placeholder="Write a reply..."></textarea>
-                                <div class="flex items-center space-x-2">
-                                    <button type="submit" class="text-xs bg-pink-600 text-white font-semibold px-3 py-1.5 rounded hover:bg-pink-700 transition">
-                                        Post Reply
-                                    </button>
-                                    <button type="button" class="text-xs text-gray-600 font-semibold px-3 py-1.5 hover:text-gray-800 transition" data-cancel-reply="{{ $comment->id }}">
-                                        Cancel
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    @endauth
-
-                    {{-- Nested Replies (if any) --}}
-                    @if($comment->replies && $comment->replies->count() > 0)
-                        <div class="ml-6 mt-3 space-y-3 border-l-2 border-gray-200 pl-3">
-                            @foreach($comment->replies as $reply)
-                                <div class="flex items-start space-x-2">
-                                    <img src="{{ $reply->author->avatar_url ?? 'https://ui-avatars.com/api/?name=' . urlencode($reply->author->name) . '&background=e5e7eb&color=374151' }}"
-                                         class="rounded-full w-8 h-8 object-cover flex-shrink-0"
-                                         alt="{{ $reply->author->name }}'s avatar">
-                                    <div class="flex-1 bg-white p-3 rounded-lg border border-gray-200">
-                                        <div class="flex items-center justify-between mb-1">
-                                            <div class="flex items-center space-x-2">
-                                                <p class="font-semibold text-gray-900 text-xs">{{ $reply->author->name }}</p>
-                                                @if($reply->user_id === $mod->user_id)
-                                                    <span class="text-xs font-semibold bg-pink-500 text-white px-1.5 py-0.5 rounded-full">Creator</span>
-                                                @endif
-                                            </div>
-                                            <span class="text-xs text-gray-500">{{ $reply->created_at->diffForHumans() }}</span>
-                                        </div>
-                                        <p class="text-xs text-gray-700">{{ $reply->body }}</p>
-                                    </div>
-                                </div>
-                            @endforeach
-                        </div>
-                    @endif
-                </div>
-            </div>
-        @empty
-            <div class="p-8 text-center bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
-                <i class="fa-regular fa-comments text-4xl text-gray-300 mb-2"></i>
-                <p class="text-sm text-gray-500">No comments yet. Be the first to comment!</p>
-            </div>
-        @endforelse
+    <div id="comment-thread" class="space-y-4" data-comment-thread>
+        @include('mods.partials.comment-thread', ['mod' => $mod, 'comments' => $comments])
     </div>
 
-    {{-- Load More Button (if needed) --}}
-    @if($comments->count() >= 20)
-        <div class="text-center mt-6">
-            <button type="button" class="px-6 py-2 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition" data-load-more-comments>
-                <i class="fa-solid fa-chevron-down mr-2"></i>Load More Comments
+    @if ($hasMoreComments)
+        <div class="flex justify-center">
+            <button
+                type="button"
+                class="inline-flex items-center gap-2 rounded-full border-2 border-pink-500 px-6 py-2 text-sm font-semibold text-pink-600 transition hover:bg-pink-50"
+                data-load-more-comments
+            >
+                <i class="fa-solid fa-rotate"></i>
+                Load more comments
             </button>
         </div>
     @endif
-</div>
+</section>
 
 @push('scripts')
 <script>
-// Comment reply toggle
-document.querySelectorAll('[data-comment-reply]').forEach(button => {
-    button.addEventListener('click', function() {
-        const commentId = this.dataset.commentReply;
-        const form = document.querySelector(`[data-comment-reply-form="${commentId}"]`);
-        if (form) {
+    document.querySelectorAll('[data-comment-reply]').forEach(button => {
+        button.addEventListener('click', () => {
+            const targetId = button.dataset.commentReply;
+            const form = document.querySelector(`[data-comment-reply-form="${targetId}"]`);
+            if (!form) return;
             form.classList.toggle('hidden');
             if (!form.classList.contains('hidden')) {
-                form.querySelector('textarea').focus();
+                const textarea = form.querySelector('textarea');
+                if (textarea) textarea.focus();
             }
-        }
+        });
     });
-});
 
-// Cancel reply
-document.querySelectorAll('[data-cancel-reply]').forEach(button => {
-    button.addEventListener('click', function() {
-        const commentId = this.dataset.cancelReply;
-        const form = document.querySelector(`[data-comment-reply-form="${commentId}"]`);
-        if (form) {
+    document.querySelectorAll('[data-cancel-reply]').forEach(button => {
+        button.addEventListener('click', () => {
+            const targetId = button.dataset.cancelReply;
+            const form = document.querySelector(`[data-comment-reply-form="${targetId}"]`);
+            if (!form) return;
             form.classList.add('hidden');
-            form.querySelector('textarea').value = '';
-        }
+            const textarea = form.querySelector('textarea');
+            if (textarea) textarea.value = '';
+        });
     });
-});
+
+    const commentsSection = document.querySelector('[data-comments-section]');
+    if (commentsSection) {
+        const modId = commentsSection.dataset.modId;
+        const thread = commentsSection.querySelector('[data-comment-thread]');
+        const loadMoreBtn = commentsSection.querySelector('[data-load-more-comments]');
+        const sortSelect = commentsSection.querySelector('[data-comment-sort]');
+        const totalLabel = commentsSection.querySelector('[data-comment-count]');
+
+        let currentPage = 1;
+        const perPage = 15;
+        let totalComments = Number(commentsSection.dataset.totalComments || 0);
+        let lastPage = Math.max(1, Math.ceil(totalComments / perPage));
+        let currentOrder = sortSelect ? sortSelect.value : 'best';
+        const loaderText = loadMoreBtn ? loadMoreBtn.innerHTML : '';
+
+        const updateLoadMoreVisibility = () => {
+            if (!loadMoreBtn) return;
+            loadMoreBtn.classList.toggle('hidden', currentPage >= lastPage);
+        };
+
+        const fetchComments = async (page = 1, append = false) => {
+            try {
+                const params = new URLSearchParams({ page: String(page), order: currentOrder });
+                const response = await fetch(`/api/mods/${modId}/comments?${params.toString()}`, {
+                    headers: { 'Accept': 'application/json' }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to load comments');
+                }
+
+                const data = await response.json();
+                if (!data || !data.success) {
+                    throw new Error('Invalid response');
+                }
+
+                if (append) {
+                    thread.insertAdjacentHTML('beforeend', data.html);
+                } else {
+                    thread.innerHTML = data.html;
+                }
+
+                currentPage = data.page;
+                lastPage = data.last_page;
+
+                if (typeof data.total !== 'undefined') {
+                    totalComments = Number(data.total);
+                    if (totalLabel) {
+                        totalLabel.textContent = `(${totalComments.toLocaleString()})`;
+                    }
+                }
+
+                lastPage = data.last_page ?? lastPage;
+                updateLoadMoreVisibility();
+            } catch (error) {
+                console.error('Error loading comments:', error);
+                if (loadMoreBtn) {
+                    loadMoreBtn.innerHTML = 'Failed to load comments';
+                }
+            }
+        };
+
+        if (loadMoreBtn) {
+            loadMoreBtn.addEventListener('click', async () => {
+                if (loadMoreBtn.disabled) return;
+                loadMoreBtn.disabled = true;
+                loadMoreBtn.innerHTML = '<i class="fa-solid fa-rotate fa-spin"></i> Loading...';
+
+                await fetchComments(currentPage + 1, true);
+
+                loadMoreBtn.disabled = false;
+                loadMoreBtn.innerHTML = loaderText;
+            });
+        }
+
+        if (sortSelect) {
+            sortSelect.addEventListener('change', async () => {
+                currentOrder = sortSelect.value || 'best';
+                currentPage = 1;
+                await fetchComments(1, false);
+            });
+        }
+
+        updateLoadMoreVisibility();
+    }
 </script>
 @endpush
