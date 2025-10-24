@@ -24,6 +24,7 @@ use App\Http\Controllers\ProfileSettingsController;
 use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\BookmarkController;
 use App\Http\Controllers\LikeController;
+use App\Http\Controllers\CommentLikeController;
 use App\Http\Controllers\FollowController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\VideoController;
@@ -149,6 +150,7 @@ Route::prefix('api')->name('api.')->group(function () {
     // Public check endpoints (no auth required - they check internally)
     Route::get('/likes/{modId}/check', [LikeController::class, 'check'])->name('likes.check');
     Route::get('/bookmarks/{modId}/check', [BookmarkController::class, 'check'])->name('bookmarks.check');
+    Route::get('/comments/{commentId}/like/check', [CommentLikeController::class, 'check'])->name('comments.like.check');
 
     Route::middleware('auth')->group(function () {
         // Likes (auth required)
@@ -157,6 +159,9 @@ Route::prefix('api')->name('api.')->group(function () {
         // Bookmarks (auth required)
         Route::get('/bookmarks', [BookmarkController::class, 'index'])->name('bookmarks.index');
         Route::post('/bookmarks/{modId}/toggle', [BookmarkController::class, 'toggle'])->name('bookmarks.toggle');
+
+        // Comment Likes (auth required)
+        Route::post('/comments/{commentId}/like/toggle', [CommentLikeController::class, 'toggle'])->name('comments.like.toggle');
 
         // Follow
         Route::post('/follow/{userId}/toggle', [FollowController::class, 'toggle'])->name('follow.toggle');
