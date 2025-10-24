@@ -6,6 +6,7 @@ use App\Http\Requests\ModStoreRequest;
 use App\Http\Requests\ModUpdateRequest;
 use App\Models\Mod;
 use App\Models\ModCategory;
+use App\Models\ModRevision;
 use App\Models\UserActivity;
 use App\Support\EditorJs;
 use Illuminate\Http\RedirectResponse;
@@ -113,9 +114,10 @@ class ModManagementController extends Controller
         abort_unless($mod->categories->contains($category), 404);
 
         return view('mods.edit', [
-            'mod' => $mod->load(['categories', 'galleryImages']),
+            'mod' => $mod->load(['categories', 'galleryImages', 'revisions']),
             'categories' => ModCategory::query()->orderBy('name')->get(),
             'category' => $category,
+            'pendingRevision' => $mod->revisions()->where('status', ModRevision::STATUS_PENDING)->latest()->first(),
         ]);
     }
 
@@ -129,57 +131,60 @@ class ModManagementController extends Controller
         $data = $request->validated();
 
         $filesForRollback = [];
-        $filesToDeleteAfterCommit = [];
 
         DB::beginTransaction();
 
         try {
-            $modFile = $this->storeModFile($request, $filesForRollback);
+            $mediaManifest = [
+                'hero_image' => null,
+                'gallery_images' => [],
+                'mod_file' => null,
+                'removed_gallery_image_ids' => $request->input('remove_gallery_image_ids', []),
+            ];
 
-            $plainDescription = EditorJs::toPlainText($data['description']);
-
-            $mod->fill([
-                'title' => $data['title'],
-                'excerpt' => Str::limit($plainDescription, 200),
-                'description' => $data['description'],
-                'version' => $data['version'],
-                'download_url' => $data['download_url'] ?? $mod->download_url,
-                'file_size' => $data['file_size'] ?? $mod->file_size,
-            ]);
-
-            if ($imagePath = $this->storeHeroImage($request, $filesForRollback)) {
-                if ($mod->hero_image_path && ! Str::startsWith($mod->hero_image_path, ['http://', 'https://'])) {
-                    $filesToDeleteAfterCommit[] = $mod->hero_image_path;
-                }
-
-                $mod->hero_image_path = $imagePath;
+            if ($request->hasFile('hero_image')) {
+                $mediaManifest['hero_image'] = $this->storeRevisionAsset($request->file('hero_image'), $mod, 'hero', $filesForRollback);
             }
 
-            if ($modFile) {
-                if ($mod->file_path && ! Str::startsWith($mod->file_path, ['http://', 'https://'])) {
-                    $filesToDeleteAfterCommit[] = $mod->file_path;
-                }
-
-                $mod->file_path = $modFile['path'];
-                $mod->download_url = $data['download_url'] ?? $modFile['public_url'];
-                $mod->file_size = $data['file_size'] ?? $modFile['size'];
+            $galleryFiles = $request->file('gallery_images', []);
+            foreach ($galleryFiles as $image) {
+                $mediaManifest['gallery_images'][] = $this->storeRevisionAsset($image, $mod, 'gallery', $filesForRollback);
             }
 
-            if (! $mod->download_url) {
+            if ($request->hasFile('mod_file')) {
+                $file = $request->file('mod_file');
+                $path = $this->storeRevisionAsset($file, $mod, 'files', $filesForRollback);
+                $mediaManifest['mod_file'] = [
+                    'path' => $path,
+                    'size' => round($file->getSize() / 1048576, 2),
+                    'original_name' => $file->getClientOriginalName(),
+                ];
+            }
+
+            if (! ($data['download_url'] ?? null) && ! $mediaManifest['mod_file']) {
                 throw ValidationException::withMessages([
                     'download_url' => 'Please provide a download URL or upload a mod file.',
                 ]);
             }
 
-            $mod->save();
-            $mod->categories()->sync($data['category_ids']);
+            $payload = [
+                'title' => $data['title'],
+                'version' => $data['version'],
+                'download_url' => $data['download_url'] ?? null,
+                'description' => $data['description'],
+                'file_size' => $data['file_size'] ?? ($mediaManifest['mod_file']['size'] ?? null),
+                'category_ids' => $data['category_ids'],
+                'changelog' => $data['changelog'] ?? null,
+            ];
 
-            $removedGalleryPaths = $this->removeGalleryImages($request, $mod);
-            if ($removedGalleryPaths) {
-                $filesToDeleteAfterCommit = array_merge($filesToDeleteAfterCommit, $removedGalleryPaths);
-            }
-
-            $this->storeGalleryImages($request, $mod, $filesForRollback);
+            $mod->revisions()->create([
+                'user_id' => Auth::id(),
+                'version' => $data['version'],
+                'status' => ModRevision::STATUS_PENDING,
+                'changelog' => $data['changelog'] ?? null,
+                'payload' => $payload,
+                'media_manifest' => $mediaManifest,
+            ]);
 
             DB::commit();
         } catch (Throwable $exception) {
@@ -189,11 +194,9 @@ class ModManagementController extends Controller
             throw $exception;
         }
 
-        $this->deleteFiles($filesToDeleteAfterCommit);
-
         cache()->forget('home:landing');
 
-        return redirect()->route('mods.show', [$mod->primary_category, $mod])->with('status', 'Mod updated successfully.');
+        return redirect()->route('mods.show', [$mod->primary_category, $mod])->with('status', 'A mód frissítése beküldésre került és moderálásra vár.');
     }
 
     public function myMods()
@@ -301,5 +304,14 @@ class ModManagementController extends Controller
         }
 
         return $slug;
+    }
+
+    private function storeRevisionAsset($file, Mod $mod, string $type, array &$filesForRollback): string
+    {
+        $directory = 'mod-revisions/' . $mod->getKey() . '/' . $type;
+        $path = $file->store($directory, 'public');
+        $filesForRollback[] = $path;
+
+        return $path;
     }
 }

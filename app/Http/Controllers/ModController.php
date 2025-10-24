@@ -44,9 +44,10 @@ class ModController extends Controller
         // Verify that the mod belongs to this category
         abort_unless($mod->categories->contains($category), Response::HTTP_NOT_FOUND);
 
-        $mod->loadMissing(['author', 'categories', 'galleryImages'])->loadCount('comments');
+        $mod->loadMissing(['author', 'categories', 'galleryImages', 'approvedVideos'])->loadCount(['comments', 'approvedVideos']);
 
         $comments = $mod->comments()->with('author')->latest()->take(20)->get();
+        $videos = $mod->approvedVideos()->with('author')->get();
 
         $userRating = Auth::check()
             ? $mod->ratings()->where('user_id', Auth::id())->value('rating')
@@ -109,6 +110,7 @@ class ModController extends Controller
         return view('mods.show', [
             'mod' => $mod,
             'comments' => $comments,
+            'videos' => $videos,
             'relatedMods' => $relatedMods,
             'breadcrumbs' => $breadcrumbs,
             'primaryCategory' => $primaryCategory,
@@ -124,6 +126,7 @@ class ModController extends Controller
             'galleryImages' => $galleryImages,
             'canManagePin' => $canManagePin,
             'isPinnedByOwner' => $isPinnedByOwner,
+            'videoCount' => $videos->count(),
         ]);
     }
 

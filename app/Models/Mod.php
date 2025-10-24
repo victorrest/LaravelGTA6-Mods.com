@@ -10,6 +10,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Models\ModVideo;
+use App\Models\ModRevision;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -85,19 +87,24 @@ class Mod extends Model
         return $this->hasMany(ModGalleryImage::class)->orderBy('position');
     }
 
+    public function videos(): HasMany
+    {
+        return $this->hasMany(ModVideo::class)->orderBy('position');
+    }
+
+    public function approvedVideos(): HasMany
+    {
+        return $this->videos()->where('status', ModVideo::STATUS_APPROVED);
+    }
+
+    public function revisions(): HasMany
+    {
+        return $this->hasMany(ModRevision::class)->latest();
+    }
+
     public function ratings(): HasMany
     {
         return $this->hasMany(ModRating::class);
-    }
-
-    public function videos(): HasMany
-    {
-        return $this->hasMany(ModVideo::class)->orderBy('is_featured', 'desc')->orderBy('position');
-    }
-
-    public function versions(): HasMany
-    {
-        return $this->hasMany(ModVersion::class)->orderByDesc('created_at');
     }
 
     public function updateRatingAggregate(): void

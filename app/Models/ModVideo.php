@@ -5,94 +5,72 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class ModVideo extends Model
 {
     use HasFactory;
 
+    public const STATUS_PENDING = 'pending';
+    public const STATUS_APPROVED = 'approved';
+    public const STATUS_REJECTED = 'rejected';
+
     protected $fillable = [
         'mod_id',
-        'submitted_by',
-        'youtube_id',
-        'youtube_url',
-        'video_title',
-        'video_description',
-        'duration',
+        'user_id',
+        'platform',
+        'external_id',
+        'title',
+        'slug',
         'thumbnail_path',
-        'thumbnail_attachment_id',
-        'status',
+        'duration',
+        'channel_title',
         'position',
-        'is_featured',
-        'featured_at',
-        'report_count',
-        'submitted_at',
-        'moderated_at',
+        'status',
+        'payload',
+        'approved_at',
     ];
 
     protected $casts = [
-        'is_featured' => 'boolean',
-        'featured_at' => 'datetime',
-        'submitted_at' => 'datetime',
-        'moderated_at' => 'datetime',
+        'payload' => 'array',
+        'approved_at' => 'datetime',
     ];
+
+    public static function booted(): void
+    {
+        static::creating(function (ModVideo $video) {
+            if (empty($video->slug)) {
+                $video->slug = Str::slug(Str::limit($video->title, 90), '-');
+            }
+        });
+    }
 
     public function mod(): BelongsTo
     {
         return $this->belongsTo(Mod::class);
     }
 
-    public function submitter(): BelongsTo
+    public function author(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'submitted_by');
+        return $this->belongsTo(User::class, 'user_id');
     }
 
-    public function reports(): HasMany
+    public function thumbnailUrl(): ?string
     {
-        return $this->hasMany(ModVideoReport::class, 'video_id');
-    }
-
-    public function getThumbnailUrlAttribute(): string
-    {
-        if ($this->thumbnail_path && Storage::disk('public')->exists($this->thumbnail_path)) {
-            return Storage::disk('public')->url($this->thumbnail_path);
+        if (! $this->thumbnail_path) {
+            return null;
         }
 
-        // Fall back to YouTube thumbnail
-        return "https://i.ytimg.com/vi/{$this->youtube_id}/maxresdefault.jpg";
-    }
-
-    public function getThumbnailSmallUrlAttribute(): string
-    {
-        if ($this->thumbnail_path && Storage::disk('public')->exists($this->thumbnail_path)) {
-            return Storage::disk('public')->url($this->thumbnail_path);
+        if (Str::startsWith($this->thumbnail_path, ['http://', 'https://'])) {
+            return $this->thumbnail_path;
         }
 
-        return "https://i.ytimg.com/vi/{$this->youtube_id}/hqdefault.jpg";
-    }
-
-    public function getThumbnailLargeUrlAttribute(): string
-    {
-        if ($this->thumbnail_path && Storage::disk('public')->exists($this->thumbnail_path)) {
-            return Storage::disk('public')->url($this->thumbnail_path);
-        }
-
-        return "https://i.ytimg.com/vi/{$this->youtube_id}/sddefault.jpg";
+        return Storage::disk('public')->url($this->thumbnail_path);
     }
 
     public function scopeApproved($query)
     {
-        return $query->whereIn('status', ['approved', 'reported']);
-    }
-
-    public function scopePending($query)
-    {
-        return $query->where('status', 'pending');
-    }
-
-    public function scopeFeatured($query)
-    {
-        return $query->where('is_featured', true);
+        return $query->where('status', self::STATUS_APPROVED)->orderBy('position');
     }
 }
