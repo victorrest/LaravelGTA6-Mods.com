@@ -3,6 +3,7 @@
 @php($previewPlaceholder = $mod->hero_image_url)
 
 @section('content')
+    @php($hasPendingVersion = $mod->versions->where('status', 'pending')->isNotEmpty())
     <section class="max-w-6xl mx-auto space-y-8" id="mod-edit-root">
         <header class="text-center space-y-3">
             <h1 class="text-3xl md:text-4xl font-bold text-gray-900">Update {{ $mod->title }}</h1>
@@ -11,6 +12,12 @@
                 moderation.
             </p>
         </header>
+
+        @if ($hasPendingVersion)
+            <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                <strong>Moderation in progress:</strong> An update for this mod is currently waiting for approval. You can still adjust text and screenshots, but submitting another file or version number will be disabled until the review is complete.
+            </div>
+        @endif
 
         <div class="grid gap-6 lg:grid-cols-[2fr,1fr]">
             <form id="mod-update-form" method="POST" action="{{ route('mods.update', $mod) }}" enctype="multipart/form-data" class="space-y-8">
@@ -27,7 +34,10 @@
                         </div>
                         <div>
                             <label class="form-label" for="version">Version</label>
-                            <input id="version" name="version" type="text" value="{{ old('version', $mod->version) }}" class="form-input" required>
+                            <input id="version" name="version" type="text" value="{{ old('version', $mod->version) }}" class="form-input" @disabled($hasPendingVersion) required>
+                            @if ($hasPendingVersion)
+                                <p class="form-help text-amber-600">A pending update already exists. Version changes will be available once it is reviewed.</p>
+                            @endif
                         </div>
                         <div class="md:col-span-2">
                             <label class="form-label" for="category_ids">Categories</label>
@@ -40,8 +50,8 @@
                         </div>
                         <div class="md:col-span-2">
                             <label class="form-label" for="download_url">Download URL</label>
-                            <input id="download_url" name="download_url" type="url" value="{{ old('download_url', $mod->download_url) }}" class="form-input" placeholder="https://">
-                            <p class="form-help">Leave empty if you rely on the uploaded archive below.</p>
+                            <input id="download_url" name="download_url" type="url" value="{{ old('download_url', $mod->download_url) }}" class="form-input" placeholder="https://" @disabled($hasPendingVersion)>
+                            <p class="form-help">Provide a new link if your file is hosted externally. Leave empty to reuse the current download.{{ $hasPendingVersion ? ' External URLs cannot be changed until the pending update is moderated.' : '' }}</p>
                         </div>
                     </div>
                     <div>
@@ -116,13 +126,13 @@
                     <div class="grid gap-6 lg:grid-cols-2">
                         <div>
                             <label class="form-label" for="file_size">File size (MB)</label>
-                            <input id="file_size" name="file_size" type="number" step="0.01" min="0" value="{{ old('file_size', $mod->file_size) }}" class="form-input" placeholder="850">
-                            <p class="form-help">We will auto-fill this when possible using your uploaded archive.</p>
+                            <input id="file_size" name="file_size" type="number" step="0.01" min="0" value="{{ old('file_size', $mod->file_size) }}" class="form-input" placeholder="850" @disabled($hasPendingVersion)>
+                            <p class="form-help">Used for display only. Leave blank to keep the current value.</p>
                         </div>
                         <div>
                             <label class="form-label" for="mod_file">Upload mod archive</label>
-                            <div class="relative flex h-48 cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-indigo-300 bg-indigo-50/60 text-center transition hover:border-indigo-400 hover:bg-indigo-100">
-                                <input id="mod_file" name="mod_file" type="file" class="absolute inset-0 h-full w-full cursor-pointer opacity-0">
+                            <div class="relative flex h-48 flex-col items-center justify-center rounded-2xl border border-dashed border-indigo-300 bg-indigo-50/60 text-center transition hover:border-indigo-400 hover:bg-indigo-100 @if($hasPendingVersion) opacity-60 cursor-not-allowed hover:border-indigo-300 hover:bg-indigo-50 @endif">
+                                <input id="mod_file" name="mod_file" type="file" class="absolute inset-0 h-full w-full cursor-pointer opacity-0" @disabled($hasPendingVersion)>
                                 <div class="space-y-2 px-6">
                                     <i class="fa-solid fa-file-zipper text-2xl text-indigo-500"></i>
                                     <p class="text-sm font-semibold text-gray-700">Drop ZIP/RAR/7Z here</p>
@@ -133,6 +143,12 @@
                             @if ($mod->file_path)
                                 <p class="mt-2 text-xs text-gray-500">Current archive: <span class="font-semibold">{{ \Illuminate\Support\Str::limit($mod->file_path, 48) }}</span></p>
                             @endif
+                            <p class="form-help mt-2">{{ $hasPendingVersion ? 'File uploads are disabled while an update is awaiting review.' : 'Upload a new archive to replace the existing download.' }}</p>
+                        </div>
+                        <div class="lg:col-span-2">
+                            <label class="form-label" for="changelog">Changelog / notes</label>
+                            <textarea id="changelog" name="changelog" rows="4" class="form-textarea" placeholder="What changed in this update?" @disabled($hasPendingVersion)>{{ old('changelog') }}</textarea>
+                            <p class="form-help">Help moderators and players understand what is new in this submission.</p>
                         </div>
                     </div>
 
