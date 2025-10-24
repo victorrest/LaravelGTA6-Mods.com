@@ -14,6 +14,7 @@ class ModGallery {
         this.galleryData = [];
         this.canManageVideos = false;
         this.modId = null;
+        this.galleryContainer = null;
         this.init();
     }
 
@@ -27,17 +28,26 @@ class ModGallery {
     }
 
     initGallery() {
-        // Find gallery data
-        const galleryDataEl = document.querySelector('[id^="gallery-data-"]');
-        if (!galleryDataEl) return;
+        const galleryContainer = document.querySelector('[data-mod-gallery]');
+        if (!galleryContainer) {
+            return;
+        }
+
+        const { modId } = galleryContainer.dataset;
+        const galleryDataEl = document.getElementById(`gallery-data-${modId}`);
+        if (!galleryDataEl) {
+            return;
+        }
 
         try {
-            this.galleryData = JSON.parse(galleryDataEl.textContent);
-            this.modId = galleryDataEl.id.replace('gallery-data-', '');
+            this.galleryContainer = galleryContainer;
+            this.galleryData = JSON.parse(galleryDataEl.textContent || '[]');
+            this.modId = modId;
+            this.canManageVideos = galleryContainer.dataset.canManageVideos === 'true';
 
-            // Check if user can manage videos
-            const galleryContainer = document.querySelector('.card');
-            this.canManageVideos = galleryContainer?.dataset?.canManageVideos === 'true';
+            if (!Array.isArray(this.galleryData) || this.galleryData.length === 0) {
+                return;
+            }
 
             this.initPhotoSwipe();
             this.initLoadMore();
@@ -207,24 +217,36 @@ class ModGallery {
     }
 
     initLoadMore() {
-        const loadMoreBtn = document.getElementById('load-more-gallery');
-        if (loadMoreBtn) {
-            loadMoreBtn.addEventListener('click', () => {
-                document.querySelectorAll('.gallery-hidden-thumb').forEach(thumb => {
-                    thumb.classList.remove('hidden');
-                });
-                loadMoreBtn.style.display = 'none';
-            });
+        if (!this.galleryContainer) {
+            return;
         }
+
+        const loadMoreBtn = this.galleryContainer.querySelector('[data-gallery-load-more]');
+        if (!loadMoreBtn) {
+            return;
+        }
+
+        loadMoreBtn.addEventListener('click', () => {
+            this.galleryContainer
+                .querySelectorAll('[data-gallery-hidden-thumb]')
+                .forEach((thumb) => thumb.classList.remove('hidden'));
+
+            loadMoreBtn.classList.add('hidden');
+        });
     }
 
     initClickHandlers() {
-        // Handle clicks on gallery items
-        document.querySelectorAll('[data-pswp-index]').forEach(element => {
-            element.addEventListener('click', (e) => {
-                e.preventDefault();
-                const index = parseInt(element.dataset.pswpIndex);
-                this.openGallery(index);
+        if (!this.galleryContainer) {
+            return;
+        }
+
+        this.galleryContainer.querySelectorAll('[data-pswp-index]').forEach((element) => {
+            element.addEventListener('click', (event) => {
+                event.preventDefault();
+                const index = Number.parseInt(element.dataset.pswpIndex || '', 10);
+                if (Number.isFinite(index)) {
+                    this.openGallery(index);
+                }
             });
         });
     }

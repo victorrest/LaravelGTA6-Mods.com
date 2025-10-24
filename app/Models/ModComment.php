@@ -6,7 +6,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class ModComment extends Model
 {
@@ -17,9 +19,16 @@ class ModComment extends Model
         'user_id',
         'parent_id',
         'body',
+        'status',
     ];
 
-    protected $withCount = ['likes'];
+    public const STATUS_APPROVED = 'approved';
+    public const STATUS_PENDING = 'pending';
+
+    /**
+     * Cache detected column availability to avoid repeated schema introspection.
+     */
+    protected static array $columnAvailability = [];
 
     public function mod(): BelongsTo
     {
@@ -33,25 +42,57 @@ class ModComment extends Model
 
     public function parent(): BelongsTo
     {
-        return $this->belongsTo(ModComment::class, 'parent_id');
+        return $this->belongsTo(self::class, 'parent_id');
     }
 
     public function replies(): HasMany
     {
-        return $this->hasMany(ModComment::class, 'parent_id')->with('author', 'replies')->withCount('likes');
+        return $this->hasMany(self::class, 'parent_id')->orderBy('created_at');
     }
 
-    public function likes(): BelongsToMany
+    public function scopeApproved($query)
     {
-        return $this->belongsToMany(User::class, 'mod_comment_likes', 'mod_comment_id', 'user_id')->withTimestamps();
-    }
-
-    public function isLikedBy(?User $user): bool
-    {
-        if (!$user) {
-            return false;
+        if (! self::statusColumnIsAvailable()) {
+            return $query;
         }
 
-        return $this->likes()->where('user_id', $user->id)->exists();
+        return $query->where('status', self::STATUS_APPROVED);
+    }
+
+    public static function statusColumnIsAvailable(): bool
+    {
+        return self::columnIsAvailable('status');
+    }
+
+    public static function likesCountColumnIsAvailable(): bool
+    {
+        return self::columnIsAvailable('likes_count');
+    }
+
+    protected static function columnIsAvailable(string $column): bool
+    {
+        if (! array_key_exists($column, self::$columnAvailability)) {
+            $instance = new self();
+            $table = $instance->getTable();
+            $connection = $instance->getConnectionName();
+            $schemaConnection = $connection ?? config('database.default');
+
+            try {
+                $schemaBuilder = Schema::connection($schemaConnection);
+
+                if (! $schemaBuilder->hasColumn($table, $column)) {
+                    self::$columnAvailability[$column] = false;
+                } else {
+                    DB::connection($connection)->table($table)->limit(1)->value($column);
+                    self::$columnAvailability[$column] = true;
+                }
+            } catch (QueryException $e) {
+                self::$columnAvailability[$column] = false;
+            } catch (\Throwable $e) {
+                self::$columnAvailability[$column] = false;
+            }
+        }
+
+        return self::$columnAvailability[$column];
     }
 }
