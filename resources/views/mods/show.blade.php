@@ -375,6 +375,9 @@
     </div>
 @endsection
 
+{{-- Share Modal --}}
+<x-mod.share-modal :mod="$mod" :url="request()->url()" />
+
 @push('scripts')
 <script>
 // Tab switching

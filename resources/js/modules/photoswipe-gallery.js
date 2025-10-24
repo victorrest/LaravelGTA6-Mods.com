@@ -266,8 +266,8 @@ class ModGallery {
         if (!confirm('Remove featured status from this video?')) return;
 
         try {
-            const response = await fetch(`/api/videos/${videoId}/unfeature`, {
-                method: 'POST',
+            const response = await fetch(`/api/videos/${videoId}/feature`, {
+                method: 'DELETE',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
