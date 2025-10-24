@@ -1,29 +1,26 @@
 <?php
 
 return [
-    'cache' => [
-        'prefix' => env('PERFORMANCE_CACHE_PREFIX'),
-        'default_store' => env('PERFORMANCE_CACHE_STORE', extension_loaded('redis') ? env('CACHE_STORE', 'redis') : 'array'),
-        'fragment_store' => env('PERFORMANCE_FRAGMENT_CACHE_STORE', extension_loaded('redis') ? 'view' : 'array'),
-        'page_store' => env('PERFORMANCE_PAGE_CACHE_STORE', extension_loaded('redis') ? 'page' : 'array'),
-        'navigation_ttl' => (int) env('PERFORMANCE_NAVIGATION_TTL', 1800),
-        'page_ttl' => (int) env('PERFORMANCE_PAGE_CACHE_TTL', 600),
-        'fragment_ttl' => (int) env('PERFORMANCE_FRAGMENT_CACHE_TTL', 300),
+    'full_page_cache' => [
+        'enabled' => env('FULL_PAGE_CACHE_ENABLED', true),
+        'ttl' => env('FULL_PAGE_CACHE_TTL', 300),
+        'store' => env('FULL_PAGE_CACHE_STORE', env('CACHE_STORE', 'redis')),
+        'vary_on_locale' => env('FULL_PAGE_CACHE_VARY_LOCALE', true),
     ],
 
-    'rate_limiting' => [
-        'downloads' => [
-            'max_attempts' => (int) env('RATE_LIMIT_DOWNLOADS', 120),
-            'decay_seconds' => (int) env('RATE_LIMIT_DOWNLOADS_DECAY', 60),
-        ],
-        'search' => [
-            'max_attempts' => (int) env('RATE_LIMIT_SEARCH', 60),
-            'decay_seconds' => (int) env('RATE_LIMIT_SEARCH_DECAY', 60),
-        ],
+    'fragments' => [
+        'default_ttl' => env('FRAGMENT_CACHE_TTL', 900),
+        'navigation_ttl' => env('FRAGMENT_CACHE_NAVIGATION_TTL', 1800),
+        'home_ttl' => env('FRAGMENT_CACHE_HOME_TTL', 600),
     ],
 
-    'metrics' => [
-        'channel' => env('PERFORMANCE_METRICS_CHANNEL', 'stack'),
-        'telescope' => env('PERFORMANCE_METRICS_TELESCOPE', false),
+    'queries' => [
+        'default_ttl' => env('QUERY_CACHE_TTL', 300),
+    ],
+
+    'query_log' => [
+        'enabled' => env('PERFORMANCE_QUERY_LOG', false),
+        'threshold' => env('PERFORMANCE_QUERY_THRESHOLD_MS', 50),
+        'channel' => env('PERFORMANCE_QUERY_LOG_CHANNEL', 'performance'),
     ],
 ];

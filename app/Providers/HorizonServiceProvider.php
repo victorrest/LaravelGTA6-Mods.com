@@ -2,49 +2,68 @@
 
 namespace App\Providers;
 
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Str;
 use Laravel\Horizon\Horizon;
 use Laravel\Horizon\HorizonApplicationServiceProvider;
 
 class HorizonServiceProvider extends HorizonApplicationServiceProvider
 {
+    /**
+     * Bootstrap any application services.
+     */
     public function boot(): void
     {
         parent::boot();
 
-        if (($webhook = config('horizon.notifications.slack.webhook_url')) !== null) {
-            Horizon::routeSlackNotifications($webhook, config('horizon.notifications.slack.channel'));
-        }
-    }
-
-    protected function authorization(): void
-    {
         Horizon::auth(function ($request) {
-            $guard = config('horizon.guard', config('auth.defaults.guard'));
+            return optional($request->user())->can('viewHorizon');
+        });
 
-            $user = $request->user($guard);
+        if ($slackWebhook = config('services.slack.horizon_webhook')) {
+            Horizon::routeSlackNotificationsTo(
+                $slackWebhook,
+                config('services.slack.horizon_channel', '#horizon')
+            );
+        }
 
-            if ($user === null) {
-                return false;
-            }
+        if ($mailAddress = config('services.ops.horizon_mail')) {
+            Horizon::routeMailNotificationsTo($mailAddress);
+        }
 
-            return Gate::forUser($user)->allows('viewHorizon');
+        Horizon::tag(function ($job) {
+            $tags = method_exists($job, 'tags') ? $job->tags() : [];
+
+            return array_values(array_filter(array_merge(
+                Arr::wrap($tags),
+                isset($job->queue) ? ['queue:'.$job->queue] : [],
+            )));
         });
     }
 
+    /**
+     * Register the Horizon gate.
+     *
+     * This gate determines who can access Horizon in non-local environments.
+     */
     protected function gate(): void
     {
-        Gate::define('viewHorizon', function ($user): bool {
-            $allowed = config('horizon.allowed_emails', []);
-
-            if (empty($allowed)) {
-                return method_exists($user, 'isAdmin') ? (bool) $user->isAdmin() : false;
+        Gate::define('viewHorizon', function ($user = null) {
+            if ($this->app->environment('local')) {
+                return true;
             }
 
-            $email = (string) ($user->email ?? '');
+            if ($user && method_exists($user, 'isAdmin') && $user->isAdmin()) {
+                return true;
+            }
 
-            return in_array(Str::lower($email), array_map('strtolower', $allowed), true);
+            $allowedEmails = array_filter(array_map('trim', explode(',', (string) env('HORIZON_ALLOWED_EMAILS', ''))));
+
+            if ($allowedEmails === []) {
+                return false;
+            }
+
+            return $user && in_array($user->email, $allowedEmails, true);
         });
     }
 }

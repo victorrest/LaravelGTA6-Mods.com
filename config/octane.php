@@ -1,85 +1,233 @@
 <?php
 
+use Laravel\Octane\Contracts\OperationTerminated;
+use Laravel\Octane\Events\RequestHandled;
+use Laravel\Octane\Events\RequestReceived;
+use Laravel\Octane\Events\RequestTerminated;
+use Laravel\Octane\Events\TaskReceived;
+use Laravel\Octane\Events\TaskTerminated;
+use Laravel\Octane\Events\TickReceived;
+use Laravel\Octane\Events\TickTerminated;
+use Laravel\Octane\Events\WorkerErrorOccurred;
+use Laravel\Octane\Events\WorkerStarting;
+use Laravel\Octane\Events\WorkerStopping;
+use Laravel\Octane\Listeners\CloseMonologHandlers;
+use Laravel\Octane\Listeners\CollectGarbage;
+use Laravel\Octane\Listeners\DisconnectFromDatabases;
+use Laravel\Octane\Listeners\EnsureUploadedFilesAreValid;
+use Laravel\Octane\Listeners\EnsureUploadedFilesCanBeMoved;
+use Laravel\Octane\Listeners\FlushOnce;
+use Laravel\Octane\Listeners\FlushTemporaryContainerInstances;
+use Laravel\Octane\Listeners\FlushUploadedFiles;
+use Laravel\Octane\Listeners\ReportException;
+use Laravel\Octane\Listeners\StopWorkerIfNecessary;
+use Laravel\Octane\Octane;
+
 return [
+
+    /*
+    |--------------------------------------------------------------------------
+    | Octane Server
+    |--------------------------------------------------------------------------
+    |
+    | This value determines the default "server" that will be used by Octane
+    | when starting, restarting, or stopping your server via the CLI. You
+    | are free to change this to the supported server of your choosing.
+    |
+    | Supported: "roadrunner", "swoole", "frankenphp"
+    |
+    */
+
     'server' => env('OCTANE_SERVER', 'swoole'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Force HTTPS
+    |--------------------------------------------------------------------------
+    |
+    | When this configuration value is set to "true", Octane will inform the
+    | framework that all absolute links must be generated using the HTTPS
+    | protocol. Otherwise your links may be generated using plain HTTP.
+    |
+    */
 
     'https' => env('OCTANE_HTTPS', false),
 
-    'listen_ip' => env('OCTANE_LISTEN_IP', '127.0.0.1'),
+    /*
+    |--------------------------------------------------------------------------
+    | Octane Listeners
+    |--------------------------------------------------------------------------
+    |
+    | All of the event listeners for Octane's events are defined below. These
+    | listeners are responsible for resetting your application's state for
+    | the next request. You may even add your own listeners to the list.
+    |
+    */
 
-    'listen_port' => env('OCTANE_LISTEN_PORT', 8000),
+    'listeners' => [
+        WorkerStarting::class => [
+            EnsureUploadedFilesAreValid::class,
+            EnsureUploadedFilesCanBeMoved::class,
+        ],
 
-    'max_requests' => env('OCTANE_MAX_REQUESTS', 500),
+        RequestReceived::class => [
+            ...Octane::prepareApplicationForNextOperation(),
+            ...Octane::prepareApplicationForNextRequest(),
+            //
+        ],
 
-    'memory_limit' => env('OCTANE_MEMORY_LIMIT', 512),
+        RequestHandled::class => [
+            //
+        ],
 
-    'watch' => env('OCTANE_WATCH', false),
+        RequestTerminated::class => [
+            // FlushUploadedFiles::class,
+        ],
 
-    'watch_directories' => [
-        'app',
-        'bootstrap',
-        'config',
-        'database',
-        'routes',
-        'resources/views',
+        TaskReceived::class => [
+            ...Octane::prepareApplicationForNextOperation(),
+            //
+        ],
+
+        TaskTerminated::class => [
+            //
+        ],
+
+        TickReceived::class => [
+            ...Octane::prepareApplicationForNextOperation(),
+            //
+        ],
+
+        TickTerminated::class => [
+            //
+        ],
+
+        OperationTerminated::class => [
+            FlushOnce::class,
+            FlushTemporaryContainerInstances::class,
+            DisconnectFromDatabases::class,
+            CollectGarbage::class,
+        ],
+
+        WorkerErrorOccurred::class => [
+            ReportException::class,
+            StopWorkerIfNecessary::class,
+        ],
+
+        WorkerStopping::class => [
+            CloseMonologHandlers::class,
+        ],
     ],
 
-    'watch_timer' => env('OCTANE_WATCH_TIMER', 1000),
+    /*
+    |--------------------------------------------------------------------------
+    | Warm / Flush Bindings
+    |--------------------------------------------------------------------------
+    |
+    | The bindings listed below will either be pre-warmed when a worker boots
+    | or they will be flushed before every new request. Flushing a binding
+    | will force the container to resolve that binding again when asked.
+    |
+    */
 
-    'warm' => env('OCTANE_WARM', false),
+    'warm' => [
+        ...Octane::defaultServicesToWarm(),
+    ],
 
-    'max_execution_time' => env('OCTANE_MAX_EXECUTION_TIME', 30),
+    'flush' => [
+        //
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Octane Swoole Tables
+    |--------------------------------------------------------------------------
+    |
+    | While using Swoole, you may define additional tables as required by the
+    | application. These tables can be used to store data that needs to be
+    | quickly accessed by other workers on the particular Swoole server.
+    |
+    */
+
+    'tables' => [
+        //
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Octane Swoole Cache Table
+    |--------------------------------------------------------------------------
+    |
+    | While using Swoole, you may leverage the Octane cache, which is powered
+    | by a Swoole table. You may set the maximum number of rows as well as
+    | the number of bytes per row using the configuration options below.
+    |
+    */
+
+    'cache' => [
+        'rows' => env('OCTANE_CACHE_ROWS', 2048),
+        'bytes' => env('OCTANE_CACHE_BYTES', 32768),
+    ],
 
     'swoole' => [
         'options' => [
-            'package_max_length' => env('OCTANE_SWOOLE_PACKAGE_MAX_LENGTH', 10 * 1024 * 1024),
-            'buffer_output_size' => env('OCTANE_SWOOLE_BUFFER_OUTPUT_SIZE', 10 * 1024 * 1024),
-            'max_coroutine' => env('OCTANE_SWOOLE_MAX_COROUTINE', 100000),
-            'worker_num' => env('OCTANE_MAX_WORKERS', 72),
-            'task_worker_num' => env('OCTANE_TASK_WORKERS', 8),
+            'worker_num' => env('OCTANE_WORKERS', 64),
+            'task_worker_num' => env('OCTANE_TASK_WORKERS', 16),
+            'max_request' => env('OCTANE_MAX_REQUESTS', 1000),
+            'task_max_request' => env('OCTANE_TASK_MAX_REQUESTS', 500),
+            'buffer_output_size' => 8 * 1024 * 1024,
+            'package_max_length' => 16 * 1024 * 1024,
             'task_enable_coroutine' => true,
-            'task_max_request' => env('OCTANE_TASK_MAX_REQUEST', 1000),
-            'reload_async' => true,
-            'enable_preemptive_scheduler' => true,
-            'max_wait_time' => env('OCTANE_SWOOLE_MAX_WAIT_TIME', 3),
         ],
     ],
 
-    'roadrunner' => [
-        'max_execution_time' => env('OCTANE_MAX_EXECUTION_TIME', 30),
-        'rpc' => env('OCTANE_ROADRUNNER_RPC', 'tcp://127.0.0.1:6001'),
-        'workers' => [
-            'relay' => env('OCTANE_ROADRUNNER_RELAY', 'pipes'),
-            'command' => env('OCTANE_ROADRUNNER_WORKER_COMMAND'),
-            'count' => env('OCTANE_MAX_WORKERS', 72),
-            'max_jobs' => env('OCTANE_MAX_REQUESTS', 500),
-        ],
+    /*
+    |--------------------------------------------------------------------------
+    | File Watching
+    |--------------------------------------------------------------------------
+    |
+    | The following list of files and directories will be watched when using
+    | the --watch option offered by Octane. If any of the directories and
+    | files are changed, Octane will automatically reload your workers.
+    |
+    */
+
+    'watch' => [
+        'app',
+        'bootstrap',
+        'config/**/*.php',
+        'database/**/*.php',
+        'public/**/*.php',
+        'resources/**/*.php',
+        'routes',
+        'composer.lock',
+        '.env',
     ],
 
-    'cache' => [
-        'stores' => [
-            'octane' => [
-                'driver' => env('OCTANE_CACHE_DRIVER', 'redis'),
-                'connection' => env('OCTANE_CACHE_CONNECTION', env('REDIS_CACHE_CONNECTION', 'cache')),
-            ],
-        ],
-    ],
+    /*
+    |--------------------------------------------------------------------------
+    | Garbage Collection Threshold
+    |--------------------------------------------------------------------------
+    |
+    | When executing long-lived PHP scripts such as Octane, memory can build
+    | up before being cleared by PHP. You can force Octane to run garbage
+    | collection if your application consumes this amount of megabytes.
+    |
+    */
 
-    'tables' => [
-        'authorization:sessions' => [
-            'size' => 10240,
-            'columns' => [
-                ['name' => 'user_id', 'type' => 'string', 'size' => 64],
-                ['name' => 'expires_at', 'type' => 'int'],
-            ],
-        ],
-    ],
+    'garbage' => env('OCTANE_GARBAGE', 128),
 
-    'workers' => [
-        'state' => env('OCTANE_WORKER_STATE_DRIVER', 'in_memory'),
-    ],
+    /*
+    |--------------------------------------------------------------------------
+    | Maximum Execution Time
+    |--------------------------------------------------------------------------
+    |
+    | The following setting configures the maximum execution time for requests
+    | being handled by Octane. You may set this value to 0 to indicate that
+    | there isn't a specific time limit on Octane request execution time.
+    |
+    */
 
-    'maintenance' => [
-        'store' => env('OCTANE_MAINTENANCE_STORE', env('APP_MAINTENANCE_STORE', 'database')),
-    ],
+    'max_execution_time' => env('OCTANE_MAX_EXECUTION_TIME', 30),
+
 ];

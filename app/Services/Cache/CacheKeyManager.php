@@ -2,58 +2,53 @@
 
 namespace App\Services\Cache;
 
-use Illuminate\Contracts\Auth\Authenticatable;
-use Illuminate\Support\Arr;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Http\Request;
+use JsonException;
 
 class CacheKeyManager
 {
-    public function __construct(
-        private readonly string $prefix
-    ) {
-    }
-
     /**
+     * Build a normalized cache key for the given base name and context.
+     *
      * @param  array<string, mixed>  $context
-     * @param  array<int, string>  $tags
      */
-    public function resolve(string $namespace, array $context = [], array $tags = [], ?Authenticatable $user = null): CacheKey
+    public function make(string $baseKey, array $context = []): string
     {
-        $user ??= Auth::user();
-
-        return new CacheKey(
-            prefix: $this->prefix,
-            namespace: $namespace,
-            context: $this->normalize($context),
-            user: $user,
-            tags: $tags,
-        );
-    }
-
-    /**
-     * @param  array<string, mixed>  $context
-     * @return array<string, string>
-     */
-    private function normalize(array $context): array
-    {
-        $context = Arr::where($context, static fn ($value) => $value !== null);
+        if ($context === []) {
+            return $baseKey;
+        }
 
         ksort($context);
 
-        return array_map(static function ($value): string {
+        try {
+            $suffix = sha1(json_encode($context, JSON_THROW_ON_ERROR));
+        } catch (JsonException $exception) {
+            $suffix = sha1(serialize($context));
+        }
+
+        return $baseKey.':'.$suffix;
+    }
+
+    /**
+     * Build a normalized request context for cache keys.
+     *
+     * @param  array<string, mixed>  $extra
+     * @return array<string, mixed>
+     */
+    public function contextFromRequest(Request $request, array $extra = []): array
+    {
+        $context = array_merge([
+            'host' => $request->getHost(),
+            'path' => $request->getPathInfo(),
+            'query' => $request->query(),
+        ], $extra);
+
+        array_walk_recursive($context, static function (&$value): void {
             if (is_bool($value)) {
-                return $value ? '1' : '0';
+                $value = $value ? '1' : '0';
             }
+        });
 
-            if (is_scalar($value)) {
-                return (string) $value;
-            }
-
-            try {
-                return hash('sha256', json_encode($value, JSON_THROW_ON_ERROR));
-            } catch (\JsonException $exception) {
-                return hash('sha256', serialize($value));
-            }
-        }, $context);
+        return $context;
     }
 }

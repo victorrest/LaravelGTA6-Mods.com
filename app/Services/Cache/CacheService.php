@@ -5,90 +5,244 @@ namespace App\Services\Cache;
 use Closure;
 use DateInterval;
 use DateTimeInterface;
-use Illuminate\Cache\TaggedCache;
-use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Contracts\Cache\Factory as CacheFactory;
 use Illuminate\Contracts\Cache\Repository;
-use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
+use Predis\Connection\ConnectionException as PredisConnectionException;
+use Throwable;
 
 class CacheService
 {
     public function __construct(
-        private readonly CacheFactory $cache,
-        private readonly CacheKeyManager $keys
+        protected CacheFactory $cache,
+        protected CacheKeyManager $keys,
     ) {
     }
 
     /**
      * @param  array<string, mixed>  $context
-     * @param  array<int, string>  $tags
-     * @template TValue
-     * @param  Closure():TValue  $callback
-     * @return TValue
      */
     public function remember(
-        string $namespace,
+        string $baseKey,
         Closure $callback,
-        array $context = [],
+        DateTimeInterface|DateInterval|int|null $ttl = null,
         array $tags = [],
-        DateInterval|DateTimeInterface|int|null $ttl = null,
-        ?string $store = null,
-        ?Authenticatable $user = null
+        array $context = [],
+        bool $perUser = false,
     ): mixed {
-        $key = $this->keys->resolve($namespace, $context, $tags, $user);
-        $repository = $this->repository($store);
-
-        $cache = $this->applyTags($repository, $key);
-
-        if ($ttl === null) {
-            return $cache->rememberForever($key->key(), $callback);
+        if ($perUser) {
+            $context['user_id'] = Auth::id() ?: 'guest';
         }
 
-        return $cache->remember($key->key(), $ttl, $callback);
+        $context['locale'] = app()->getLocale();
+
+        $cacheKey = $this->keys->make($baseKey, $context);
+        $ttl ??= config('performance.fragments.default_ttl');
+
+        return $this->callWithStore(
+            $tags,
+            config('cache.default'),
+            $cacheKey,
+            function (Repository $store, string $key, string $resolvedStore) use ($ttl, $callback) {
+                return $store->remember($key, $ttl, $callback);
+            },
+        );
     }
 
     /**
-     * @param  array<string, mixed>  $context
-     * @param  array<int, string>  $tags
+     * Store an item in the guest page cache.
      */
-    public function forget(string $namespace, array $context = [], array $tags = [], ?string $store = null, ?Authenticatable $user = null): bool
+    public function putGuestPage(string $cacheKey, array $payload, DateTimeInterface|DateInterval|int|null $ttl = null): void
     {
-        $key = $this->keys->resolve($namespace, $context, $tags, $user);
-        $repository = $this->repository($store);
+        $ttl ??= config('performance.full_page_cache.ttl');
 
-        $cache = $this->applyTags($repository, $key);
+        $this->callWithStore(
+            CacheTags::guestPages(),
+            config('performance.full_page_cache.store'),
+            $cacheKey,
+            function (Repository $store, string $key, string $resolvedStore) use ($payload, $ttl) {
+                $store->put($key, $payload, $ttl);
 
-        return $cache->forget($key->key());
+                return null;
+            },
+        );
     }
 
     /**
-     * @param  array<string, mixed>  $context
-     * @param  array<int, string>  $tags
+     * Attempt to fetch a guest page cache payload.
      */
-    public function key(string $namespace, array $context = [], array $tags = [], ?Authenticatable $user = null): CacheKey
+    public function getGuestPage(string $cacheKey): ?array
     {
-        return $this->keys->resolve($namespace, $context, $tags, $user);
-    }
+        $cached = $this->callWithStore(
+            CacheTags::guestPages(),
+            config('performance.full_page_cache.store'),
+            $cacheKey,
+            function (Repository $store, string $key, string $resolvedStore) {
+                return $store->get($key);
+            },
+        );
 
-    public function repository(?string $store = null): Repository
-    {
-        $store ??= Config::get('performance.cache.default_store', Config::get('cache.default'));
-
-        return $this->cache->store($store);
+        return is_array($cached) ? $cached : null;
     }
 
     /**
-     * @return Repository|TaggedCache
+     * Flush all guest page cache entries.
      */
-    private function applyTags(Repository $repository, CacheKey $key): Repository|TaggedCache
+    public function flushGuestPages(): void
     {
-        $tags = $key->tags();
+        $this->flushTagged(CacheTags::guestPages(), config('performance.full_page_cache.store'));
+    }
 
-        if (empty($tags) || ! method_exists($repository, 'tags')) {
+    /**
+     * Flush entries associated with the provided tags.
+     */
+    public function flushTags(array $tags): void
+    {
+        $this->flushTagged($tags, config('cache.default'));
+    }
+
+    protected function callWithStore(
+        array $tags,
+        ?string $store,
+        string &$cacheKey,
+        callable $callback,
+    ): mixed {
+        $originalKey = $cacheKey;
+        $resolvedStore = null;
+        $repository = $this->prepareStore($tags, $store, $cacheKey, $resolvedStore);
+
+        try {
+            return $callback($repository, $cacheKey, $resolvedStore);
+        } catch (Throwable $exception) {
+            if (! $this->shouldFallbackToArray($resolvedStore, $exception)) {
+                throw $exception;
+            }
+
+            $cacheKey = $originalKey;
+
+            $fallbackResolved = null;
+            $fallbackRepository = $this->prepareStore($tags, 'array', $cacheKey, $fallbackResolved);
+
+            return $callback($fallbackRepository, $cacheKey, $fallbackResolved);
+        }
+    }
+
+    protected function prepareStore(array $tags, ?string $store, string &$cacheKey, ?string &$resolvedStore = null): Repository
+    {
+        $storeName = $store ?? config('cache.default');
+        $resolvedStore = $storeName;
+        $repository = $this->cache->store($storeName);
+
+        if ($tags === []) {
             return $repository;
         }
 
-        /** @phpstan-ignore-next-line */
-        return $repository->tags($tags);
+        if ($this->supportsTags($repository)) {
+            return $repository->tags($tags);
+        }
+
+        $cacheKey = $this->taggedCacheKey($repository, $tags, $cacheKey, $storeName);
+
+        return $repository;
+    }
+
+    protected function flushTagged(array $tags, ?string $store): void
+    {
+        $storeName = $store ?? config('cache.default');
+        $repository = $this->cache->store($storeName);
+
+        try {
+            if ($tags === []) {
+                $repository->flush();
+
+                return;
+            }
+
+            if ($this->supportsTags($repository)) {
+                $repository->tags($tags)->flush();
+
+                return;
+            }
+
+            foreach ($tags as $tag) {
+                $this->rotateTagVersion($repository, $tag, $storeName);
+            }
+        } catch (Throwable $exception) {
+            if (! $this->shouldFallbackToArray($storeName, $exception)) {
+                throw $exception;
+            }
+
+            $this->flushTagged($tags, 'array');
+        }
+    }
+
+    protected function taggedCacheKey(Repository $repository, array $tags, string $cacheKey, string $storeName): string
+    {
+        $versions = array_map(
+            fn (string $tag) => $this->getTagVersion($repository, $tag, $storeName),
+            $tags,
+        );
+
+        $payload = [];
+
+        foreach ($tags as $index => $tag) {
+            $payload[] = $tag.':'.$versions[$index];
+        }
+
+        $hash = sha1(implode('|', $payload));
+
+        return 'tagged:'.$hash.':'.$cacheKey;
+    }
+
+    protected function getTagVersion(Repository $repository, string $tag, string $storeName): string
+    {
+        $versionKey = $this->tagVersionKey($tag, $storeName);
+        $version = $repository->get($versionKey);
+
+        if (is_string($version) && $version !== '') {
+            return $version;
+        }
+
+        $version = (string) Str::uuid();
+        $repository->forever($versionKey, $version);
+
+        return $version;
+    }
+
+    protected function rotateTagVersion(Repository $repository, string $tag, string $storeName): void
+    {
+        $repository->forever($this->tagVersionKey($tag, $storeName), (string) Str::uuid());
+    }
+
+    protected function tagVersionKey(string $tag, string $storeName): string
+    {
+        return '__tag_versions:'.$storeName.':'.$tag;
+    }
+
+    protected function supportsTags(Repository $repository): bool
+    {
+        return method_exists($repository, 'supportsTags') && $repository->supportsTags();
+    }
+
+    protected function shouldFallbackToArray(?string $store, Throwable $exception): bool
+    {
+        if ($store === null || $store === 'array' || $store === 'null') {
+            return false;
+        }
+
+        if ($exception instanceof PredisConnectionException) {
+            return true;
+        }
+
+        if (class_exists('\\RedisException') && $exception instanceof \RedisException) {
+            return true;
+        }
+
+        $message = strtolower($exception->getMessage());
+
+        return str_contains($message, 'connection refused')
+            || str_contains($message, 'unable to connect')
+            || str_contains($message, 'failed to connect');
     }
 }
