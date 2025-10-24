@@ -8,7 +8,7 @@
             <h1 class="text-3xl font-bold text-gray-900">{{ $mod->title }}</h1>
             <p class="text-sm text-gray-500">Készítette: {{ $mod->author?->name ?? 'Ismeretlen' }} • {{ $mod->statusLabel() }}</p>
         </div>
-        <a href="{{ route('mods.show', $mod) }}" class="inline-flex items-center px-4 py-2 rounded-lg border border-gray-300 text-sm font-semibold text-gray-700 hover:bg-gray-50" target="_blank">Megnyitás a nyilvános oldalon</a>
+        <a href="{{ route('mods.show', [$mod->primary_category, $mod]) }}" class="inline-flex items-center px-4 py-2 rounded-lg border border-gray-300 text-sm font-semibold text-gray-700 hover:bg-gray-50" target="_blank">Megnyitás a nyilvános oldalon</a>
     </div>
 @endsection
 

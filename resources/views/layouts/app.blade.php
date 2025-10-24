@@ -7,86 +7,37 @@
     <title>{{ $title ?? ($siteBrand['name'] ?? config('app.name')) }}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Russo+One&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Oswald:wght@400;500;600&display=swap" rel="stylesheet">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="{{ asset('assets/css/theme.css') }}">
     <link rel="stylesheet" href="{{ asset('css/theme.css') }}">
+    <!-- PhotoSwipe CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/photoswipe@5.4.3/dist/photoswipe.css">
     @stack('styles')
 </head>
 <body class="text-gray-700 min-h-screen flex flex-col">
-    <div id="menu-backdrop" class="fixed inset-0 bg-black/60 hidden" aria-hidden="true"></div>
-    <nav id="mobile-menu-panel" class="fixed inset-y-0 right-0 w-72 max-w-[85vw] bg-gray-900 text-white translate-x-full transition-transform duration-300 z-50 shadow-2xl" aria-hidden="true">
-        <div class="flex items-center justify-between px-4 py-3 border-b border-white/10">
-            <span class="font-semibold text-lg">{{ $siteBrand['name'] ?? config('app.name') }}</span>
-            <button id="close-menu-button" type="button" class="text-white text-xl hover:opacity-80" aria-label="Close menu">
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-        </div>
-        <div class="px-4 py-5 space-y-6 overflow-y-auto h-full">
-            <div class="space-y-2">
-                <h3 class="text-xs uppercase tracking-wide text-white/60">Browse categories</h3>
-                <ul class="space-y-2">
-                    @foreach ($siteNavigation as $item)
-                        <li>
-                            <a href="{{ route('mods.index', ['category' => $item['slug']]) }}" class="flex items-center gap-3 px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 transition">
-                                <i class="fa-solid {{ $item['icon'] }}"></i>
-                                <span>{{ $item['label'] }}</span>
-                            </a>
-                        </li>
-                    @endforeach
-                </ul>
-            </div>
-            <div class="space-y-2">
-                <h3 class="text-xs uppercase tracking-wide text-white/60">Account</h3>
-                @auth
-                    <ul class="space-y-2 text-sm">
-                        @if (auth()->user()->isAdmin())
-                            <li><a href="{{ route('admin.dashboard') }}" class="block px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 transition">Admin vezérlőpult</a></li>
-                        @endif
-                        <li><a href="{{ route('mods.upload') }}" class="block px-3 py-2 rounded-lg bg-pink-600 text-white text-center font-semibold hover:bg-pink-500 transition">Upload mod</a></li>
-                        <li><a href="{{ route('mods.my') }}" class="block px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 transition">My uploads</a></li>
-                        <li>
-                            <form method="POST" action="{{ route('logout') }}">
-                                @csrf
-                                <button type="submit" class="w-full px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 transition text-left">Logout</button>
-                            </form>
-                        </li>
-                    </ul>
-                @else
-                    <div class="flex gap-3">
-                        <a href="{{ route('login') }}" class="flex-1 px-3 py-2 rounded-lg bg-pink-600 text-center font-semibold hover:bg-pink-500 transition">Login</a>
-                        <a href="{{ route('register') }}" class="flex-1 px-3 py-2 rounded-lg bg-white/10 text-center font-semibold hover:bg-white/20 transition">Register</a>
-                    </div>
-                @endauth
-            </div>
-        </div>
-    </nav>
-
-    <header class="shadow-lg relative">
+    <header class="shadow-lg">
         <div class="header-background bg-cover bg-center" aria-hidden="true"></div>
-        <div class="header-content relative z-10">
+        <div class="header-content">
             <div class="header-top-bar">
                 <div class="container mx-auto px-4 flex items-center justify-between py-2">
-                    <div class="flex items-center gap-3">
-                        <button id="mobile-menu-button" type="button" class="md:hidden text-white text-xl hover:opacity-80" aria-label="Open menu">
-                            <i class="fa-solid fa-bars"></i>
-                        </button>
-                        <a href="{{ route('home') }}" class="logo-font" aria-label="Return to homepage">
-                            {{ $siteBrand['name'] ?? config('app.name') }}
-                        </a>
-                    </div>
+                    <a href="{{ route('home') }}" class="logo-font" aria-label="Return to homepage">
+                        {{ $siteBrand['name'] ?? config('app.name') }}
+                    </a>
                     <div class="flex items-center space-x-4">
+                        @auth
+                            <a href="{{ route('mods.upload') }}" title="Upload a new GTA 6 mod" class="hidden md:flex text-white text-sm font-medium bg-white/10 rounded-full px-3 py-1 transition hover:bg-white/20 hover:shadow-[0_0_15px_rgba(111,30,118,0.65)] items-center gap-x-2">
+                                <i class="fa-solid fa-upload"></i>
+                                <span>Upload</span>
+                            </a>
+                        @endauth
                         <a class="text-white transition hover:opacity-75" href="{{ route('mods.index') }}" aria-label="Search">
                             <i class="fa-solid fa-magnifying-glass"></i>
                         </a>
                         @auth
-                            <a href="{{ route('mods.upload') }}" class="hidden md:flex text-white text-sm font-medium bg-white/10 rounded-full px-3 py-1 transition hover:bg-white/20 hover:shadow-[0_0_15px_rgba(111,30,118,0.65)] items-center gap-x-2">
-                                <i class="fa-solid fa-upload"></i>
-                                <span>Upload</span>
-                            </a>
                             <div id="notifications-container" class="relative hidden">
-                                <button id="notifications-btn" type="button" class="text-white transition hover:opacity-75" aria-label="View notifications" aria-expanded="false">
+                                <button id="notifications-btn" type="button" class="text-white transition hover:opacity-75" aria-label="View notifications" aria-expanded="false" aria-controls="notifications-dropdown">
                                     <i class="fa-solid fa-bell fa-lg"></i>
                                 </button>
                                 <div id="notifications-dropdown" class="hidden absolute right-0 mt-3 w-64 bg-white text-gray-700 rounded-xl shadow-xl border z-50" aria-hidden="true">
@@ -95,9 +46,9 @@
                                 </div>
                             </div>
                             <div id="account-menu" class="relative">
-                                <button id="account-menu-button" type="button" class="flex items-center gap-2 rounded-full focus:outline-none text-white" aria-expanded="false">
+                                <button id="account-menu-button" type="button" class="flex items-center gap-2 rounded-full focus:outline-none text-white" aria-expanded="false" aria-haspopup="true" aria-controls="account-menu-dropdown">
                                     <span class="sr-only">Open account menu</span>
-                                    <img src="https://www.gravatar.com/avatar/{{ md5(strtolower(trim(auth()->user()->email ?? ''))) }}?s=72&d=mp" alt="{{ auth()->user()->name }} avatar" class="h-9 w-9 rounded-full object-cover">
+                                    <img src="{{ auth()->user()->getAvatarUrl(72) }}" alt="{{ auth()->user()->name }} avatar" class="h-9 w-9 rounded-full object-cover" id="header-user-avatar">
                                     <i class="fa-solid fa-chevron-down hidden md:inline-block text-white text-xs"></i>
                                 </button>
                                 <div id="account-menu-dropdown" class="hidden absolute right-0 mt-3 w-56 bg-white rounded-lg shadow-xl z-50 border text-gray-700" role="menu" aria-hidden="true">
@@ -106,16 +57,33 @@
                                         <p class="text-xs text-gray-500 truncate">{{ auth()->user()->email }}</p>
                                     </div>
                                     <nav class="py-1" aria-label="Account menu">
+                                        <a href="{{ route('author.profile', auth()->user()->name) }}" class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 transition hover:bg-gray-100" role="menuitem">
+                                            <i class="fa-solid fa-user text-gray-400"></i>
+                                            <span>My Profile</span>
+                                        </a>
+                                        <a href="{{ route('author.profile', auth()->user()->name) }}?tab=uploads" class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 transition hover:bg-gray-100" role="menuitem">
+                                            <i class="fa-solid fa-upload text-gray-400"></i>
+                                            <span>My Uploads</span>
+                                        </a>
+                                        <a href="{{ route('author.profile', auth()->user()->name) }}?tab=bookmarks" class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 transition hover:bg-gray-100" role="menuitem">
+                                            <i class="fa-solid fa-bookmark text-gray-400"></i>
+                                            <span>Bookmarks</span>
+                                        </a>
+                                        <a href="{{ route('author.profile', auth()->user()->name) }}?tab=notifications" class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 transition hover:bg-gray-100" role="menuitem">
+                                            <i class="fa-solid fa-bell text-gray-400"></i>
+                                            <span>Notifications</span>
+                                        </a>
+                                        <a href="{{ route('author.profile', auth()->user()->name) }}?tab=settings" class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 transition hover:bg-gray-100" role="menuitem">
+                                            <i class="fa-solid fa-cog text-gray-400"></i>
+                                            <span>Settings</span>
+                                        </a>
+                                        <div class="border-t my-1"></div>
                                         @if (auth()->user()->isAdmin())
                                             <a href="{{ route('admin.dashboard') }}" class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 transition hover:bg-gray-100" role="menuitem">
                                                 <i class="fa-solid fa-screwdriver-wrench text-gray-400"></i>
-                                                <span>Admin vezérlőpult</span>
+                                                <span>Admin Panel</span>
                                             </a>
                                         @endif
-                                        <a href="{{ route('mods.my') }}" class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 transition hover:bg-gray-100" role="menuitem">
-                                            <i class="fa-solid fa-cloud-arrow-up text-gray-400"></i>
-                                            <span>My uploads</span>
-                                        </a>
                                         <form action="{{ route('logout') }}" method="POST">
                                             @csrf
                                             <button type="submit" class="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-gray-700 transition hover:bg-gray-100">
@@ -131,12 +99,15 @@
                                 <i class="fa-solid fa-circle-user fa-lg"></i>
                             </a>
                         @endauth
+                        <button id="mobile-menu-button" class="md:hidden text-white transition hover:opacity-75 focus:outline-none" aria-label="Open menu">
+                            <i class="fa-solid fa-bars fa-lg"></i>
+                        </button>
                     </div>
                 </div>
             </div>
             <div class="header-nav-bar">
-                <div class="container mx-auto px-0 md:px-4 relative">
-                    @if (($isHome ?? false))
+                <div class="container mx-auto px-0 md:px-4 relative carousel-wrapper">
+                    @if ($isHome ?? false)
                         <div class="flex flex-col content-center items-center text-center pt-3 md:pt-4 px-4 md:px-0">
                             <h1 class="welcome-text tracking-normal text-orange-200 text-4xl md:text-6xl -mb-2 md:-mb-2">
                                 Welcome to {{ $siteBrand['name'] ?? config('app.name') }}
@@ -146,11 +117,17 @@
                             </p>
                         </div>
                     @endif
-                    <nav id="horizontal-nav" class="flex gap-2 overflow-x-auto custom-scrollbar-thin px-4 py-3" aria-label="Primary navigation">
+                    @php
+                        $navClasses = 'flex overflow-x-auto whitespace-nowrap py-2 md:py-6 text-white md:flex-wrap md:justify-center md:overflow-x-visible md:whitespace-normal items-center gap-x-0 sm:gap-x-4 md:gap-x-1 lg:gap-x-5 xl:gap-x-8';
+                        if ($isHome ?? false) {
+                            $navClasses .= ' mt-4 md:mt-6';
+                        }
+                    @endphp
+                    <nav id="horizontal-nav" class="{{ $navClasses }}" aria-label="Primary navigation">
                         @foreach ($siteNavigation as $item)
-                            <a href="{{ route('mods.index', ['category' => $item['slug']]) }}" class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 text-white/90 hover:bg-white/20 whitespace-nowrap">
-                                <i class="fa-solid {{ $item['icon'] }}"></i>
-                                <span>{{ $item['label'] }}</span>
+                            <a href="{{ route('mods.index', ['category' => $item['slug']]) }}" class="flex flex-col items-center gap-2 px-3 py-2 rounded-lg hover:bg-white/10 transition opacity-75 hover:opacity-100 flex-shrink-0">
+                                <i class="fa-solid {{ $item['icon'] }} text-2xl md:text-4xl lg:text-5xl xl:text-6xl"></i>
+                                <span class="text-xs font-bold tracking-wide uppercase">{{ $item['label'] }}</span>
                             </a>
                         @endforeach
                     </nav>
@@ -158,6 +135,83 @@
             </div>
         </div>
     </header>
+
+    <div id="menu-backdrop" class="hidden fixed inset-0 bg-black/50 z-40 transition-opacity duration-300 md:hidden" aria-hidden="true"></div>
+
+    <div id="mobile-menu-panel" class="fixed top-0 right-0 h-full w-64 max-w-full bg-gray-800 text-white shadow-2xl z-50 transform translate-x-full transition-transform duration-300 md:hidden" role="dialog" aria-modal="true" aria-labelledby="mobile-menu-title" aria-hidden="true">
+        <div class="p-4 border-b border-white/10 h-[54px] flex justify-between items-center bg-pink-600/90 backdrop-blur-sm">
+            <h3 id="mobile-menu-title" class="font-bold text-lg">Menu</h3>
+            <button id="close-menu-button" class="text-white hover:text-gray-200" type="button" aria-label="Close menu">
+                <i class="fa-solid fa-xmark fa-lg"></i>
+            </button>
+        </div>
+        <div class="p-4 border-b border-white/10">
+            <form role="search" method="GET" action="{{ route('mods.index') }}" class="relative">
+                <label for="mobile-search" class="sr-only">Search</label>
+                <input id="mobile-search" type="search" name="search" placeholder="Search…" class="w-full p-2 pl-10 rounded-md text-gray-800 bg-white/90 focus:outline-none focus:ring-2 focus:ring-pink-400" autocomplete="off">
+                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                </span>
+            </form>
+        </div>
+        <div class="p-4 border-b border-white/10">
+            <a href="{{ route('mods.upload') }}" class="w-full bg-gray-900 font-bold py-2.5 px-4 rounded-lg flex items-center justify-center text-sm transition shadow-lg hover:bg-gray-950">
+                <i class="fa-solid fa-upload mr-3"></i>
+                <span>Upload</span>
+            </a>
+        </div>
+        <div class="p-4 space-y-3 overflow-y-auto">
+            <div class="flex justify-between items-center p-2 rounded-lg hover:bg-white/10 transition">
+                <span class="font-semibold">Dark Mode</span>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="dark-mode-toggle" class="sr-only peer">
+                    <span class="w-11 h-6 bg-gray-600 rounded-full peer peer-focus:ring-2 peer-focus:ring-pink-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-600"></span>
+                </label>
+            </div>
+            <nav class="space-y-1" aria-label="Mobile menu navigation">
+                <a href="{{ route('home') }}" class="block p-2 rounded-lg hover:bg-white/10 transition flex items-center">
+                    <i class="fa-solid fa-house mr-3 w-5"></i>
+                    <span>Home</span>
+                </a>
+                @foreach ($siteNavigation as $item)
+                    <a href="{{ route('mods.index', ['category' => $item['slug']]) }}" class="block p-2 rounded-lg hover:bg-white/10 transition flex items-center">
+                        <i class="fa-solid {{ $item['icon'] }} mr-3 w-5"></i>
+                        <span>{{ $item['label'] }}</span>
+                    </a>
+                @endforeach
+            </nav>
+            <div class="border-t border-white/10 pt-3 mt-3 space-y-2 text-sm">
+                @auth
+                    @if (auth()->user()->isAdmin())
+                        <a href="{{ route('admin.dashboard') }}" class="block p-2 rounded-lg hover:bg-white/10 transition flex items-center">
+                            <i class="fa-solid fa-screwdriver-wrench mr-3 w-5"></i>
+                            <span>Admin vezérlőpult</span>
+                        </a>
+                    @endif
+                    <a href="{{ route('mods.my') }}" class="block p-2 rounded-lg hover:bg-white/10 transition flex items-center">
+                        <i class="fa-solid fa-cloud-arrow-up mr-3 w-5"></i>
+                        <span>My uploads</span>
+                    </a>
+                    <form action="{{ route('logout') }}" method="POST">
+                        @csrf
+                        <button type="submit" class="w-full p-2 rounded-lg hover:bg-white/10 transition flex items-center text-left">
+                            <i class="fa-solid fa-arrow-right-from-bracket mr-3 w-5"></i>
+                            <span>Logout</span>
+                        </button>
+                    </form>
+                @else
+                    <a href="{{ route('login') }}" class="block p-2 rounded-lg hover:bg-white/10 transition flex items-center">
+                        <i class="fa-solid fa-right-to-bracket mr-3 w-5"></i>
+                        <span>Login</span>
+                    </a>
+                    <a href="{{ route('register') }}" class="block p-2 rounded-lg hover:bg-white/10 transition flex items-center">
+                        <i class="fa-solid fa-user-plus mr-3 w-5"></i>
+                        <span>Register</span>
+                    </a>
+                @endauth
+            </div>
+        </div>
+    </div>
 
     <main class="flex-1 container mx-auto p-4 lg:p-6 space-y-10">
         @if (session('status'))
@@ -198,6 +252,9 @@
     </footer>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/alpinejs/3.14.1/cdn.min.js" integrity="sha512-ytM6hP1K9BkRTjUQZpxZKFjJ2TvE4QXaK7phVymsm7NimaI5H09TWWW6f2JMbonLp4ftYU6xfwQGoe3C8jta9A==" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
+    <!-- PhotoSwipe JS -->
+    <script src="https://cdn.jsdelivr.net/npm/photoswipe@5.4.3/dist/umd/photoswipe.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/photoswipe@5.4.3/dist/umd/photoswipe-lightbox.umd.min.js"></script>
     <script src="{{ asset('assets/js/utils.js') }}" defer></script>
     <script src="{{ asset('assets/js/theme.js') }}" defer></script>
     <script src="{{ asset('js/header-menus.js') }}" defer></script>

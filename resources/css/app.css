@@ -6,7 +6,7 @@
 @source '../**/*.js';
 
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+    --font-sans: 'Inter', 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
 }
 
@@ -128,4 +128,231 @@
 .editorjs-holder:focus-within {
     border-color: theme('colors.pink.400');
     box-shadow: 0 0 0 3px color-mix(in srgb, theme('colors.pink.400') 25%, transparent);
+}
+
+/* Mod Page Specific Styles */
+@layer components {
+    .card {
+        @apply bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden;
+    }
+
+    .btn-download {
+        @apply bg-pink-600 text-white shadow-lg transition-all duration-300;
+    }
+
+    .btn-download:hover {
+        @apply bg-pink-700 shadow-xl;
+    }
+
+    .btn-download:disabled {
+        @apply bg-gray-400 cursor-not-allowed opacity-60;
+    }
+
+    .mod-hero-icon-button {
+        @apply flex items-center justify-center bg-gray-100 text-gray-500 rounded-full transition-all duration-200;
+    }
+
+    .mod-hero-icon-button:hover:not(:disabled) {
+        @apply bg-gray-200 text-pink-600;
+    }
+
+    .mod-hero-icon-button:disabled {
+        @apply opacity-50 cursor-not-allowed;
+    }
+
+    .mod-hero-icon-button.is-active {
+        @apply bg-pink-600 text-white;
+    }
+
+    .mod-hero-icon-button.is-active:hover {
+        @apply bg-pink-700;
+    }
+
+    .mod-hero-icon-button.is-active svg {
+        @apply fill-current;
+    }
+
+    .more-options-dropdown {
+        @apply absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl z-20 border border-gray-200 py-1;
+    }
+
+    .more-options-item {
+        @apply flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition;
+    }
+
+    .more-options-item.is-placeholder {
+        @apply opacity-50 cursor-not-allowed;
+    }
+
+    .tab-btn {
+        @apply px-6 py-3 font-semibold transition-colors duration-200 cursor-pointer;
+    }
+
+    .tab-btn.active {
+        @apply text-pink-600 border-b-2 border-pink-600;
+    }
+
+    .tab-btn:not(.active) {
+        @apply text-gray-600 border-b-2 border-transparent hover:text-pink-600;
+    }
+
+    .action-btn {
+        @apply border border-gray-200 text-gray-600 hover:bg-gray-100 transition-colors;
+    }
+
+    /* Like/Bookmark button states */
+    .mod-like-button.is-active,
+    .mod-bookmark-button.is-active {
+        @apply bg-pink-600 text-white;
+    }
+
+    .mod-like-button.is-active svg,
+    .mod-bookmark-button.is-active svg {
+        fill: currentColor;
+    }
+
+    /* Breadcrumb styles */
+    .breadcrumb-link {
+        @apply hover:text-pink-600 transition-colors;
+    }
+
+    .breadcrumb-current {
+        @apply text-gray-700 font-semibold;
+    }
+
+    .breadcrumb-separator {
+        @apply text-gray-400 mx-1;
+    }
+}
+
+/* Line clamp utilities */
+.line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* PhotoSwipe Custom Styles */
+.pswp-video-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.pswp-video-wrapper {
+    width: 100%;
+    max-width: 1280px;
+    aspect-ratio: 16 / 9;
+    background: #000;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.pswp-video-iframe {
+    width: 100%;
+    height: 100%;
+}
+
+.pswp-video-actions {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0.7));
+    padding: 1rem 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    backdrop-filter: blur(10px);
+    z-index: 10;
+}
+
+.pswp-video-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.pswp-video-buttons {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.pswp-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 0.5rem;
+    color: white;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+}
+
+.pswp-action-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.3);
+    transform: translateY(-1px);
+}
+
+.pswp-action-feature:hover,
+.pswp-action-unfeature:hover {
+    background: rgba(251, 191, 36, 0.3);
+    border-color: rgb(251, 191, 36);
+}
+
+.pswp-action-delete:hover {
+    background: rgba(239, 68, 68, 0.3);
+    border-color: rgb(239, 68, 68);
+}
+
+.pswp-action-report:hover {
+    background: rgba(249, 115, 22, 0.3);
+    border-color: rgb(249, 115, 22);
+}
+
+/* PhotoSwipe overrides */
+.pswp__bg {
+    background: rgba(0, 0, 0, 0.95);
+}
+
+.pswp__button {
+    background: rgba(255, 255, 255, 0.1) !important;
+    border-radius: 50%;
+}
+
+.pswp__button:hover {
+    background: rgba(255, 255, 255, 0.2) !important;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+    .pswp-video-actions {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 0.75rem;
+    }
+
+    .pswp-video-buttons {
+        justify-content: center;
+    }
+
+    .pswp-action-btn span {
+        display: none;
+    }
+
+    .pswp-action-btn {
+        padding: 0.5rem;
+        justify-content: center;
+    }
 }

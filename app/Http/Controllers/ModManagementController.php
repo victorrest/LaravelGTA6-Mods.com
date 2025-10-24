@@ -6,6 +6,7 @@ use App\Http\Requests\ModStoreRequest;
 use App\Http\Requests\ModUpdateRequest;
 use App\Models\Mod;
 use App\Models\ModCategory;
+use App\Models\UserActivity;
 use App\Support\EditorJs;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
@@ -33,8 +34,9 @@ class ModManagementController extends Controller
         $publishedAt = $status === Mod::STATUS_PUBLISHED ? now() : null;
 
         $downloadUrl = $data['download_url'] ?? null;
+        $expectsUploadedArchive = $request->hasFile('mod_file');
 
-        if (! $downloadUrl && ! $request->hasFile('mod_file')) {
+        if (! $downloadUrl && ! $expectsUploadedArchive) {
             throw ValidationException::withMessages([
                 'download_url' => 'Please provide a download URL or upload a mod file.',
             ]);
@@ -73,6 +75,20 @@ class ModManagementController extends Controller
             $this->storeGalleryImages($request, $mod, $filesForRollback);
 
             DB::commit();
+
+            // Log activity for mod upload
+            if ($status === Mod::STATUS_PUBLISHED) {
+                UserActivity::create([
+                    'user_id' => Auth::id(),
+                    'action_type' => UserActivity::TYPE_MOD_UPLOAD,
+                    'subject_type' => Mod::class,
+                    'subject_id' => $mod->id,
+                    'metadata' => [
+                        'mod_title' => $mod->title,
+                        'mod_version' => $mod->version,
+                    ],
+                ]);
+            }
         } catch (Throwable $exception) {
             DB::rollBack();
             $this->deleteFiles($filesForRollback);
@@ -89,19 +105,26 @@ class ModManagementController extends Controller
         return redirect()->route('mods.my')->with('status', $message);
     }
 
-    public function edit(Mod $mod)
+    public function edit(ModCategory $category, Mod $mod)
     {
         abort_unless(Auth::user()?->is($mod->author), 403);
+
+        // Verify that the mod belongs to this category
+        abort_unless($mod->categories->contains($category), 404);
 
         return view('mods.edit', [
             'mod' => $mod->load(['categories', 'galleryImages']),
             'categories' => ModCategory::query()->orderBy('name')->get(),
+            'category' => $category,
         ]);
     }
 
-    public function update(ModUpdateRequest $request, Mod $mod): RedirectResponse
+    public function update(ModUpdateRequest $request, ModCategory $category, Mod $mod): RedirectResponse
     {
         abort_unless(Auth::user()?->is($mod->author), 403);
+
+        // Verify that the mod belongs to this category
+        abort_unless($mod->categories->contains($category), 404);
 
         $data = $request->validated();
 
@@ -170,7 +193,7 @@ class ModManagementController extends Controller
 
         cache()->forget('home:landing');
 
-        return redirect()->route('mods.show', $mod)->with('status', 'Mod updated successfully.');
+        return redirect()->route('mods.show', [$mod->primary_category, $mod])->with('status', 'Mod updated successfully.');
     }
 
     public function myMods()
